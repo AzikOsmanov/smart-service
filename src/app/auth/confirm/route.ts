@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const sb = await supabaseServer();
   const { error } = await sb.auth.verifyOtp({ type, token_hash });
   if (error) return to("The confirmation link is invalid or expired. Please register again or ask the service center.");
-  if (type === "recovery") return NextResponse.redirect(`${origin}/account`);
+  if (type === "recovery") return NextResponse.redirect(`${origin}/reset-password`);
   await sb.auth.signOut();
   return to("Email confirmed. You can sign in now (new customers still need approval by the service center).");
 }

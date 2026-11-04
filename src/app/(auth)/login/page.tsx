@@ -20,6 +20,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       <label>{t("password")}<input name="password" type="password" required /></label>
       {error && <p className="err">{error}</p>}
       <button>{t("signIn")}</button>
+      <p><a href="/forgot">Forgot password?</a></p>
       <p>{t("noAccount")} <a href="/register">{t("register")}</a></p>
     </form>
   );
