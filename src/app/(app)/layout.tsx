@@ -19,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const brand = typeof brandRow?.value === "string" && brandRow.value ? brandRow.value : "Acom Smart Service";
   const staff = me?.kind === "staff";
   const nav = [{ href: "/tickets", label: t("tickets") }];
+  if (!staff) nav.push({ href: "/devices", label: t("devices") });
   if (staff) nav.push({ href: "/customers", label: t("customers") });
   if (isAdmin === true) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
   nav.push({ href: "/account", label: t("account") });

@@ -2,6 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import ConfirmButton from "@/components/ConfirmButton";
+import TicketChat from "@/components/TicketChat";
+import { getT } from "@/lib/i18n";
+import type { ChatMessage } from "@/lib/chat-actions";
 import { deleteTicketAction, hardDeleteTicketAction } from "@/lib/delete-actions";
 
 async function apply(fd: FormData) {
@@ -39,20 +42,47 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const { id } = await params;
   const { error } = await searchParams;
   const sb = await supabaseServer();
+  const { t: tr } = await getT();
   const { data: t } = await sb.from("tickets").select("*").eq("id", id).maybeSingle();
   if (!t) notFound();
-  const { data: dev } = await sb.from("devices").select("serial_number").eq("id", t.device_id).maybeSingle();
+  const { data: sess } = await sb.auth.getSession();
+  const [{ data: isStaff }, { data: canDelete }, { data: isAdmin }, { data: dev }, { data: msgs }] = await Promise.all([
+    sb.rpc("is_staff"),
+    sb.rpc("has_permission", { p_code: "tickets.delete" }),
+    sb.rpc("is_tenant_admin"),
+    sb.from("devices").select("serial_number").eq("id", t.device_id).maybeSingle(),
+    sb.from("ticket_messages").select("id,sender_kind,body,is_internal,created_at").eq("ticket_id", id).is("deleted_at", null).order("created_at"),
+  ]);
+  const staff = isStaff === true;
+  const chat = (
+    <TicketChat ticketId={id} initial={(msgs ?? []) as ChatMessage[]} isStaff={staff}
+      labels={{ title: tr("chat"), placeholder: tr("chatPlaceholder"), send: tr("send"), internal: tr("internalNote"), customer: tr("fromCustomer"), staff: tr("fromStaff"), you: tr("you"), empty: tr("noMessages") }} />
+  );
+
+  if (!staff) {
+    const label = t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received");
+    return (
+      <div>
+        <div className="card">
+          <h1>{t.ticket_no} — {t.subject}</h1>
+          <p>{t.description}</p>
+          <div className="row"><span>SN: <b>{dev?.serial_number ?? "—"}</b></span><span className="badge">{label}</span><span><small>{new Date(t.created_at).toLocaleString()}</small></span></div>
+        </div>
+        {chat}
+      </div>
+    );
+  }
+
   const { data: state } = await sb.from("ticket_service_state").select("status,comment,changed_at").eq("ticket_id", id).maybeSingle();
   const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("ticket_id", id).maybeSingle();
-  const [{ data: canDelete }, { data: isAdmin }] = await Promise.all([sb.rpc("has_permission", { p_code: "tickets.delete" }), sb.rpc("is_tenant_admin")]);
-  const staff = state !== null || t.assigned_to !== null || info !== null;
+  void sess;
   return (
     <div>
       <div className="card">
         <h1>{t.ticket_no} — {t.subject}</h1>
         <p>{t.description}</p>
         <p>Serial number: <b>{dev?.serial_number ?? "—"}</b> · Status: {t.status} · Priority: {t.priority}</p>
-        <p>Customer sees: {t.customer_device_status ?? "—"}</p>
+        <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
         {error && <p className="err">{error}</p>}
       </div>
       {!t.assigned_to ? (
@@ -82,6 +112,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           </form>
         </>
       )}
+      {chat}
       {canDelete === true && (
         <form action={deleteTicketAction} className="card">
           <h2>Delete ticket</h2>

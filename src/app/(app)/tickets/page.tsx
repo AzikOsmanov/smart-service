@@ -15,7 +15,10 @@ export default async function Tickets() {
   }
   return (
     <div>
-      <h1>{t("tickets")}</h1>
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>{t("tickets")}</h1>
+        {me?.kind === "customer" && <a className="btn" href="/tickets/new" style={{ textDecoration: "none" }}>{t("newTicket")}</a>}
+      </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
         <table><thead><tr><th>{t("no")}</th><th>{t("subject")}</th><th>{t("status")}</th><th>{t("priority")}</th><th>{t("created")}</th></tr></thead>

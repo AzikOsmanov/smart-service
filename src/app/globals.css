@@ -28,3 +28,10 @@ th{color:var(--muted);font-weight:600}
 
 .btn.danger,button.danger{background:var(--danger);color:#fff}
 .btn.danger{border:0}
+.chat{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.msg{max-width:78%;padding:10px 12px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);align-self:flex-start;white-space:pre-wrap;word-break:break-word}
+.msg.mine{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.msg.mine small{color:inherit;opacity:.8}
+.msg.internal{border-style:dashed;background:transparent;color:var(--fg)}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:13px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
