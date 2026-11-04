@@ -21,7 +21,10 @@ async function createStaff(fd: FormData) {
   const { data: role } = await admin.from("roles").select("id,is_admin").eq("id", roleId).eq("tenant_id", tenantId).maybeSingle();
   if (!role || role.is_admin) redirect("/admin/users?error=" + encodeURIComponent("Choose a valid non-admin role"));
   const created = await admin.auth.admin.createUser({ email, password: String(fd.get("password")), email_confirm: true });
-  if (created.error || !created.data.user) redirect("/admin/users?error=" + encodeURIComponent(created.error?.message ?? "Could not create login"));
+  if (created.error || !created.data.user) {
+    const m = created.error?.message ?? "Could not create login";
+    redirect("/admin/users?error=" + encodeURIComponent(/already/i.test(m) ? `${email} already has an account (see the list below).` : m));
+  }
   const uid = created.data.user.id;
   let failure: string | null = null;
   const ins = await admin.from("users").insert({ id: uid, tenant_id: tenantId, kind: "staff", email, first_name: String(fd.get("first_name")), last_name: String(fd.get("last_name")), phone: String(fd.get("phone") || "") || null, registration: "approved", is_active: true, email_verified_at: new Date().toISOString() });
@@ -36,6 +39,7 @@ async function createStaff(fd: FormData) {
     redirect("/admin/users?error=" + encodeURIComponent(failure));
   }
   revalidatePath("/admin/users");
+  redirect("/admin/users?ok=" + encodeURIComponent(`User ${email} created. Give them the temporary password.`));
 }
 
 async function setActive(fd: FormData) {
@@ -47,8 +51,8 @@ async function setActive(fd: FormData) {
   revalidatePath("/admin/users");
 }
 
-export default async function Users({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function Users({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+  const { error, ok } = await searchParams;
   const { sb } = await requireAdmin();
   const { data: roles } = await sb.from("roles").select("id,name,is_admin").is("deleted_at", null).order("name");
   const { data: staff } = await sb.from("users").select("id,first_name,last_name,email,is_active,last_login_at,user_roles(roles(name))").eq("kind", "staff").is("deleted_at", null).order("created_at");
@@ -57,6 +61,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
       <p><a href="/tickets">← Tickets</a></p>
       <h1>Staff users</h1>
       {error && <p className="err">{error}</p>}
+      {ok && <p>{ok}</p>}
       <div className="card">
         <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last login</th><th></th></tr></thead>
           <tbody>{(staff ?? []).map((u: any) => (
