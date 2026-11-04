@@ -38,7 +38,8 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                 {isAdmin === true && (
                   <form action={hardDeleteUserAction} style={{ display: "inline", marginLeft: 8 }}>
                     <input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/customers" />
-                    <ConfirmButton className="btn danger" message={`Permanently delete ${u.email}? This cannot be undone.`}>Delete</ConfirmButton>
+                    <ConfirmButton className="btn danger" name="mode" value="plain" message={`Permanently delete ${u.email}? This cannot be undone.`}>Delete</ConfirmButton>
+                    <ConfirmButton className="btn danger" name="mode" value="all" message={`Permanently delete ${u.email} TOGETHER WITH all their tickets and devices? This cannot be undone.`}>Delete with tickets and devices</ConfirmButton>
                   </form>)}</td>
             </tr>))}</tbody></table>
       </div>

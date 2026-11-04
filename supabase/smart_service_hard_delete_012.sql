@@ -1,0 +1,4 @@
+-- Migration 012: hard_delete_user(p_user, p_with_records) - administrator only.
+-- p_with_records = true also permanently deletes the customer's tickets and the devices they own
+-- (refused if other customers have tickets on one of those devices). Applied to the live database;
+-- see the function definitions in Supabase (hard_delete_user, _purge_ticket, _purge_device).

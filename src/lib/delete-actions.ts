@@ -20,7 +20,8 @@ const FRIENDLY: Record<string, string> = {
   ticket_not_found: "Ticket not found.",
 };
 function friendly(m: string) {
-  if (m.startsWith("user_has_records")) return "This user still owns tickets or devices: " + m.replace("user_has_records: ", "") + ". Deactivate the user instead.";
+  if (m.startsWith("user_has_records")) return "This user still owns tickets or devices: " + m.replace("user_has_records: ", "") + ". Use \"Delete with tickets and devices\", or deactivate the user instead.";
+  if (m.startsWith("device_has_other_tickets")) return "Device " + m.replace("device_has_other_tickets: ", "") + " has tickets from other customers, so it cannot be deleted. Delete or move those tickets first, or deactivate the user.";
   return FRIENDLY[m] ?? m;
 }
 
@@ -57,7 +58,7 @@ export async function restoreTicketAction(fd: FormData) {
 export async function hardDeleteUserAction(fd: FormData) {
   const sb = await supabaseServer();
   const id = String(fd.get("id"));
-  const { error } = await sb.rpc("hard_delete_user", { p_user: id });
+  const { error } = await sb.rpc("hard_delete_user", { p_user: id, p_with_records: fd.get("mode") === "all" });
   if (error) back(fd, "error", friendly(error.message));
   const del = await supabaseAdmin().auth.admin.deleteUser(id);
   if (del.error) back(fd, "error", "User removed from the system, but the sign-in account could not be removed: " + del.error.message);
