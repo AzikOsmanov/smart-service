@@ -19,7 +19,7 @@ async function signUp(fd: FormData) {
     } },
   });
   if (error) redirect("/register?error=" + encodeURIComponent(error.message));
-  redirect("/login?error=" + encodeURIComponent("Registered. Confirm your email if asked, then wait for approval by the service center."));
+  redirect("/login?error=" + encodeURIComponent("Registered. We sent a confirmation link to your email — open it, then wait for approval by the service center."));
 }
 
 export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
