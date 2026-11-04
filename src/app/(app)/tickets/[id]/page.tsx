@@ -82,6 +82,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         <h1>{t.ticket_no} — {t.subject}</h1>
         <p>{t.description}</p>
         <p>Serial number: <b>{dev?.serial_number ?? "—"}</b> · Status: {t.status} · Priority: {t.priority}</p>
+        {dev?.serial_number && <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>New QC check for this device</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>QC history</a></p>}
         <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
         {error && <p className="err">{error}</p>}
       </div>
