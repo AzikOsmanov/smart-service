@@ -129,7 +129,48 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
 
   const { data: state } = await sb.from("ticket_service_state").select("status,comment,changed_at").eq("ticket_id", id).maybeSingle();
   const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("ticket_id", id).maybeSingle();
-  void sess;
+  const uid = sess.session!.user.id;
+  const [{ data: me }, { data: files }, { data: events }, { data: qcLatest }] = await Promise.all([
+    sb.from("users").select("tenant_id").eq("id", uid).single(),
+    sb.from("ticket_attachments").select("id,file_name,storage_key,kind,created_at,uploaded_by").eq("ticket_id", id).order("created_at"),
+    sb.from("ticket_customer_events").select("id,kind,status,created_at").eq("ticket_id", id).order("created_at"),
+    dev?.serial_number ? sb.from("qc_checks").select("id,status,created_at").eq("serial_number", dev.serial_number).is("deleted_at", null).order("created_at", { ascending: false }).limit(1) : Promise.resolve({ data: [] }),
+  ]);
+  const fileKeys = (files ?? []).map((f) => f.storage_key);
+  const { data: fileUrls } = fileKeys.length ? await sb.storage.from("ticket-files").createSignedUrls(fileKeys, 3600) : { data: [] };
+  const urlOf = new Map((fileUrls ?? []).map((x) => [x.path, x.signedUrl]));
+  const qc = (qcLatest ?? [])[0] as { id: string; status: string; created_at: string } | undefined;
+  const qcLabel: Record<string, string> = { done: "Done", broken: "Broken", hardware_issue: "Hardware issue" };
+  const filesCard = (
+    <div className="card">
+      <h2>Photos and files</h2>
+      {(files ?? []).length === 0 && <p>No files.</p>}
+      <div className="row" style={{ alignItems: "flex-start" }}>
+        {(files ?? []).map((f) => {
+          const u = urlOf.get(f.storage_key);
+          if (!u) return null;
+          if (f.kind === "video") return <video key={f.id} src={u} controls style={{ maxWidth: 320, borderRadius: 8 }} />;
+          if (f.kind === "pdf") return <a key={f.id} href={u} target="_blank" rel="noreferrer">📄 {f.file_name}</a>;
+          return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
+        })}
+      </div>
+      {me && <TicketFiles tenantId={me.tenant_id} ticketId={id} userId={uid} />}
+    </div>
+  );
+  const timelineCard = (
+    <div className="card">
+      <h2>What the customer sees</h2>
+      <p>Current: <b>{t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</b></p>
+      <ul>{(events ?? []).map((ev) => <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? "Ticket created" : tr(`st_${ev.status}` as "st_ready")}</li>)}</ul>
+    </div>
+  );
+  const qcCard = dev?.serial_number ? (
+    <div className="card">
+      <h2>Quality Control</h2>
+      <p>{qc ? <>Last QC: <span className="badge">{qcLabel[qc.status] ?? qc.status}</span> · {new Date(qc.created_at).toLocaleString()} · <a href={`/qc/${qc.id}`}>open</a></> : "No QC check for this serial number yet."}</p>
+      <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>New QC check</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>QC history</a></p>
+    </div>
+  ) : null;
   return (
     <div>
       <div className="card">
@@ -140,6 +181,9 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
         {error && <p className="err">{error}</p>}
       </div>
+      {filesCard}
+      {timelineCard}
+      {qcCard}
       {!t.assigned_to ? (
         <form action={apply} className="card"><input type="hidden" name="id" value={id} /><button>Apply (take this ticket)</button></form>
       ) : (
