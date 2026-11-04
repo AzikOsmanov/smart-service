@@ -23,15 +23,17 @@ async function createStaff(fd: FormData) {
   const created = await admin.auth.admin.createUser({ email, password: String(fd.get("password")), email_confirm: true });
   if (created.error || !created.data.user) redirect("/admin/users?error=" + encodeURIComponent(created.error?.message ?? "Could not create login"));
   const uid = created.data.user.id;
+  let failure: string | null = null;
   const ins = await admin.from("users").insert({ id: uid, tenant_id: tenantId, kind: "staff", email, first_name: String(fd.get("first_name")), last_name: String(fd.get("last_name")), phone: String(fd.get("phone") || "") || null, registration: "approved", is_active: true, email_verified_at: new Date().toISOString() });
-  if (!ins.error) {
+  if (ins.error) failure = ins.error.message;
+  else {
     const r = await admin.from("user_roles").insert({ user_id: uid, role_id: roleId });
-    if (r.error) ins.error = r.error;
+    if (r.error) failure = r.error.message;
   }
-  if (ins.error) {
+  if (failure) {
     await admin.from("users").delete().eq("id", uid);
     await admin.auth.admin.deleteUser(uid);
-    redirect("/admin/users?error=" + encodeURIComponent(ins.error.message));
+    redirect("/admin/users?error=" + encodeURIComponent(failure));
   }
   revalidatePath("/admin/users");
 }
