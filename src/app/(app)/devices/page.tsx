@@ -1,3 +1,4 @@
+import SnInput from "@/components/SnInput";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -54,7 +55,7 @@ export default async function Devices({ searchParams }: { searchParams: Promise<
       {ok && <p>{ok}</p>}
       <form action={addDevice} className="card" style={{ maxWidth: 560 }}>
         <h2>Add a device</h2>
-        <label>Serial number (SN)<input name="serial" required placeholder="e.g. ABC123456" autoComplete="off" /></label>
+        <label>Serial number (SN)<SnInput name="serial" required placeholder="e.g. ABC123456" /></label>
         <label>Photo of the SN label <small>(only needed if the device is already registered to someone else)</small>
           <input name="label" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>
         <button>Add device</button>
