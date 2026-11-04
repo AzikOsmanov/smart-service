@@ -10,18 +10,18 @@ export default async function Tickets() {
   if (me && me.kind === "customer" && me.registration !== "approved") {
     return <div className="card"><h1>Waiting for approval</h1><p>Your account is {me.registration}. The service center must approve it first.</p><form action={signOut}><button>Sign out</button></form></div>;
   }
-  const { data: tickets, error } = await sb.from("tickets").select("ticket_no,subject,status,priority,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100);
+  const { data: tickets, error } = await sb.from("tickets").select("id,ticket_no,subject,status,priority,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100);
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1>Tickets</h1>
-        <form action={signOut}><button>Sign out{me ? ` (${me.first_name})` : ""}</button></form>
+        <div>{me?.kind === "staff" && <a href="/customers" style={{ marginRight: 16 }}>Customers</a>}<form action={signOut} style={{ display: "inline" }}><button>Sign out{me ? ` (${me.first_name})` : ""}</button></form></div>
       </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
         <table><thead><tr><th>No</th><th>Subject</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead>
           <tbody>{(tickets ?? []).map((t) => (
-            <tr key={t.ticket_no}><td>{t.ticket_no}</td><td>{t.subject}</td><td>{t.status}</td><td>{t.priority}</td><td>{new Date(t.created_at).toLocaleString()}</td></tr>
+            <tr key={t.id}><td><a href={`/tickets/${t.id}`}>{t.ticket_no}</a></td><td>{t.subject}</td><td>{t.status}</td><td>{t.priority}</td><td>{new Date(t.created_at).toLocaleString()}</td></tr>
           ))}</tbody></table>
         {!tickets?.length && <p>No tickets yet.</p>}
       </div>
