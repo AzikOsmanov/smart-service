@@ -57,18 +57,25 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
   const { sb } = await requireAdmin();
   const { t } = await getT();
   const { data: roles } = await sb.from("roles").select("id,name,is_admin").is("deleted_at", null).order("name");
-  const { data: staff } = await sb.from("users").select("id,first_name,last_name,email,is_active,last_login_at,user_roles(roles(name))").eq("kind", "staff").is("deleted_at", null).order("created_at");
+  const [{ data: staffRows, error: staffErr }, { data: urRows }, { data: roleRows }] = await Promise.all([
+    sb.from("users").select("id,first_name,last_name,email,is_active,last_login_at").eq("kind", "staff").is("deleted_at", null).order("created_at"),
+    sb.from("user_roles").select("user_id,role_id"),
+    sb.from("roles").select("id,name"),
+  ]);
+  const roleName = new Map((roleRows ?? []).map((r) => [r.id, r.name]));
+  const staff = (staffRows ?? []).map((u) => ({ ...u, roleNames: (urRows ?? []).filter((x) => x.user_id === u.id).map((x) => roleName.get(x.role_id)).filter(Boolean).join(", ") }));
   return (
     <div>
       <h1>{t("staffUsers")}</h1>
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
+      {staffErr && <p className="err">{staffErr.message}</p>}
       <div className="card">
         <table><thead><tr><th>{t("name")}</th><th>{t("email")}</th><th>{t("role")}</th><th>{t("lastLogin")}</th><th></th></tr></thead>
-          <tbody>{(staff ?? []).map((u: any) => (
+          <tbody>{staff.map((u) => (
             <tr key={u.id}>
               <td>{u.first_name} {u.last_name}</td><td>{u.email}</td>
-              <td>{u.user_roles?.map((r: any) => r.roles?.name).join(", ")}</td>
+              <td>{u.roleNames}</td>
               <td>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : t("never")}</td>
               <td><form action={setActive}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? t("deactivate") : t("activate")}</button></form></td>
             </tr>))}</tbody></table>
