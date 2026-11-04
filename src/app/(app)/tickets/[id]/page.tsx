@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
+import ConfirmButton from "@/components/ConfirmButton";
+import { deleteTicketAction, hardDeleteTicketAction } from "@/lib/delete-actions";
 
 async function apply(fd: FormData) {
   "use server";
@@ -42,6 +44,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const { data: dev } = await sb.from("devices").select("serial_number").eq("id", t.device_id).maybeSingle();
   const { data: state } = await sb.from("ticket_service_state").select("status,comment,changed_at").eq("ticket_id", id).maybeSingle();
   const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("ticket_id", id).maybeSingle();
+  const [{ data: canDelete }, { data: isAdmin }] = await Promise.all([sb.rpc("has_permission", { p_code: "tickets.delete" }), sb.rpc("is_tenant_admin")]);
   const staff = state !== null || t.assigned_to !== null || info !== null;
   return (
     <div>
@@ -79,7 +82,24 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           </form>
         </>
       )}
-      {!staff && null}
+      {canDelete === true && (
+        <form action={deleteTicketAction} className="card">
+          <h2>Delete ticket</h2>
+          <p>The ticket moves to Trash. The reason is saved with who deleted it.</p>
+          <input type="hidden" name="id" value={id} /><input type="hidden" name="back" value={`/tickets/${id}`} />
+          <input name="reason" placeholder="Reason for deleting" required minLength={5} />
+          <ConfirmButton className="btn danger" message="Move this ticket to Trash?">Delete ticket</ConfirmButton>
+        </form>
+      )}
+      {isAdmin === true && (
+        <form action={hardDeleteTicketAction} className="card">
+          <h2>Delete permanently (administrator)</h2>
+          <p>Removes the ticket and its messages, files and history for good. Cannot be undone. Recorded in the audit log.</p>
+          <input type="hidden" name="id" value={id} /><input type="hidden" name="back" value={`/tickets/${id}`} />
+          <input name="reason" placeholder="Reason" required minLength={5} />
+          <ConfirmButton className="btn danger" message="Permanently delete this ticket? This cannot be undone.">Delete permanently</ConfirmButton>
+        </form>
+      )}
     </div>
   );
 }

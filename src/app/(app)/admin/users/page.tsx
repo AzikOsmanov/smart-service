@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
+import ConfirmButton from "@/components/ConfirmButton";
+import { hardDeleteUserAction } from "@/lib/delete-actions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 async function requireAdmin() {
@@ -77,7 +79,12 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
               <td>{u.first_name} {u.last_name}</td><td>{u.email}</td>
               <td>{u.roleNames}</td>
               <td>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : t("never")}</td>
-              <td><form action={setActive}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? t("deactivate") : t("activate")}</button></form></td>
+              <td style={{ whiteSpace: "nowrap" }}><form action={setActive} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? t("deactivate") : t("activate")}</button></form>
+                {!u.roleNames.includes("Administrator") && (
+                  <form action={hardDeleteUserAction} style={{ display: "inline", marginLeft: 8 }}>
+                    <input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/admin/users" />
+                    <ConfirmButton className="btn danger" message={`Permanently delete ${u.email}? This cannot be undone.`}>Delete</ConfirmButton>
+                  </form>)}</td>
             </tr>))}</tbody></table>
       </div>
       <form action={createStaff} className="card">

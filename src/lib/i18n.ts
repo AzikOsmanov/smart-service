@@ -5,7 +5,7 @@ export type Lang = (typeof LANGS)[number];
 
 const dict = {
   en: {
-    tickets: "Tickets", customers: "Customers", staffUsers: "Staff users", roles: "Roles", settings: "Settings", account: "Account",
+    tickets: "Tickets", customers: "Customers", staffUsers: "Staff users", roles: "Roles", settings: "Settings", trash: "Trash", account: "Account",
     signOut: "Sign out", signIn: "Sign in", register: "Register", email: "Email", password: "Password",
     noAccount: "No account?", backToSignIn: "Back to sign in", createAccount: "Create account",
     iAm: "I am a", reseller: "Reseller", installer: "Installer", company: "Company",
@@ -17,7 +17,7 @@ const dict = {
     brandName: "Company name shown in the top bar", save: "Save", changePassword: "Change password", newPassword: "New password",
   },
   ru: {
-    tickets: "Заявки", customers: "Клиенты", staffUsers: "Сотрудники", roles: "Роли", settings: "Настройки", account: "Аккаунт",
+    tickets: "Заявки", customers: "Клиенты", staffUsers: "Сотрудники", roles: "Роли", settings: "Настройки", trash: "Корзина", account: "Аккаунт",
     signOut: "Выйти", signIn: "Войти", register: "Регистрация", email: "Эл. почта", password: "Пароль",
     noAccount: "Нет аккаунта?", backToSignIn: "Назад ко входу", createAccount: "Создать аккаунт",
     iAm: "Я", reseller: "Реселлер", installer: "Установщик", company: "Компания",
@@ -29,7 +29,7 @@ const dict = {
     brandName: "Название компании в верхней панели", save: "Сохранить", changePassword: "Сменить пароль", newPassword: "Новый пароль",
   },
   az: {
-    tickets: "Sorğular", customers: "Müştərilər", staffUsers: "İşçilər", roles: "Rollar", settings: "Ayarlar", account: "Hesab",
+    tickets: "Sorğular", customers: "Müştərilər", staffUsers: "İşçilər", roles: "Rollar", settings: "Ayarlar", trash: "Zibil qutusu", account: "Hesab",
     signOut: "Çıxış", signIn: "Daxil ol", register: "Qeydiyyat", email: "E-poçt", password: "Şifrə",
     noAccount: "Hesabınız yoxdur?", backToSignIn: "Girişə qayıt", createAccount: "Hesab yarat",
     iAm: "Mən", reseller: "Reseller", installer: "Quraşdırıcı", company: "Şirkət",
