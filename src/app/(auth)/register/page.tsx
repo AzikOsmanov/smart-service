@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getT } from "@/lib/i18n";
 
 async function signUp(fd: FormData) {
   "use server";
@@ -23,20 +24,21 @@ async function signUp(fd: FormData) {
 
 export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
+  const { t } = await getT();
   return (
     <form action={signUp} className="card">
-      <h1>Register</h1>
-      <label>I am a<select name="account_type"><option value="reseller">Reseller</option><option value="installer">Installer</option><option value="company">Company</option></select></label>
-      <label>First name<input name="first_name" required /></label>
-      <label>Last name<input name="last_name" required /></label>
-      <label>Phone<input name="phone" required /></label>
-      <label>Company name<input name="company_name" required /></label>
-      <label>City<input name="city" required /></label>
-      <label>Email<input name="email" type="email" required /></label>
-      <label>Password<input name="password" type="password" minLength={8} required /></label>
+      <h1>{t("register")}</h1>
+      <label>{t("iAm")}<select name="account_type"><option value="reseller">{t("reseller")}</option><option value="installer">{t("installer")}</option><option value="company">{t("company")}</option></select></label>
+      <label>{t("firstName")}<input name="first_name" required /></label>
+      <label>{t("lastName")}<input name="last_name" required /></label>
+      <label>{t("phone")}<input name="phone" required /></label>
+      <label>{t("companyName")}<input name="company_name" required /></label>
+      <label>{t("city")}<input name="city" required /></label>
+      <label>{t("email")}<input name="email" type="email" required /></label>
+      <label>{t("password")}<input name="password" type="password" minLength={8} required /></label>
       {error && <p className="err">{error}</p>}
-      <button>Create account</button>
-      <p><a href="/login">Back to sign in</a></p>
+      <button>{t("createAccount")}</button>
+      <p><a href="/login">{t("backToSignIn")}</a></p>
     </form>
   );
 }

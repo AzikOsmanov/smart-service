@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getT } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const ACTIONS = ["view", "edit", "delete"] as const;
@@ -71,6 +72,7 @@ async function deleteRole(fd: FormData) {
 export default async function Roles({ searchParams }: { searchParams: Promise<{ role?: string; error?: string; ok?: string }> }) {
   const { role: roleId, error, ok } = await searchParams;
   const { sb } = await requireAdmin();
+  const { t } = await getT();
   const { data: roles } = await sb.from("roles").select("id,name,description,is_admin,is_system").is("deleted_at", null).order("name");
   const current = (roles ?? []).find((r) => r.id === roleId);
   let menus: any[] = [], granted = new Map<string, string>();
@@ -82,8 +84,7 @@ export default async function Roles({ searchParams }: { searchParams: Promise<{ 
   }
   return (
     <div>
-      <p><a href="/tickets">← Tickets</a></p>
-      <h1>Roles and permissions</h1>
+      <h1>{t("roles")}</h1>
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
       <div className="card">

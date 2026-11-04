@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getT } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 async function requireAdmin() {
@@ -54,22 +55,22 @@ async function setActive(fd: FormData) {
 export default async function Users({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error, ok } = await searchParams;
   const { sb } = await requireAdmin();
+  const { t } = await getT();
   const { data: roles } = await sb.from("roles").select("id,name,is_admin").is("deleted_at", null).order("name");
   const { data: staff } = await sb.from("users").select("id,first_name,last_name,email,is_active,last_login_at,user_roles(roles(name))").eq("kind", "staff").is("deleted_at", null).order("created_at");
   return (
     <div>
-      <p><a href="/tickets">← Tickets</a></p>
-      <h1>Staff users</h1>
+      <h1>{t("staffUsers")}</h1>
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
       <div className="card">
-        <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last login</th><th></th></tr></thead>
+        <table><thead><tr><th>{t("name")}</th><th>{t("email")}</th><th>{t("role")}</th><th>{t("lastLogin")}</th><th></th></tr></thead>
           <tbody>{(staff ?? []).map((u: any) => (
             <tr key={u.id}>
               <td>{u.first_name} {u.last_name}</td><td>{u.email}</td>
               <td>{u.user_roles?.map((r: any) => r.roles?.name).join(", ")}</td>
-              <td>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "never"}</td>
-              <td><form action={setActive}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? "Deactivate" : "Activate"}</button></form></td>
+              <td>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : t("never")}</td>
+              <td><form action={setActive}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? t("deactivate") : t("activate")}</button></form></td>
             </tr>))}</tbody></table>
       </div>
       <form action={createStaff} className="card">

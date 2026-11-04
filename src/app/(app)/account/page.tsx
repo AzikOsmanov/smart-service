@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getT } from "@/lib/i18n";
 
 async function changePassword(fd: FormData) {
   "use server";
@@ -10,14 +11,14 @@ async function changePassword(fd: FormData) {
 
 export default async function Account({ searchParams }: { searchParams: Promise<{ msg?: string }> }) {
   const { msg } = await searchParams;
+  const { t } = await getT();
   return (
     <div>
-      <p><a href="/tickets">← Tickets</a></p>
       <form action={changePassword} className="card">
-        <h1>Account</h1>
-        <label>New password<input name="password" type="password" minLength={10} required /></label>
+        <h1>{t("account")}</h1>
+        <label>{t("newPassword")}<input name="password" type="password" minLength={10} required /></label>
         {msg && <p>{msg}</p>}
-        <button>Change password</button>
+        <button>{t("changePassword")}</button>
       </form>
     </div>
   );

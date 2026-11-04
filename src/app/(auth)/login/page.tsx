@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getT } from "@/lib/i18n";
 
 async function signIn(fd: FormData) {
   "use server";
@@ -11,14 +12,15 @@ async function signIn(fd: FormData) {
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
+  const { t } = await getT();
   return (
     <form action={signIn} className="card">
-      <h1>Smart Service</h1>
-      <label>Email<input name="email" type="email" required /></label>
-      <label>Password<input name="password" type="password" required /></label>
+      <h1>{t("signIn")}</h1>
+      <label>{t("email")}<input name="email" type="email" required /></label>
+      <label>{t("password")}<input name="password" type="password" required /></label>
       {error && <p className="err">{error}</p>}
-      <button>Sign in</button>
-      <p>No account? <a href="/register">Register</a></p>
+      <button>{t("signIn")}</button>
+      <p>{t("noAccount")} <a href="/register">{t("register")}</a></p>
     </form>
   );
 }

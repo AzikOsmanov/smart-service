@@ -45,7 +45,6 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const staff = state !== null || t.assigned_to !== null || info !== null;
   return (
     <div>
-      <p><a href="/tickets">← Tickets</a></p>
       <div className="card">
         <h1>{t.ticket_no} — {t.subject}</h1>
         <p>{t.description}</p>
