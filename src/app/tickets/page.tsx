@@ -5,13 +5,17 @@ async function signOut() { "use server"; const sb = await supabaseServer(); awai
 
 export default async function Tickets() {
   const sb = await supabaseServer();
-  const { data: auth } = await sb.auth.getUser();
-  const { data: me } = await sb.from("users").select("first_name,last_name,kind,registration").eq("id", auth.user!.id).maybeSingle();
+  // middleware already verified the session; reading it from the cookie avoids a network round trip
+  const { data: sess } = await sb.auth.getSession();
+  const uid = sess.session!.user.id;
+  const [{ data: me }, { data: isAdmin }, { data: tickets, error }] = await Promise.all([
+    sb.from("users").select("first_name,last_name,kind,registration").eq("id", uid).maybeSingle(),
+    sb.rpc("is_tenant_admin"),
+    sb.from("tickets").select("id,ticket_no,subject,status,priority,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100),
+  ]);
   if (me && me.kind === "customer" && me.registration !== "approved") {
     return <div className="card"><h1>Waiting for approval</h1><p>Your account is {me.registration}. The service center must approve it first.</p><form action={signOut}><button>Sign out</button></form></div>;
   }
-  const { data: isAdmin } = await sb.rpc("is_tenant_admin");
-  const { data: tickets, error } = await sb.from("tickets").select("id,ticket_no,subject,status,priority,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100);
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
