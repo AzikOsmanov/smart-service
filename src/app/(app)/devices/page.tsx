@@ -1,7 +1,8 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
+import StaffDevices from "./staff";
 
-export default async function Devices({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+async function CustomerDevices({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error, ok } = await searchParams;
   const sb = await supabaseServer();
   const { t } = await getT();
@@ -39,4 +40,12 @@ export default async function Devices({ searchParams }: { searchParams: Promise<
       )}
     </div>
   );
+}
+
+export default async function Devices(props: { searchParams: Promise<{ error?: string; ok?: string; q?: string }> }) {
+  const sb = await supabaseServer();
+  const { data: sess } = await sb.auth.getSession();
+  const { data: me } = await sb.from("users").select("kind").eq("id", sess.session!.user.id).maybeSingle();
+  if (me?.kind === "staff") return <StaffDevices searchParams={props.searchParams} />;
+  return <CustomerDevices searchParams={props.searchParams} />;
 }
