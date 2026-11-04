@@ -16,7 +16,7 @@ export default async function Tickets() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1>Tickets</h1>
-        <div>{me?.kind === "staff" && <a href="/customers" style={{ marginRight: 16 }}>Customers</a>}{isAdmin === true && <a href="/admin/users" style={{ marginRight: 16 }}>Staff users</a>}<a href="/account" style={{ marginRight: 16 }}>Account</a><form action={signOut} style={{ display: "inline" }}><button>Sign out{me ? ` (${me.first_name})` : ""}</button></form></div>
+        <div>{me?.kind === "staff" && <a href="/customers" style={{ marginRight: 16 }}>Customers</a>}{isAdmin === true && <><a href="/admin/users" style={{ marginRight: 16 }}>Staff users</a><a href="/admin/roles" style={{ marginRight: 16 }}>Roles</a></>}<a href="/account" style={{ marginRight: 16 }}>Account</a><form action={signOut} style={{ display: "inline" }}><button>Sign out{me ? ` (${me.first_name})` : ""}</button></form></div>
       </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
