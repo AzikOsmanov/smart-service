@@ -5,6 +5,7 @@ import ConfirmButton from "@/components/ConfirmButton";
 import TicketChat from "@/components/TicketChat";
 import { getT } from "@/lib/i18n";
 import type { ChatMessage } from "@/lib/chat-actions";
+import TicketFiles from "@/components/TicketFiles";
 import { deleteTicketAction, hardDeleteTicketAction } from "@/lib/delete-actions";
 
 async function apply(fd: FormData) {
@@ -38,9 +39,9 @@ async function saveManual(fd: FormData) {
   revalidatePath(`/tickets/${id}`);
 }
 
-export default async function TicketPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
+export default async function TicketPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; warn?: string }> }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, warn } = await searchParams;
   const sb = await supabaseServer();
   const { t: tr } = await getT();
   const { data: t } = await sb.from("tickets").select("*").eq("id", id).maybeSingle();
@@ -60,13 +61,66 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   );
 
   if (!staff) {
-    const label = t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received");
+    const uid = sess.session!.user.id;
+    const [{ data: me }, { data: events }, { data: files }, { data: devFull }] = await Promise.all([
+      sb.from("users").select("tenant_id").eq("id", uid).single(),
+      sb.from("ticket_customer_events").select("id,kind,status,created_at").eq("ticket_id", id).order("created_at"),
+      sb.from("ticket_attachments").select("id,file_name,mime_type,storage_key,kind,created_at").eq("ticket_id", id).order("created_at"),
+      sb.from("devices").select("serial_number,device_models(name)").eq("id", t.device_id).maybeSingle(),
+    ]);
+    const keys = (files ?? []).map((f) => f.storage_key);
+    const { data: signed } = keys.length ? await sb.storage.from("ticket-files").createSignedUrls(keys, 3600) : { data: [] };
+    const urlOf = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
+    const cur = t.customer_device_status as string | null;
+    const stepLabel = cur ? tr(`st_${cur}` as "st_ready") : null;
+    const model = (devFull as { device_models?: { name?: string } | null } | null)?.device_models?.name;
+    const steps = [
+      { label: tr("st_received"), done: true },
+      { label: tr("st_diagnose"), done: !!cur },
+      { label: cur && cur !== "diagnose" ? stepLabel! : "Result", done: !!cur && cur !== "diagnose" },
+    ];
     return (
       <div>
         <div className="card">
+          <p><a href="/tickets">← {tr("tickets")}</a></p>
           <h1>{t.ticket_no} — {t.subject}</h1>
-          <p>{t.description}</p>
-          <div className="row"><span>SN: <b>{dev?.serial_number ?? "—"}</b></span><span className="badge">{label}</span><span><small>{new Date(t.created_at).toLocaleString()}</small></span></div>
+          <div className="row">
+            <span>SN: <b>{devFull?.serial_number ?? dev?.serial_number ?? "—"}</b></span>
+            {model && <span>Model: <b>{model}</b></span>}
+            <span><small>Created {new Date(t.created_at).toLocaleString()}</small></span>
+          </div>
+          {warn && <p className="err">{warn}</p>}
+        </div>
+        <div className="card">
+          <h2>Status</h2>
+          <div className="row" style={{ gap: 8 }}>
+            {steps.map((st, i) => (
+              <span key={i} className="badge" style={{ opacity: st.done ? 1 : 0.45, fontWeight: i === steps.filter((x) => x.done).length - 1 ? 700 : 400 }}>{i + 1}. {st.label}</span>
+            ))}
+          </div>
+          <ul>
+            {(events ?? []).map((ev) => (
+              <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? "Ticket created" : tr(`st_${ev.status}` as "st_ready")}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="card">
+          <h2>Problem description</h2>
+          <p style={{ whiteSpace: "pre-wrap" }}>{t.description}</p>
+        </div>
+        <div className="card">
+          <h2>Photos and files</h2>
+          {(files ?? []).length === 0 && <p>No files yet.</p>}
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            {(files ?? []).map((f) => {
+              const u = urlOf.get(f.storage_key);
+              if (!u) return null;
+              if (f.kind === "video") return <video key={f.id} src={u} controls style={{ maxWidth: 320, borderRadius: 8 }} />;
+              if (f.kind === "pdf") return <a key={f.id} href={u} target="_blank" rel="noreferrer">📄 {f.file_name}</a>;
+              return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
+            })}
+          </div>
+          <TicketFiles tenantId={me!.tenant_id} ticketId={id} userId={uid} />
         </div>
         {chat}
       </div>
