@@ -101,7 +101,5 @@ export async function getPortal() {
   const lang = await getLang();
   return { lang, L: all[lang] as Record<PKey, string> };
 }
-export function fmt(s: string, vars: Record<string, string>) {
-  return s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
-}
+export { fmt } from "@/lib/fmt";
 export type PortalLabels = Record<PKey, string>;

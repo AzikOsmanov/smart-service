@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { uploadTicketFiles } from "@/components/TicketFiles";
 import SnInput from "@/components/SnInput";
-import { fmt, type PortalLabels } from "@/lib/i18n-portal";
+import { fmt } from "@/lib/fmt";
+import type { PortalLabels } from "@/lib/i18n-portal";
 
 type Dev = { id: string; serial_number: string; model?: string | null };
 const NEW = "__new__";

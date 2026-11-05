@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { fmt, type PortalLabels } from "@/lib/i18n-portal";
+import { fmt } from "@/lib/fmt";
+import type { PortalLabels } from "@/lib/i18n-portal";
 
 export const TICKET_FILE_MAX = 25 * 1024 * 1024;
 
