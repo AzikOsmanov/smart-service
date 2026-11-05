@@ -81,6 +81,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
               <td>{u.roleNames}</td>
               <td>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : t("never")}</td>
               <td style={{ whiteSpace: "nowrap" }}><form action={setActive} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? t("deactivate") : t("activate")}</button></form>
+                <a className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>Edit</a>
                 <form action={adminSendResetAction} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/admin/users" /><button>Send password reset</button></form>
                 {!u.roleNames.includes("Administrator") && (
                   <form action={hardDeleteUserAction} style={{ display: "inline", marginLeft: 8 }}>

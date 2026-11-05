@@ -42,6 +42,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                 {u.registration === "rejected" && (
                   <form action={review} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} />
                     <button name="decision" value="approve">Approve now</button></form>)}
+                {isAdmin === true && <a className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>Edit</a>}
                 {isAdmin === true && (
                   <form action={adminSendResetAction} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/customers" /><button>Send password reset</button></form>)}
                 {isAdmin === true && (
