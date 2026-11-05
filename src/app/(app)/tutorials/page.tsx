@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
-import TutorialForm from "@/components/TutorialForm";
+import TutorialAdd from "@/components/TutorialAdd";
 import ConfirmButton from "@/components/ConfirmButton";
 
 async function remove(fd: FormData) {
@@ -32,10 +32,10 @@ export default async function Tutorials() {
   const aud: Record<string, string> = { all: S.tutAudAll, customers: S.tutAudCustomers, staff: S.tutAudStaff };
   return (
     <div>
-      <h1>{S.tutTitle}</h1>
-      {staff && canEdit === true && (
-        <div className="card"><h2>{S.tutAdd}</h2><TutorialForm tenantId={me!.tenant_id} S={S} /></div>
-      )}
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>{S.tutTitle}</h1>
+        {staff && canEdit === true && <span><TutorialAdd tenantId={me!.tenant_id} S={S} /></span>}
+      </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
         {(rows ?? []).map((r) => (

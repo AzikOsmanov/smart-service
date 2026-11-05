@@ -7,7 +7,7 @@ import { fmt } from "@/lib/fmt";
 
 const MAX = 50 * 1024 * 1024;
 
-export default function TutorialForm({ tenantId, S }: { tenantId: string; S: StaffLabels }) {
+export default function TutorialForm({ tenantId, S, onDone }: { tenantId: string; S: StaffLabels; onDone?: (message: string) => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -45,8 +45,10 @@ export default function TutorialForm({ tenantId, S }: { tenantId: string; S: Sta
     setBusy(false);
     if (pe) { setErr(pe.message); return; }
     form.reset();
-    setOk(fmt(S.tutSent, { n: String(n ?? 0) }));
+    const msg = fmt(S.tutSent, { n: String(n ?? 0) });
+    setOk(msg);
     router.refresh();
+    onDone?.(msg);
   }
 
   return (
