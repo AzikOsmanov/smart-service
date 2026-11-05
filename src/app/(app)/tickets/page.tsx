@@ -8,8 +8,9 @@ export default async function Tickets() {
   const { L } = await getPortal();
   const { data: sess } = await sb.auth.getSession();
   const uid = sess.session!.user.id;
-  const [{ data: me }, { data: tickets, error }] = await Promise.all([
+  const [{ data: me }, { data: canBoard }, { data: tickets, error }] = await Promise.all([
     sb.from("users").select("kind,registration").eq("id", uid).maybeSingle(),
+    sb.rpc("has_permission", { p_code: "tickets.board.view" }),
     sb.from("tickets").select("id,ticket_no,subject,status,priority,kind,customer_id,device_id,customer_device_status,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100),
   ]);
   if (me && me.kind === "customer" && me.registration !== "approved") {
@@ -33,6 +34,7 @@ export default async function Tickets() {
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ margin: 0 }}>{t("tickets")}</h1>
+        {staff && canBoard === true && <span className="row"><a className="btn" href="/tickets" style={{ textDecoration: "none" }}>List</a><a className="btn ghost" href="/tickets/board" style={{ textDecoration: "none" }}>Board</a></span>}
         {me?.kind === "customer" && (
           <span className="row">
             <a className="btn" href="/tickets/password-reset" style={{ textDecoration: "none" }}>{L.prButton}</a>
