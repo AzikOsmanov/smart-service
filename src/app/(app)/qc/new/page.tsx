@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import QcForm from "@/components/QcForm";
+import { getPortal } from "@/lib/i18n-portal";
 
 export default async function NewQc({ searchParams }: { searchParams: Promise<{ sn?: string; ticket?: string }> }) {
   const { sn, ticket } = await searchParams;
@@ -12,7 +13,7 @@ export default async function NewQc({ searchParams }: { searchParams: Promise<{ 
   return (
     <div className="card">
       <h1>New QC check</h1>
-      <QcForm tenantId={me!.tenant_id} initialSn={sn ?? ""} ticketId={ticket ?? null} />
+      <QcForm tenantId={me!.tenant_id} initialSn={sn ?? ""} ticketId={ticket ?? null} L={(await getPortal()).L} />
     </div>
   );
 }

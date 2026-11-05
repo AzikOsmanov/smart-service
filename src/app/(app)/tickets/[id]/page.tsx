@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import ConfirmButton from "@/components/ConfirmButton";
 import TicketChat from "@/components/TicketChat";
 import { getT } from "@/lib/i18n";
+import { getPortal } from "@/lib/i18n-portal";
 import type { ChatMessage } from "@/lib/chat-actions";
 import TicketFiles from "@/components/TicketFiles";
 import { deleteTicketAction, hardDeleteTicketAction } from "@/lib/delete-actions";
@@ -44,6 +45,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const { error, warn } = await searchParams;
   const sb = await supabaseServer();
   const { t: tr } = await getT();
+  const { L } = await getPortal();
   const { data: t } = await sb.from("tickets").select("*").eq("id", id).maybeSingle();
   if (!t) notFound();
   const { data: sess } = await sb.auth.getSession();
@@ -77,7 +79,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     const steps = [
       { label: tr("st_received"), done: true },
       { label: tr("st_diagnose"), done: !!cur },
-      { label: cur && cur !== "diagnose" ? stepLabel! : "Result", done: !!cur && cur !== "diagnose" },
+      { label: cur && cur !== "diagnose" ? stepLabel! : L.result, done: !!cur && cur !== "diagnose" },
     ];
     return (
       <div>
@@ -85,14 +87,14 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           <p><a href="/tickets">← {tr("tickets")}</a></p>
           <h1>{t.ticket_no} — {t.subject}</h1>
           <div className="row">
-            <span>SN: <b>{devFull?.serial_number ?? dev?.serial_number ?? "—"}</b></span>
-            {model && <span>Model: <b>{model}</b></span>}
-            <span><small>Created {new Date(t.created_at).toLocaleString()}</small></span>
+            <span>{L.colSn}: <b>{devFull?.serial_number ?? dev?.serial_number ?? "—"}</b></span>
+            {model && <span>{L.model}: <b>{model}</b></span>}
+            <span><small>{L.created} {new Date(t.created_at).toLocaleString()}</small></span>
           </div>
           {warn && <p className="err">{warn}</p>}
         </div>
         <div className="card">
-          <h2>Status</h2>
+          <h2>{L.status}</h2>
           <div className="row" style={{ gap: 8 }}>
             {steps.map((st, i) => (
               <span key={i} className="badge" style={{ opacity: st.done ? 1 : 0.45, fontWeight: i === steps.filter((x) => x.done).length - 1 ? 700 : 400 }}>{i + 1}. {st.label}</span>
@@ -100,17 +102,17 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           </div>
           <ul>
             {(events ?? []).map((ev) => (
-              <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? "Ticket created" : tr(`st_${ev.status}` as "st_ready")}</li>
+              <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>
             ))}
           </ul>
         </div>
         <div className="card">
-          <h2>Problem description</h2>
+          <h2>{L.problemDesc}</h2>
           <p style={{ whiteSpace: "pre-wrap" }}>{t.description}</p>
         </div>
         <div className="card">
-          <h2>Photos and files</h2>
-          {(files ?? []).length === 0 && <p>No files yet.</p>}
+          <h2>{L.photosFiles}</h2>
+          {(files ?? []).length === 0 && <p>{L.noFiles}</p>}
           <div className="row" style={{ alignItems: "flex-start" }}>
             {(files ?? []).map((f) => {
               const u = urlOf.get(f.storage_key);
@@ -120,7 +122,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
               return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
             })}
           </div>
-          <TicketFiles tenantId={me!.tenant_id} ticketId={id} userId={uid} />
+          <TicketFiles L={L} tenantId={me!.tenant_id} ticketId={id} userId={uid} />
         </div>
         {chat}
       </div>
@@ -154,14 +156,14 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
         })}
       </div>
-      {me && <TicketFiles tenantId={me.tenant_id} ticketId={id} userId={uid} />}
+      {me && <TicketFiles L={L} tenantId={me.tenant_id} ticketId={id} userId={uid} />}
     </div>
   );
   const timelineCard = (
     <div className="card">
       <h2>What the customer sees</h2>
       <p>Current: <b>{t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</b></p>
-      <ul>{(events ?? []).map((ev) => <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? "Ticket created" : tr(`st_${ev.status}` as "st_ready")}</li>)}</ul>
+      <ul>{(events ?? []).map((ev) => <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>)}</ul>
     </div>
   );
   const qcCard = dev?.serial_number ? (

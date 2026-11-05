@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import type { PortalLabels } from "@/lib/i18n-portal";
 
 // Handles the link from the default Supabase emails: the tokens arrive after the "#" in the address,
 // which servers never see. Recovery link -> open "Create new password"; confirmation link -> back to sign in.
-export default function HashAuth() {
+export default function HashAuth({ L }: { L: PortalLabels }) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   useEffect(() => {
@@ -13,7 +14,7 @@ export default function HashAuth() {
     if (!h || h.length < 2) return;
     const p = new URLSearchParams(h.slice(1));
     if (p.get("error")) {
-      setMsg(p.get("error_code") === "otp_expired" ? "This link has expired or was already used. Request a new one." : (p.get("error_description") ?? "The link is not valid.").replace(/\+/g, " "));
+      setMsg(p.get("error_code") === "otp_expired" ? L.linkExpired : L.linkInvalid);
       history.replaceState(null, "", window.location.pathname);
       return;
     }
@@ -25,11 +26,11 @@ export default function HashAuth() {
     (async () => {
       const sb = supabaseBrowser();
       const { error } = await sb.auth.setSession({ access_token, refresh_token });
-      if (error) { setMsg("The link is invalid or expired. Request a new one."); return; }
+      if (error) { setMsg(L.linkInvalidShort); return; }
       if (type === "recovery") { router.replace("/reset-password"); return; }
       await sb.auth.signOut();
-      setMsg("Email confirmed. You can sign in now (new customers still need approval by the service center).");
+      setMsg(L.emailConfirmed);
     })();
-  }, [router]);
+  }, [router, L]);
   return msg ? <p className="err">{msg}</p> : null;
 }

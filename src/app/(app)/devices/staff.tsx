@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import SnInput from "@/components/SnInput";
+import { getPortal } from "@/lib/i18n-portal";
 
 async function addDevice(fd: FormData) {
   "use server";
@@ -29,6 +30,7 @@ async function addDevice(fd: FormData) {
 
 export default async function StaffDevices({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; q?: string }> }) {
   const { error: msgErr, ok, q } = await searchParams;
+  const { L } = await getPortal();
   const sb = await supabaseServer();
   const [{ data: canEdit }, { data: canModels }] = await Promise.all([
     sb.rpc("has_permission", { p_code: "devices.edit" }), sb.rpc("has_permission", { p_code: "devices.models.view" }),
@@ -74,7 +76,7 @@ export default async function StaffDevices({ searchParams }: { searchParams: Pro
       {canEdit === true && (
         <form action={addDevice} className="card" style={{ maxWidth: 640 }}>
           <h2>Add a device for a customer</h2>
-          <label>Serial number<SnInput name="serial" required /></label>
+          <label>Serial number<SnInput L={L} name="serial" required /></label>
           <label>Model<select name="model" defaultValue=""><option value="">— not set —</option>{(models ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
           <label>Owner (approved customer)<select name="owner" defaultValue=""><option value="">— no owner yet —</option>{(customers ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}{c.companies?.name ? ` · ${c.companies.name}` : ""}</option>)}</select></label>
           <label>Warranty until<input name="warranty" type="date" /></label>

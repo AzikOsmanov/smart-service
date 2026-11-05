@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
 import HashAuth from "@/components/HashAuth";
+import { getPortal } from "@/lib/i18n-portal";
 
 async function signIn(fd: FormData) {
   "use server";
@@ -14,15 +15,16 @@ async function signIn(fd: FormData) {
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
   const { t } = await getT();
+  const { L } = await getPortal();
   return (
     <form action={signIn} className="card">
       <h1>{t("signIn")}</h1>
-      <HashAuth />
+      <HashAuth L={L} />
       <label>{t("email")}<input name="email" type="email" required /></label>
       <label>{t("password")}<input name="password" type="password" required /></label>
       {error && <p className="err">{error}</p>}
       <button>{t("signIn")}</button>
-      <p><a href="/forgot">Forgot password?</a></p>
+      <p><a href="/forgot">{L.forgotLink}</a></p>
       <p>{t("noAccount")} <a href="/register">{t("register")}</a></p>
     </form>
   );

@@ -1,0 +1,98 @@
+import { getLang, type Lang } from "@/lib/i18n";
+
+// Texts of the customer portal and sign-in helpers. {sn}, {files}, {n} are replaced by fmt().
+const en = {
+  step1: "1. Device", anotherDevice: "Another device (add by serial number)", addFirstDevice: "Add your device by serial number",
+  snPlaceholder: "Serial number (type or scan)", snLabelPhoto: "Photo of the SN label", step2: "2. What is wrong?",
+  subject: "Subject", description: "Description", filesOptional: "Photos / videos / PDF (optional, up to 25 MB each)",
+  sending: "Sending…", sendToTeam: "Send to the service team",
+  errInvalidSn: "Enter a valid serial number (4-64 letters, digits, - _ / .).",
+  errAlreadyReg: "This serial number is already registered. To continue, attach a photo of the device label and send again.",
+  errLabelType: "The label photo must be a JPG, PNG or WEBP image.", errLabelBig: "The label photo is too large (4 MB max).",
+  errUpload: "Could not upload the photo: ", errAlreadyYours: "This device is already in your list. Select it above.",
+  claimSent: "Ownership request for {sn} was sent. The service team will review it. You can open a ticket for this device once it is approved.",
+  errFill: "Please fill in the subject and describe the problem.", errTicket: "Could not create the ticket", errAddDevice: "Could not add the device.",
+  warnFiles: "Ticket created, but these files failed: {files}",
+  scanCamera: "Scan with camera", photoLabel: "Photo of label", cancel: "Cancel", snDefault: "Serial number",
+  scanned: "Scanned. Check the number before saving.", camUnavailable: "Camera is not available. Allow camera access, or take a photo of the label instead.",
+  reading: "Reading the photo…", readPhoto: "Read from the photo. Check the number before saving.", noCode: "No barcode or QR code found in the photo. Type the serial number instead.",
+  addFiles: "Add files", uploading: "Uploading…", uploadFailed: "Could not upload: {files}",
+  back: "Back", created: "Created", model: "Model", status: "Status", result: "Result", ticketCreated: "Ticket created",
+  problemDesc: "Problem description", photosFiles: "Photos and files", noFiles: "No files yet.",
+  devicesIntro: "Devices are added when you create a ticket: choose a device or add a new one by serial number.",
+  colSn: "SN", colModel: "Model", colWarranty: "Warranty until", yours: "Yours", prevOwner: "Previous owner (read only)",
+  noDevices: "No devices yet. They appear here after you create a ticket.", ownReq: "Ownership requests", colStatus: "Status", colSent: "Sent",
+  forgotTitle: "Forgot password", forgotText: "Enter your email. We will send you a link to create a new password.", sendLink: "Send reset link",
+  forgotSent: "If this email is registered, we sent a link to create a new password. Check your inbox (and spam).", forgotLink: "Forgot password?",
+  newPwTitle: "Create new password", newPw: "New password", repeatPw: "Repeat new password", saveNewPw: "Save new password",
+  linkExpired: "This link has expired or was already used. Request a new one.", linkInvalid: "The link is not valid.",
+  linkInvalidShort: "The link is invalid or expired. Request a new one.", emailConfirmed: "Email confirmed. You can sign in now (new customers still need approval by the service center).",
+} as const;
+export type PKey = keyof typeof en;
+
+const ru: Record<PKey, string> = {
+  step1: "1. Устройство", anotherDevice: "Другое устройство (добавить по серийному номеру)", addFirstDevice: "Добавьте устройство по серийному номеру",
+  snPlaceholder: "Серийный номер (введите или отсканируйте)", snLabelPhoto: "Фото наклейки с серийным номером", step2: "2. Что случилось?",
+  subject: "Тема", description: "Описание", filesOptional: "Фото / видео / PDF (необязательно, до 25 МБ каждый)",
+  sending: "Отправка…", sendToTeam: "Отправить в сервисный центр",
+  errInvalidSn: "Введите корректный серийный номер (4–64 символа: буквы, цифры, - _ / .).",
+  errAlreadyReg: "Этот серийный номер уже зарегистрирован. Чтобы продолжить, приложите фото наклейки на устройстве и отправьте снова.",
+  errLabelType: "Фото наклейки должно быть в формате JPG, PNG или WEBP.", errLabelBig: "Фото слишком большое (максимум 4 МБ).",
+  errUpload: "Не удалось загрузить фото: ", errAlreadyYours: "Это устройство уже в вашем списке. Выберите его выше.",
+  claimSent: "Запрос на владение устройством {sn} отправлен. Сервисный центр его рассмотрит. Заявку по этому устройству можно будет создать после одобрения.",
+  errFill: "Заполните тему и опишите проблему.", errTicket: "Не удалось создать заявку", errAddDevice: "Не удалось добавить устройство.",
+  warnFiles: "Заявка создана, но эти файлы не загрузились: {files}",
+  scanCamera: "Сканировать камерой", photoLabel: "Фото наклейки", cancel: "Отмена", snDefault: "Серийный номер",
+  scanned: "Отсканировано. Проверьте номер перед сохранением.", camUnavailable: "Камера недоступна. Разрешите доступ к камере или сфотографируйте наклейку.",
+  reading: "Читаем фото…", readPhoto: "Считано с фото. Проверьте номер перед сохранением.", noCode: "На фото не найден штрихкод или QR-код. Введите серийный номер вручную.",
+  addFiles: "Добавить файлы", uploading: "Загрузка…", uploadFailed: "Не удалось загрузить: {files}",
+  back: "Назад", created: "Создана", model: "Модель", status: "Статус", result: "Результат", ticketCreated: "Заявка создана",
+  problemDesc: "Описание проблемы", photosFiles: "Фото и файлы", noFiles: "Файлов пока нет.",
+  devicesIntro: "Устройства добавляются при создании заявки: выберите устройство или добавьте новое по серийному номеру.",
+  colSn: "С/Н", colModel: "Модель", colWarranty: "Гарантия до", yours: "Ваше", prevOwner: "Прежний владелец (только просмотр)",
+  noDevices: "Устройств пока нет. Они появятся здесь после создания заявки.", ownReq: "Запросы на владение", colStatus: "Статус", colSent: "Отправлен",
+  forgotTitle: "Забыли пароль", forgotText: "Введите эл. почту. Мы отправим ссылку для создания нового пароля.", sendLink: "Отправить ссылку",
+  forgotSent: "Если эта почта зарегистрирована, мы отправили ссылку для создания нового пароля. Проверьте входящие (и спам).", forgotLink: "Забыли пароль?",
+  newPwTitle: "Создайте новый пароль", newPw: "Новый пароль", repeatPw: "Повторите новый пароль", saveNewPw: "Сохранить новый пароль",
+  linkExpired: "Ссылка устарела или уже использована. Запросите новую.", linkInvalid: "Ссылка недействительна.",
+  linkInvalidShort: "Ссылка недействительна или устарела. Запросите новую.", emailConfirmed: "Почта подтверждена. Теперь можно войти (новые клиенты должны дождаться одобрения сервисного центра).",
+};
+
+const az: Record<PKey, string> = {
+  step1: "1. Cihaz", anotherDevice: "Başqa cihaz (seriya nömrəsi ilə əlavə et)", addFirstDevice: "Cihazı seriya nömrəsi ilə əlavə edin",
+  snPlaceholder: "Seriya nömrəsi (yazın və ya skan edin)", snLabelPhoto: "Seriya nömrəsi etiketinin şəkli", step2: "2. Problem nədir?",
+  subject: "Mövzu", description: "Təsvir", filesOptional: "Şəkil / video / PDF (könüllü, hər biri 25 MB-a qədər)",
+  sending: "Göndərilir…", sendToTeam: "Servis mərkəzinə göndər",
+  errInvalidSn: "Düzgün seriya nömrəsi daxil edin (4–64 simvol: hərf, rəqəm, - _ / .).",
+  errAlreadyReg: "Bu seriya nömrəsi artıq qeydiyyatdadır. Davam etmək üçün cihaz etiketinin şəklini əlavə edib yenidən göndərin.",
+  errLabelType: "Etiket şəkli JPG, PNG və ya WEBP olmalıdır.", errLabelBig: "Şəkil çox böyükdür (maksimum 4 MB).",
+  errUpload: "Şəkil yüklənmədi: ", errAlreadyYours: "Bu cihaz artıq sizin siyahınızdadır. Yuxarıdan seçin.",
+  claimSent: "{sn} cihazı üçün sahiblik sorğusu göndərildi. Servis mərkəzi onu nəzərdən keçirəcək. Təsdiqdən sonra bu cihaz üçün sorğu aça biləcəksiniz.",
+  errFill: "Mövzunu doldurun və problemi təsvir edin.", errTicket: "Sorğu yaradıla bilmədi", errAddDevice: "Cihaz əlavə edilə bilmədi.",
+  warnFiles: "Sorğu yaradıldı, lakin bu fayllar yüklənmədi: {files}",
+  scanCamera: "Kamera ilə skan et", photoLabel: "Etiket şəkli", cancel: "Ləğv et", snDefault: "Seriya nömrəsi",
+  scanned: "Skan edildi. Saxlamazdan əvvəl nömrəni yoxlayın.", camUnavailable: "Kamera əlçatan deyil. Kameraya icazə verin və ya etiketin şəklini çəkin.",
+  reading: "Şəkil oxunur…", readPhoto: "Şəkildən oxundu. Saxlamazdan əvvəl nömrəni yoxlayın.", noCode: "Şəkildə ştrix kod və ya QR kod tapılmadı. Seriya nömrəsini əllə yazın.",
+  addFiles: "Fayl əlavə et", uploading: "Yüklənir…", uploadFailed: "Yüklənmədi: {files}",
+  back: "Geri", created: "Yaradılıb", model: "Model", status: "Status", result: "Nəticə", ticketCreated: "Sorğu yaradıldı",
+  problemDesc: "Problemin təsviri", photosFiles: "Şəkillər və fayllar", noFiles: "Hələ fayl yoxdur.",
+  devicesIntro: "Cihazlar sorğu yaradılarkən əlavə olunur: cihaz seçin və ya seriya nömrəsi ilə yenisini əlavə edin.",
+  colSn: "S/N", colModel: "Model", colWarranty: "Zəmanət bitir", yours: "Sizinkidir", prevOwner: "Əvvəlki sahib (yalnız baxış)",
+  noDevices: "Hələ cihaz yoxdur. Sorğu yaratdıqdan sonra burada görünəcək.", ownReq: "Sahiblik sorğuları", colStatus: "Status", colSent: "Göndərilib",
+  forgotTitle: "Şifrəni unutmusunuz", forgotText: "E-poçtunuzu daxil edin. Yeni şifrə yaratmaq üçün link göndərəcəyik.", sendLink: "Link göndər",
+  forgotSent: "Bu e-poçt qeydiyyatdadırsa, yeni şifrə yaratmaq üçün link göndərdik. Gələnlər qutusunu (və spamı) yoxlayın.", forgotLink: "Şifrəni unutmusunuz?",
+  newPwTitle: "Yeni şifrə yaradın", newPw: "Yeni şifrə", repeatPw: "Yeni şifrəni təkrarlayın", saveNewPw: "Yeni şifrəni saxla",
+  linkExpired: "Linkin vaxtı bitib və ya artıq istifadə olunub. Yenisini sorğulayın.", linkInvalid: "Link etibarsızdır.",
+  linkInvalidShort: "Link etibarsızdır və ya vaxtı bitib. Yenisini sorğulayın.", emailConfirmed: "E-poçt təsdiqləndi. İndi daxil ola bilərsiniz (yeni müştərilər servis mərkəzinin təsdiqini gözləməlidir).",
+};
+
+const all: Record<Lang, Record<PKey, string>> = { en, ru, az };
+
+export async function getPortal() {
+  const lang = await getLang();
+  return { lang, L: all[lang] as Record<PKey, string> };
+}
+export function fmt(s: string, vars: Record<string, string>) {
+  return s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+}
+export type PortalLabels = Record<PKey, string>;

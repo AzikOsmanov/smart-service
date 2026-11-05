@@ -1,18 +1,22 @@
 import { forgotPasswordAction } from "@/lib/reset-actions";
+import { getPortal } from "@/lib/i18n-portal";
+import { getT } from "@/lib/i18n";
 
 export default async function Forgot({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
   const { sent } = await searchParams;
+  const { L } = await getPortal();
+  const { t } = await getT();
   return (
     <form action={forgotPasswordAction} className="card">
-      <h1>Forgot password</h1>
-      {sent ? <p>If this email is registered, we sent a link to create a new password. Check your inbox (and spam).</p> : (
+      <h1>{L.forgotTitle}</h1>
+      {sent ? <p>{L.forgotSent}</p> : (
         <>
-          <p>Enter your email. We will send you a link to create a new password.</p>
-          <label>Email<input name="email" type="email" required /></label>
-          <button>Send reset link</button>
+          <p>{L.forgotText}</p>
+          <label>{t("email")}<input name="email" type="email" required /></label>
+          <button>{L.sendLink}</button>
         </>
       )}
-      <p><a href="/login">Back to sign in</a></p>
+      <p><a href="/login">{t("backToSignIn")}</a></p>
     </form>
   );
 }

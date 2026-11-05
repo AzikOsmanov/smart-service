@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { fmt, type PortalLabels } from "@/lib/i18n-portal";
 
 export const TICKET_FILE_MAX = 25 * 1024 * 1024;
 
@@ -23,7 +24,7 @@ export async function uploadTicketFiles(tenantId: string, ticketId: string, user
   return failed;
 }
 
-export default function TicketFiles({ tenantId, ticketId, userId }: { tenantId: string; ticketId: string; userId: string }) {
+export default function TicketFiles({ tenantId, ticketId, userId, L }: { tenantId: string; ticketId: string; userId: string; L: PortalLabels }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -34,13 +35,13 @@ export default function TicketFiles({ tenantId, ticketId, userId }: { tenantId: 
     if (!files.length) return;
     setBusy(true); setErr("");
     const failed = await uploadTicketFiles(tenantId, ticketId, userId, files);
-    if (failed.length) setErr(`Could not upload: ${failed.join(", ")}`);
+    if (failed.length) setErr(fmt(L.uploadFailed, { files: failed.join(", ") }));
     form.reset(); setBusy(false); router.refresh();
   }
   return (
     <form onSubmit={onSubmit} className="row">
       <input name="files" type="file" accept="image/*,video/*,application/pdf" multiple required />
-      <button disabled={busy}>{busy ? "Uploading…" : "Add files"}</button>
+      <button disabled={busy}>{busy ? L.uploading : L.addFiles}</button>
       {err && <span className="err">{err}</span>}
     </form>
   );

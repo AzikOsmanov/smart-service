@@ -3,11 +3,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import SnInput from "@/components/SnInput";
+import type { PortalLabels } from "@/lib/i18n-portal";
 import { QC_LABEL, QC_STATUSES } from "@/lib/qc";
 
 const MAX = 50 * 1024 * 1024;
 
-export default function QcForm({ tenantId, initialSn, ticketId }: { tenantId: string; initialSn: string; ticketId: string | null }) {
+export default function QcForm({ tenantId, initialSn, ticketId, L }: { tenantId: string; initialSn: string; ticketId: string | null; L: PortalLabels }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -45,7 +46,7 @@ export default function QcForm({ tenantId, initialSn, ticketId }: { tenantId: st
 
   return (
     <form onSubmit={submit}>
-      <label>Serial number (SN)<SnInput name="sn" defaultValue={initialSn} required minLength={4} /></label>
+      <label>Serial number (SN)<SnInput L={L} name="sn" defaultValue={initialSn} required minLength={4} /></label>
       <label>QC status
         <select name="status" defaultValue="done">
           {QC_STATUSES.map((s) => <option key={s} value={s}>{QC_LABEL[s]}</option>)}
