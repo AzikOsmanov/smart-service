@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Smart Service",
+    "slug": "smart-service",
+    "version": "1.0.0",
+    "scheme": "smartservice",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.infraneuro.smartservice",
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    },
+    "android": {
+      "package": "com.infraneuro.smartservice",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b1a33",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": { "favicon": "./assets/favicon.png", "output": "single" },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      ["expo-camera", { "cameraPermission": "Smart Service uses the camera to scan device serial numbers and take photos for tickets.", "recordAudioAndroid": false }],
+      ["expo-image-picker", { "photosPermission": "Smart Service needs your photos to attach them to tickets.", "cameraPermission": "Smart Service uses the camera to take photos for tickets." }]
+    ]
+  }
+}
