@@ -17,7 +17,10 @@ export default function BulkAdd({ L }: { L: PortalLabels }) {
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = "";
-    if (f) setText((prev) => (prev ? prev + "\n" : "") + (await f.text()));
+    if (f) {
+      const content = await f.text();
+      setText((prev) => (prev ? prev + "\n" : "") + content);
+    }
   }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
