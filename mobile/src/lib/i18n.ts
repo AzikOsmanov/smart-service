@@ -91,6 +91,7 @@ const en = {
   notOwnerWarn: "The requester is not the registered owner of this device. Check the label photo carefully before sending any code.",
   noLabelPhoto: "No label photo.",
   sendCodeHint: "Send the code or file to the customer in the chat below or as a file in Photos and files.",
+  scanPick: "Several codes found. Tap the serial number.",
 };
 export type Key = keyof typeof en;
 
@@ -185,6 +186,7 @@ const ru: Record<Key, string> = {
   notOwnerWarn: "Заявитель не является зарегистрированным владельцем этого устройства. Внимательно проверьте фото наклейки, прежде чем отправлять код.",
   noLabelPhoto: "Нет фото наклейки.",
   sendCodeHint: "Отправьте код или файл клиенту в чате ниже или файлом в разделе «Фото и файлы».",
+  scanPick: "Найдено несколько кодов. Нажмите на серийный номер.",
 };
 
 const az: Record<Key, string> = {
@@ -278,6 +280,7 @@ const az: Record<Key, string> = {
   notOwnerWarn: "Sorğu verən bu cihazın qeydiyyatlı sahibi deyil. Kod göndərməzdən əvvəl etiket şəklini diqqətlə yoxlayın.",
   noLabelPhoto: "Etiket şəkli yoxdur.",
   sendCodeHint: "Kodu və ya faylı müştəriyə aşağıdakı çatda və ya «Şəkillər və fayllar» bölməsində fayl kimi göndərin.",
+  scanPick: "Bir neçə kod tapıldı. Seriya nömrəsinə toxunun.",
 };
 
 export const TEXTS: Record<Lang, Record<Key, string>> = { en, ru, az };
