@@ -111,12 +111,15 @@ async function iepLookup(c: IeoConn, serial: string): Promise<Lookup> {
 }
 async function iepCreate(c: IeoConn, t: NewTicket): Promise<{ id: string | null; number: string }> {
   const ses = await iepSession(c);
+  const tag = `[Smart Service #${t.ticket_no}]`;   // marker in the complaint: a retry finds the ticket it already made instead of making a second one
+  const dup = await iepCall(c, ses, "GET", `service_tickets?select=id,ticket_number&deleted_at=is.null&customer_complaint=like.${encodeURIComponent("*" + tag + "*")}&order=created_at.asc&limit=1`);
+  if (dup?.[0]?.id) return { id: String(dup[0].id), number: String(dup[0].ticket_number ?? t.ticket_no) };
   const name = (t.customer || "").trim() || "Smart Service customer";
   const found = await iepCall(c, ses, "GET", `customers?select=id&deleted_at=is.null&display_name=ilike.${encodeURIComponent(name.replace(/[%*,()]/g, " ").trim())}&limit=1`);
   let customerId: string | undefined = found?.[0]?.id;
   if (!customerId) customerId = String(await iepCall(c, ses, "POST", "rpc/create_customer", { p_display_name: name, p_customer_type: "business", p_notes: "Created by Smart Service" }));
   const complaint = [t.subject, t.description].filter(Boolean).join("\n");
-  const id = String(await iepCall(c, ses, "POST", "rpc/create_service_ticket", { p_payload: { serial_number: t.serial, customer_id: customerId, customer_complaint: `[Smart Service #${t.ticket_no}] ${complaint}`.slice(0, 2000) } }));
+  const id = String(await iepCall(c, ses, "POST", "rpc/create_service_ticket", { p_payload: { serial_number: t.serial, customer_id: customerId, customer_complaint: `${tag} ${complaint}`.slice(0, 2000) } }));
   const row = await iepCall(c, ses, "GET", `service_tickets?select=ticket_number&id=eq.${encodeURIComponent(id)}&limit=1`);
   return { id, number: String(row?.[0]?.ticket_number ?? t.ticket_no) };
 }

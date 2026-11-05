@@ -7,10 +7,14 @@ const MAX_ATTEMPTS = 8;
 
 export async function processOutbox(limit = 20): Promise<{ sent: number; failed: number; waiting: number }> {
   const admin = supabaseAdmin();
-  const { data: items } = await admin.from("integration_outbox").select("id,integration_id,ticket_id,operation,attempts,tenant_id")
+  const { data: items } = await admin.from("integration_outbox").select("id,integration_id,ticket_id,operation,attempts,tenant_id,next_attempt_at")
     .in("status", ["pending", "failed"]).lte("next_attempt_at", new Date().toISOString()).order("seq").limit(limit);
   let sent = 0, failed = 0, waiting = 0;
   for (const it of items ?? []) {
+    // Claim the item first: two runs at the same moment (double click, "apply" + status change) must never send the same item twice.
+    const { data: claimed } = await admin.from("integration_outbox").update({ next_attempt_at: new Date(Date.now() + 5 * 60000).toISOString() })
+      .eq("id", it.id).eq("next_attempt_at", (it as any).next_attempt_at).in("status", ["pending", "failed"]).select("id");
+    if (!claimed || claimed.length === 0) continue;
     const fail = async (msg: string, keepAttempts = false) => {
       const attempts = it.attempts + (keepAttempts ? 0 : 1);
       await admin.from("integration_outbox").update({
