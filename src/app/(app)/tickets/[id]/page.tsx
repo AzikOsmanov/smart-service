@@ -132,12 +132,19 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const { data: state } = await sb.from("ticket_service_state").select("status,comment,changed_at").eq("ticket_id", id).maybeSingle();
   const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("ticket_id", id).maybeSingle();
   const uid = sess.session!.user.id;
-  const [{ data: me }, { data: files }, { data: events }, { data: qcLatest }] = await Promise.all([
+  const [{ data: me }, { data: files }, { data: events }, { data: qcLatest }, { data: custRow }, { data: devModel }] = await Promise.all([
     sb.from("users").select("tenant_id").eq("id", uid).single(),
     sb.from("ticket_attachments").select("id,file_name,storage_key,kind,created_at,uploaded_by").eq("ticket_id", id).order("created_at"),
     sb.from("ticket_customer_events").select("id,kind,status,created_at").eq("ticket_id", id).order("created_at"),
     dev?.serial_number ? sb.from("qc_checks").select("id,status,created_at").eq("serial_number", dev.serial_number).is("deleted_at", null).order("created_at", { ascending: false }).limit(1) : Promise.resolve({ data: [] }),
+    sb.from("users").select("first_name,last_name,email,phone,companies(name,city)").eq("id", t.customer_id).maybeSingle(),
+    sb.from("devices").select("device_models(name)").eq("id", t.device_id).maybeSingle(),
   ]);
+  const cu: any = custRow;
+  const platformName = cu ? `${cu.first_name ?? ""} ${cu.last_name ?? ""}`.trim() + (cu.companies?.name ? ` · ${cu.companies.name}${cu.companies.city ? " / " + cu.companies.city : ""}` : "") : "—";
+  const customerName = info?.customer_name || platformName;
+  const customerSource = info?.customer_name ? (info.source === "integration" ? "from integration" : "entered manually") : "registered on the platform";
+  const modelName = info?.model_name || (devModel as any)?.device_models?.name || "—";
   const fileKeys = (files ?? []).map((f) => f.storage_key);
   const { data: fileUrls } = fileKeys.length ? await sb.storage.from("ticket-files").createSignedUrls(fileKeys, 3600) : { data: [] };
   const urlOf = new Map((fileUrls ?? []).map((x) => [x.path, x.signedUrl]));
@@ -178,7 +185,8 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
       <div className="card">
         <h1>{t.ticket_no} — {t.subject}</h1>
         <p>{t.description}</p>
-        <p>Serial number: <b>{dev?.serial_number ?? "—"}</b> · Status: {t.status} · Priority: {t.priority}</p>
+        <p>Customer: <b>{customerName}</b> <small>({customerSource}){cu?.email ? ` · ${cu.email}` : ""}{cu?.phone ? ` · ${cu.phone}` : ""}</small></p>
+        <p>Serial number: <b>{dev?.serial_number ?? "—"}</b> · Model: <b>{modelName}</b> · Ticket status: {t.status} · Priority: {t.priority}</p>
         {dev?.serial_number && <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>New QC check for this device</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>QC history</a></p>}
         <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
         {error && <p className="err">{error}</p>}
@@ -195,8 +203,8 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
             <p>Current: <b>{state?.status ?? "—"}</b></p>
             <input type="hidden" name="id" value={id} />
             <select name="status" defaultValue={state?.status ?? "in_progress"}>
-              <option value="in_progress">In progress</option><option value="done">Done</option>
-              <option value="rma">RMA</option><option value="repair_not_possible">Repair is not possible</option>
+              <option value="in_progress">In progress (Diagnose)</option><option value="done">Done</option>
+              <option value="rma">Replaced new device</option><option value="repair_not_possible">Repair isn&apos;t possible</option>
             </select>
             <input name="comment" placeholder="Comment (internal)" />
             <button>Save status</button>
