@@ -29,13 +29,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: sess } = await sb.auth.getSession();
   if (!sess.session) redirect("/login");
   const { t, lang } = await getT();
-  const [{ data: me }, { data: isAdmin }, { data: brandRow }, { data: canQc }, { data: canClaims }, { data: canDevices }] = await Promise.all([
+  const [{ data: me }, { data: isAdmin }, { data: brandRow }, { data: canQc }, { data: canClaims }, { data: canDevices }, { data: canTut }] = await Promise.all([
     sb.from("users").select("first_name,last_name,kind,registration").eq("id", sess.session.user.id).maybeSingle(),
     sb.rpc("is_tenant_admin"),
     supabaseAdmin().from("settings").select("value").eq("key", "brand_name").maybeSingle(),
     sb.rpc("has_permission", { p_code: "qc.view" }),
     sb.rpc("has_permission", { p_code: "devices.claims.view" }),
     sb.rpc("has_permission", { p_code: "devices.view" }),
+    sb.rpc("has_permission", { p_code: "tutorials.view" }),
   ]);
   const [{ data: nItems }, { count: nUnread }] = await Promise.all([
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
@@ -49,6 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (staff) nav.push({ href: "/customers", label: t("customers") });
   if (staff && canClaims === true) nav.push({ href: "/claims", label: t("claims") });
   if (staff && canQc === true) nav.push({ href: "/qc", label: t("qc") });
+  if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
   if (isAdmin === true) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
   nav.push({ href: "/account", label: t("account") });
   const userName = me ? `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() : sess.session.user.email ?? "";

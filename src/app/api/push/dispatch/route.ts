@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { notifText } from "@/lib/notif-text";
+import { notifText, tutorialTitle } from "@/lib/notif-text";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +28,9 @@ export async function POST(req: Request) {
     const ann = n.kind === "announcement";
     return {
       to: t.token, sound: "default", channelId: "default", badge: unread ?? undefined,
-      title: ann ? String(d.title ?? "Smart Service") : "Smart Service",
+      title: ann ? (d.tutorial_id ? tutorialTitle(t.lang) : String(d.title ?? "Smart Service")) : "Smart Service",
       body: ann ? String(d.body ?? "") : notifText(t.lang, { kind: n.kind, data: d }),
-      data: { notification_id: n.id, ticket_id: n.ticket_id, link: ann ? d.link ?? null : null },
+      data: { notification_id: n.id, ticket_id: n.ticket_id, link: ann ? d.link ?? null : null, tutorial_id: ann ? d.tutorial_id ?? null : null },
     };
   });
   const res = await fetch("https://exp.host/--/api/v2/push/send", {
