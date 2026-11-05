@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, RefreshControl } from "react-native";
+import { Linking, Pressable, RefreshControl } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { sb } from "@/lib/supabase";
 import { usePrefs } from "@/lib/prefs";
@@ -20,6 +20,7 @@ export default function Notifications() {
 
   const text = (n: N) => {
     const d = n.data ?? {};
+    if (n.kind === "announcement") return [d.title, d.body].filter(Boolean).join(" — ");
     const status = d.status ? t(({ diagnose: "diagnose", ready: "ready", repair_not_possible: "repair_not_possible", pickup_new_device: "pickup_new_device" } as Record<string, Key>)[d.status] ?? "status") : "";
     const key = ("n_" + n.kind) as Key;
     return t(key, { no: d.ticket_no, subject: d.subject, name: d.name, email: d.email, amount: d.amount, currency: d.currency, status }) || n.kind;
@@ -32,7 +33,9 @@ export default function Notifications() {
       {list.map((n) => (
         <Pressable key={n.id} onPress={async () => {
           if (!n.read_at) await sb.rpc("notifications_mark_read", { p_ids: [n.id] });
-          if (n.ticket_id) router.push(`/tickets/${n.ticket_id}`); else load();
+          if (n.ticket_id) router.push(`/tickets/${n.ticket_id}`);
+          else if (typeof n.data?.link === "string" && /^https?:\/\//.test(n.data.link)) Linking.openURL(n.data.link);
+          else load();
         }}>
           <Card style={{ borderColor: n.read_at ? c.border : c.accent, borderWidth: n.read_at ? 0.5 : 1.5 }}>
             <Txt bold={!n.read_at}>{text(n)}</Txt>

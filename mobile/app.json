@@ -45,6 +45,14 @@
           "photosPermission": "Smart Service needs your photos to attach them to tickets.",
           "cameraPermission": "Smart Service uses the camera to take photos for tickets."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#3b82f6",
+          "defaultChannel": "default"
+        }
       ]
     ],
     "owner": "azikosmanovs-team",

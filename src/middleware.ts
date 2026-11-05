@@ -18,7 +18,7 @@ export async function middleware(req: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const path = req.nextUrl.pathname;
   const open = path.startsWith("/login") || path.startsWith("/register") || path.startsWith("/forgot");
-  if (path.startsWith("/auth/") || path.startsWith("/api/cron/") || path.startsWith("/api/webhooks/") || path.startsWith("/api/mobile/")) return res;   // these check their own secret/signature
+  if (path.startsWith("/auth/") || path.startsWith("/api/cron/") || path.startsWith("/api/webhooks/") || path.startsWith("/api/mobile/") || path.startsWith("/api/push/")) return res;   // these check their own secret/signature
   if (!data.user && !open) return NextResponse.redirect(new URL("/login", req.url));
   if (data.user && open) return NextResponse.redirect(new URL("/tickets", req.url));
   return res;

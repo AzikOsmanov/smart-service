@@ -1,8 +1,34 @@
-import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { Linking, Platform } from "react-native";
+import { Stack, router } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { registerPush } from "@/lib/push";
+import { useAuth } from "@/lib/auth";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PrefsProvider, usePrefs } from "@/lib/prefs";
 import { AuthProvider } from "@/lib/auth";
+
+// Opens the ticket (or the announcement link) when a push notification is tapped.
+function openFromPush(data: Record<string, unknown> | undefined) {
+  if (!data) return;
+  if (typeof data.ticket_id === "string" && data.ticket_id) router.push(`/tickets/${data.ticket_id}`);
+  else if (typeof data.link === "string" && /^https?:\/\//.test(data.link)) Linking.openURL(data.link);
+  else router.push("/notifications");
+}
+
+function PushSetup() {
+  const { session } = useAuth();
+  const { lang } = usePrefs();
+  useEffect(() => { if (session) registerPush(lang); }, [session?.user.id, lang]);
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    Notifications.getLastNotificationResponseAsync().then((r) => { if (r) openFromPush(r.notification.request.content.data as Record<string, unknown>); }).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener((r) => openFromPush(r.notification.request.content.data as Record<string, unknown>));
+    return () => sub.remove();
+  }, []);
+  return null;
+}
 
 function Nav() {
   const { c, t, theme } = usePrefs();
@@ -28,6 +54,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <PrefsProvider>
         <AuthProvider>
+          <PushSetup />
           <Nav />
         </AuthProvider>
       </PrefsProvider>

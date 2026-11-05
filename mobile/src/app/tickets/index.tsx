@@ -5,6 +5,7 @@ import { sb } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
 import { takeScan } from "@/lib/scan-store";
+import { setBadge } from "@/lib/push";
 import { warrantyText } from "@/lib/warranty";
 import { Badge, Btn, Card, Choice, Err, Loading, Row, Screen, Txt } from "@/components/ui";
 
@@ -34,7 +35,7 @@ export default function Tickets() {
     ]);
     if (error) { setErr(error.message); setRows([]); return; }
     const list = (data ?? []) as T[];
-    setRows(list); setUnread(count ?? 0);
+    setRows(list); setUnread(count ?? 0); setBadge(count ?? 0);
     const devIds = [...new Set(list.map((x) => x.device_id))];
     const custIds = [...new Set(list.map((x) => x.customer_id))];
     const [{ data: devs }, extRes, custRes] = await Promise.all([

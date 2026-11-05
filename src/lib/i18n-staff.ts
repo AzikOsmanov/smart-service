@@ -322,6 +322,17 @@ const en = {
   ieoCard: "IEP",
   ieoNumber: "IEP number",
   modeIep: "IEP (Supabase app: sign in as an IEP user)",
+  annTitle: "Announcements",
+  annIntro: "Send a message to everyone: it appears in the bell and as a push notification on phones (for example, a new tutorial video).",
+  annHeading: "Title",
+  annText: "Text",
+  annLink: "Link (optional)",
+  annAudience: "Send to",
+  annAll: "Everyone",
+  annCustomers: "Customers",
+  annStaff: "Staff",
+  annSend: "Send",
+  annSent: "Sent to {n} users.",
 };
 export type SKey = keyof typeof en;
 
@@ -646,6 +657,17 @@ const ru: Record<SKey, string> = {
   ieoCard: "IEP",
   ieoNumber: "Номер в IEP",
   modeIep: "IEP (приложение Supabase: вход как пользователь IEP)",
+  annTitle: "Объявления",
+  annIntro: "Отправьте сообщение всем: оно появится в колокольчике и как push-уведомление на телефонах (например, новое обучающее видео).",
+  annHeading: "Заголовок",
+  annText: "Текст",
+  annLink: "Ссылка (необязательно)",
+  annAudience: "Кому",
+  annAll: "Всем",
+  annCustomers: "Клиентам",
+  annStaff: "Сотрудникам",
+  annSend: "Отправить",
+  annSent: "Отправлено {n} пользователям.",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -968,6 +990,17 @@ const az: Record<SKey, string> = {
   ieoCard: "IEP",
   ieoNumber: "IEP nömrəsi",
   modeIep: "IEP (Supabase tətbiqi: IEP istifadəçisi kimi giriş)",
+  annTitle: "Elanlar",
+  annIntro: "Hamıya mesaj göndərin: zəngdə və telefonlarda push bildiriş kimi görünəcək (məsələn, yeni təlim videosu).",
+  annHeading: "Başlıq",
+  annText: "Mətn",
+  annLink: "Keçid (məcburi deyil)",
+  annAudience: "Kimə",
+  annAll: "Hamıya",
+  annCustomers: "Müştərilərə",
+  annStaff: "Əməkdaşlara",
+  annSend: "Göndər",
+  annSent: "{n} istifadəçiyə göndərildi.",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

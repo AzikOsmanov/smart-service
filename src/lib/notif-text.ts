@@ -36,6 +36,7 @@ export function notifLabels(lang: string) { const l = (lang in T ? lang : "en") 
 export function notifText(lang: string, n: Pick<Notif, "kind" | "data">): string {
   const l = (lang in T ? lang : "en") as L;
   const d = n.data ?? {};
+  if (n.kind === "announcement") return [d.title, d.body].filter((x) => typeof x === "string" && x).join(" — ");
   const tpl = T[l][n.kind] ?? n.kind;
   const status = typeof d.status === "string" ? STATUS[l][d.status] ?? d.status : "";
   const amount = typeof d.amount === "number" ? d.amount.toFixed(2) : String(d.amount ?? "");
@@ -44,7 +45,8 @@ export function notifText(lang: string, n: Pick<Notif, "kind" | "data">): string
     .replace("{amount}", amount).replace("{currency}", String(d.currency ?? "")).replace("{name}", String(d.name ?? "")).replace("{email}", String(d.email ?? ""))
     .trim();
 }
-export function notifHref(n: Pick<Notif, "kind" | "ticket_id">): string {
+export function notifHref(n: Pick<Notif, "kind" | "ticket_id"> & { data?: Record<string, unknown> }): string {
+  if (n.kind === "announcement" && typeof n.data?.link === "string" && /^(https?:\/\/|\/)/.test(n.data.link)) return n.data.link;
   if (n.ticket_id) return `/tickets/${n.ticket_id}`;
   if (n.kind === "registration_new") return "/customers";
   return "/tickets";
