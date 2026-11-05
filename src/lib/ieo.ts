@@ -1,12 +1,13 @@
-// IEO (ieo.infraneuro.com) connector, server only. Separate from 1C. Three ways to talk to IEO, chosen by the administrator:
+// IEP (iep.infraneuro.com, "IEO" in code) connector, server only. Separate from 1C. Three ways to talk to IEO, chosen by the administrator:
 //   rest    - JSON over HTTP, paths and field names come from the settings
 //   odata   - OData v2/v3/v4 style entity sets
+//   iep     - IEP is a Supabase app: we sign in as a dedicated IEP user and call its own functions (lookup_service_serial, create_service_ticket, set_service_ticket_status)
 //   webhook - we POST signed JSON events to a URL; IEO can also call us back (see /api/webhooks/ieo/[id])
 import { createHmac } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { checkBaseUrl } from "@/lib/onec";
 
-export type IeoMode = "rest" | "odata" | "webhook";
+export type IeoMode = "rest" | "odata" | "webhook" | "iep";
 export type IeoMap = {
   mode?: IeoMode;
   auth_header?: string;   // header name for api_key (default X-API-Key)
@@ -84,6 +85,48 @@ async function http(c: IeoConn, method: string, url: string, body?: unknown, ext
 }
 const join = (base: string, path: string) => `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 
+
+// ---- IEP (Supabase) mode -------------------------------------------------------------------------------------------------
+// base_url = https://<ref>.supabase.co, token = IEP anon key, username/password = the dedicated IEP user (role reception).
+const IEP_STATUS: Record<string, string> = { in_progress: "diagnosis", done: "completed", rma: "replacement_device", repair_not_possible: "not_repairable" };
+async function iepSession(c: IeoConn): Promise<{ key: string; jwt: string }> {
+  if (!c.token || !c.username || !c.password) throw new Error("IEP needs the anon key, the IEP user e-mail and the password.");
+  const base = c.base_url.replace(/\/+$/, "");
+  const r = await http(c, "POST", `${base}/auth/v1/token?grant_type=password`, { email: c.username, password: c.password }, { apikey: c.token });
+  const jwt = r.json?.access_token;
+  if (!jwt) throw new Error("IEP sign-in failed: " + String(r.json?.error_description ?? r.json?.msg ?? "no token returned"));
+  return { key: c.token, jwt };
+}
+async function iepCall(c: IeoConn, ses: { key: string; jwt: string }, method: string, path: string, body?: unknown): Promise<any> {
+  const r = await http(c, method, `${c.base_url.replace(/\/+$/, "")}/rest/v1/${path}`, body, { apikey: ses.key, Authorization: `Bearer ${ses.jwt}`, "Content-Profile": "public", "Accept-Profile": "public" });
+  return r.json;
+}
+async function iepLookup(c: IeoConn, serial: string): Promise<Lookup> {
+  const ses = await iepSession(c);
+  const j = await iepCall(c, ses, "POST", "rpc/lookup_service_serial", { p_serial: serial });
+  if (!j?.matched) return { found: false, model: null, warranty_until: null, sold_date: null, customer_name: null, raw: null };
+  const name = [j.product_brand, j.product_model || j.product_name].filter(Boolean).join(" ") || null;
+  const model = name ? (j.warranty_label ? `${name} (${j.warranty_label})` : name) : null;
+  return { found: true, model, warranty_until: asDate(j.warranty_until), sold_date: asDate(j.purchase_date), customer_name: null, raw: j };
+}
+async function iepCreate(c: IeoConn, t: NewTicket): Promise<{ id: string | null; number: string }> {
+  const ses = await iepSession(c);
+  const name = (t.customer || "").trim() || "Smart Service customer";
+  const found = await iepCall(c, ses, "GET", `customers?select=id&deleted_at=is.null&display_name=ilike.${encodeURIComponent(name.replace(/[%*,()]/g, " ").trim())}&limit=1`);
+  let customerId: string | undefined = found?.[0]?.id;
+  if (!customerId) customerId = String(await iepCall(c, ses, "POST", "rpc/create_customer", { p_display_name: name, p_customer_type: "business", p_notes: "Created by Smart Service" }));
+  const complaint = [t.subject, t.description].filter(Boolean).join("\n");
+  const id = String(await iepCall(c, ses, "POST", "rpc/create_service_ticket", { p_payload: { serial_number: t.serial, customer_id: customerId, customer_complaint: `[Smart Service #${t.ticket_no}] ${complaint}`.slice(0, 2000) } }));
+  const row = await iepCall(c, ses, "GET", `service_tickets?select=ticket_number&id=eq.${encodeURIComponent(id)}&limit=1`);
+  return { id, number: String(row?.[0]?.ticket_number ?? t.ticket_no) };
+}
+async function iepStatus(c: IeoConn, externalId: string, status: string): Promise<void> {
+  const value = (c.fm.status_map as Record<string, string> | undefined)?.[status] || IEP_STATUS[status];
+  if (!value) throw new Error(`No IEP status is mapped for "${status}".`);
+  const ses = await iepSession(c);
+  await iepCall(c, ses, "POST", "rpc/set_service_ticket_status", { p_ticket_id: externalId, p_status: value });
+}
+
 export function sign(secret: string, body: string): string {
   return "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
 }
@@ -94,6 +137,7 @@ export async function lookupDevice(c: IeoConn, serial: string): Promise<Lookup> 
   const mode = c.fm.mode ?? "rest";
   const none: Lookup = { found: false, model: null, warranty_until: null, sold_date: null, customer_name: null, raw: null };
   let rec: any;
+  if (mode === "iep") return iepLookup(c, serial);
   if (mode === "webhook") throw new Error("In webhook mode IEO sends the device data to us; there is nothing to ask. Switch the mode to REST or OData to read on demand.");
   if (mode === "odata") {
     if (!m.entity || !m.serial_field) throw new Error("Device lookup is not configured: set the entity and the serial number field.");
@@ -117,6 +161,7 @@ export async function createTicket(c: IeoConn, t: NewTicket): Promise<{ id: stri
   const m = c.fm.ticket ?? {};
   const mode = c.fm.mode ?? "rest";
   const idF = m.id_field || (mode === "odata" ? "Ref_Key" : "id"), numF = m.number_field || (mode === "odata" ? "Number" : "number");
+  if (mode === "iep") return iepCreate(c, t);
   if (mode === "webhook") {
     const payload = { event: "ticket.created", ticket: { ticket_no: t.ticket_no, serial: t.serial, subject: t.subject, description: t.description, customer: t.customer, ...(m.extra ?? {}) } };
     await postSigned(c, payload);
@@ -141,6 +186,7 @@ export async function createTicket(c: IeoConn, t: NewTicket): Promise<{ id: stri
 export async function updateStatus(c: IeoConn, ref: { id: string; number: string; ticket_no: string }, status: string): Promise<void> {
   const m = c.fm.ticket ?? {};
   const mode = c.fm.mode ?? "rest";
+  if (mode === "iep") return iepStatus(c, ref.id, status);
   const value = (c.fm.status_map as Record<string, string> | undefined)?.[status] ?? (mode === "webhook" ? status : undefined);
   if (!value) throw new Error(`No IEO value is mapped for the status "${status}".`);
   if (mode === "webhook") { await postSigned(c, { event: "ticket.status_changed", ticket: { ticket_no: ref.ticket_no, external_id: ref.id, status: value, internal_status: status } }); return; }
@@ -163,6 +209,7 @@ async function postSigned(c: IeoConn, payload: unknown) {
 
 export async function testReach(c: IeoConn): Promise<string> {
   const mode = c.fm.mode ?? "rest";
+  if (mode === "iep") { const ses = await iepSession(c); await iepCall(c, ses, "POST", "rpc/lookup_service_serial", { p_serial: "TEST-CONNECTION" }); return "Connected to IEP and signed in."; }
   if (mode === "webhook") { await postSigned(c, { event: "ping" }); return "Connected. IEO accepted a test ping."; }
   const base = c.base_url.replace(/\/+$/, "");
   const target = mode === "odata" ? `${join(base, encodeURIComponent(c.fm.ticket?.entity || c.fm.lookup?.entity || ""))}?$format=json&$top=1` : base;

@@ -32,7 +32,7 @@ export async function saveIeoAction(fd: FormData) {
   const base = f(fd, "base_url");
   const enable = fd.get("enabled") === "on";
   if (base) { const bad = checkBaseUrl(base); if (bad) done(kind, "error", bad); }
-  const mode = (["rest", "odata", "webhook"].includes(f(fd, "mode")) ? f(fd, "mode") : "rest") as IeoMode;
+  const mode = (["rest", "odata", "webhook", "iep"].includes(f(fd, "mode")) ? f(fd, "mode") : "rest") as IeoMode;
   const auth = ["api_key", "bearer", "basic"].includes(f(fd, "auth_type")) ? f(fd, "auth_type") : "api_key";
 
   const fm: IeoMap = { mode, auth_header: f(fd, "auth_header") };
@@ -66,7 +66,7 @@ export async function saveIeoAction(fd: FormData) {
 
   if (enable) {
     if (!base) done(kind, "error", S.errBaseUrlNeeded);
-    const haveKey = auth === "basic" ? !!sec.u && !!sec.p : !!sec.t;
+    const haveKey = mode === "iep" ? !!sec.t && !!sec.u && !!sec.p : auth === "basic" ? !!sec.u && !!sec.p : !!sec.t;
     if (!haveKey && mode !== "webhook") done(kind, "error", S.errNeedKey);
     await db.from("integrations").update({ is_enabled: true }).eq("id", id);
   }

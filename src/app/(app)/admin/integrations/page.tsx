@@ -132,7 +132,7 @@ export default async function Integrations({ searchParams }: { searchParams: Pro
               <input type="hidden" name="kind" value={kind} />
               <label className="row" style={{ cursor: "pointer" }}><input type="checkbox" name="enabled" defaultChecked={row?.is_enabled === true} style={{ width: "auto" }} /> {S.switchedOn}</label>
               <div className="row">
-                <label>{S.modeWord}<select name="mode" defaultValue={mode}><option value="rest">{S.modeRest}</option><option value="odata">{S.modeOdata}</option><option value="webhook">{S.modeWebhook}</option></select></label>
+                <label>{S.modeWord}<select name="mode" defaultValue={mode}><option value="rest">{S.modeRest}</option><option value="iep">{S.modeIep}</option><option value="odata">{S.modeOdata}</option><option value="webhook">{S.modeWebhook}</option></select></label>
                 <label>{S.authWord}<select name="auth_type" defaultValue={(row as any)?.auth_type ?? "api_key"}><option value="api_key">{S.authApiKey}</option><option value="bearer">{S.authBearer}</option><option value="basic">{S.authBasic}</option></select></label>
               </div>
               <label>{S.baseUrl}<input name="base_url" defaultValue={row?.base_url ?? ""} placeholder="https://" /></label>
