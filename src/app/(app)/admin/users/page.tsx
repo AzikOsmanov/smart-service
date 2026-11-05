@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
+import { getStaff } from "@/lib/i18n-staff";
+import { fmt } from "@/lib/fmt";
 import ConfirmButton from "@/components/ConfirmButton";
 import { hardDeleteUserAction } from "@/lib/delete-actions";
 import { adminSendResetAction } from "@/lib/reset-actions";
@@ -18,16 +20,17 @@ async function requireAdmin() {
 
 async function createStaff(fd: FormData) {
   "use server";
+  const { S } = await getStaff();
   const { tenantId } = await requireAdmin();
   const email = String(fd.get("email")).trim().toLowerCase();
   const roleId = String(fd.get("role"));
   const admin = supabaseAdmin();
   const { data: role } = await admin.from("roles").select("id,is_admin").eq("id", roleId).eq("tenant_id", tenantId).maybeSingle();
-  if (!role || role.is_admin) redirect("/admin/users?error=" + encodeURIComponent("Choose a valid non-admin role"));
+  if (!role || role.is_admin) redirect("/admin/users?error=" + encodeURIComponent(S.errValidRole));
   const created = await admin.auth.admin.createUser({ email, password: String(fd.get("password")), email_confirm: true });
   if (created.error || !created.data.user) {
-    const m = created.error?.message ?? "Could not create login";
-    redirect("/admin/users?error=" + encodeURIComponent(/already/i.test(m) ? `${email} already has an account (see the list below).` : m));
+    const m = created.error?.message ?? S.errCouldNotLogin;
+    redirect("/admin/users?error=" + encodeURIComponent(/already/i.test(m) ? fmt(S.errAlreadyAccount, { email }) : m));
   }
   const uid = created.data.user.id;
   let failure: string | null = null;
@@ -43,14 +46,15 @@ async function createStaff(fd: FormData) {
     redirect("/admin/users?error=" + encodeURIComponent(failure));
   }
   revalidatePath("/admin/users");
-  redirect("/admin/users?ok=" + encodeURIComponent(`User ${email} created. Give them the temporary password.`));
+  redirect("/admin/users?ok=" + encodeURIComponent(fmt(S.okUserCreated, { email })));
 }
 
 async function setActive(fd: FormData) {
   "use server";
+  const { S } = await getStaff();
   const { tenantId, myId } = await requireAdmin();
   const id = String(fd.get("id"));
-  if (id === myId) redirect("/admin/users?error=" + encodeURIComponent("You cannot deactivate yourself"));
+  if (id === myId) redirect("/admin/users?error=" + encodeURIComponent(S.errDeactivateSelf));
   await supabaseAdmin().from("users").update({ is_active: fd.get("active") === "1" }).eq("id", id).eq("tenant_id", tenantId);
   revalidatePath("/admin/users");
 }
@@ -59,6 +63,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
   const { error, ok } = await searchParams;
   const { sb } = await requireAdmin();
   const { t } = await getT();
+  const { S } = await getStaff();
   const { data: roles } = await sb.from("roles").select("id,name,is_admin").is("deleted_at", null).order("name");
   const [{ data: staffRows, error: staffErr }, { data: urRows }, { data: roleRows }] = await Promise.all([
     sb.from("users").select("id,first_name,last_name,email,is_active,last_login_at").eq("kind", "staff").is("deleted_at", null).order("created_at"),
@@ -81,26 +86,26 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
               <td>{u.roleNames}</td>
               <td>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : t("never")}</td>
               <td style={{ whiteSpace: "nowrap" }}><form action={setActive} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="active" value={u.is_active ? "0" : "1"} /><button>{u.is_active ? t("deactivate") : t("activate")}</button></form>
-                <a className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>Edit</a>
-                <form action={adminSendResetAction} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/admin/users" /><button>Send password reset</button></form>
+                <a className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>{S.edit}</a>
+                <form action={adminSendResetAction} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/admin/users" /><button>{S.sendPwReset}</button></form>
                 {!u.roleNames.includes("Administrator") && (
                   <form action={hardDeleteUserAction} style={{ display: "inline", marginLeft: 8 }}>
                     <input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/admin/users" />
-                    <ConfirmButton className="btn danger" name="mode" value="plain" message={`Permanently delete ${u.email}? This cannot be undone.`}>Delete</ConfirmButton>
-                    <ConfirmButton className="btn danger" name="mode" value="all" message={`Permanently delete ${u.email} TOGETHER WITH all their tickets and devices? This cannot be undone.`}>Delete with tickets and devices</ConfirmButton>
+                    <ConfirmButton className="btn danger" name="mode" value="plain" message={fmt(S.deleteUserQ, { email: u.email })}>{S.delete}</ConfirmButton>
+                    <ConfirmButton className="btn danger" name="mode" value="all" message={fmt(S.deleteUserAllQ, { email: u.email })}>{S.deleteWithAll}</ConfirmButton>
                   </form>)}</td>
             </tr>))}</tbody></table>
       </div>
       <form action={createStaff} className="card">
-        <h2>Add staff user</h2>
-        <label>First name<input name="first_name" required /></label>
-        <label>Last name<input name="last_name" required /></label>
-        <label>Phone<input name="phone" /></label>
-        <label>Email<input name="email" type="email" required /></label>
-        <label>Role<select name="role">{(roles ?? []).filter((r) => !r.is_admin).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-        <label>Temporary password<input name="password" type="text" minLength={10} required /></label>
-        <p>Give this password to the user. They should change it after the first sign-in (Account page).</p>
-        <button>Create user</button>
+        <h2>{S.addStaffUser}</h2>
+        <label>{S.firstName}<input name="first_name" required /></label>
+        <label>{S.lastName}<input name="last_name" required /></label>
+        <label>{S.phone}<input name="phone" /></label>
+        <label>{t("email")}<input name="email" type="email" required /></label>
+        <label>{S.roleWord}<select name="role">{(roles ?? []).filter((r) => !r.is_admin).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+        <label>{S.tempPassword}<input name="password" type="text" minLength={10} required /></label>
+        <p>{S.tempPwHint}</p>
+        <button>{S.createUser}</button>
       </form>
     </div>
   );
