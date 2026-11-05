@@ -27,6 +27,9 @@ const en = {
   newPwTitle: "Create new password", newPw: "New password", repeatPw: "Repeat new password", saveNewPw: "Save new password",
   linkExpired: "This link has expired or was already used. Request a new one.", linkInvalid: "The link is not valid.",
   linkInvalidShort: "The link is invalid or expired. Request a new one.", emailConfirmed: "Email confirmed. You can sign in now (new customers still need approval by the service center).",
+  registeredMsg: "Registered. We sent a confirmation link to your email — open it, then wait for approval by the service center.",
+  pwShort: "Password must be at least 10 characters.", pwMismatch: "Passwords do not match.",
+  pwChanged: "Password changed. Sign in with your new password.", resetInvalid: "The reset link is invalid or expired. Request a new one.",
 } as const;
 export type PKey = keyof typeof en;
 
@@ -56,6 +59,9 @@ const ru: Record<PKey, string> = {
   newPwTitle: "Создайте новый пароль", newPw: "Новый пароль", repeatPw: "Повторите новый пароль", saveNewPw: "Сохранить новый пароль",
   linkExpired: "Ссылка устарела или уже использована. Запросите новую.", linkInvalid: "Ссылка недействительна.",
   linkInvalidShort: "Ссылка недействительна или устарела. Запросите новую.", emailConfirmed: "Почта подтверждена. Теперь можно войти (новые клиенты должны дождаться одобрения сервисного центра).",
+  registeredMsg: "Вы зарегистрированы. Мы отправили ссылку подтверждения на вашу почту — откройте её, затем дождитесь одобрения сервисного центра.",
+  pwShort: "Пароль должен содержать не менее 10 символов.", pwMismatch: "Пароли не совпадают.",
+  pwChanged: "Пароль изменён. Войдите с новым паролем.", resetInvalid: "Ссылка для сброса недействительна или устарела. Запросите новую.",
 };
 
 const az: Record<PKey, string> = {
@@ -84,6 +90,9 @@ const az: Record<PKey, string> = {
   newPwTitle: "Yeni şifrə yaradın", newPw: "Yeni şifrə", repeatPw: "Yeni şifrəni təkrarlayın", saveNewPw: "Yeni şifrəni saxla",
   linkExpired: "Linkin vaxtı bitib və ya artıq istifadə olunub. Yenisini sorğulayın.", linkInvalid: "Link etibarsızdır.",
   linkInvalidShort: "Link etibarsızdır və ya vaxtı bitib. Yenisini sorğulayın.", emailConfirmed: "E-poçt təsdiqləndi. İndi daxil ola bilərsiniz (yeni müştərilər servis mərkəzinin təsdiqini gözləməlidir).",
+  registeredMsg: "Qeydiyyatdan keçdiniz. E-poçtunuza təsdiq linki göndərdik — onu açın, sonra servis mərkəzinin təsdiqini gözləyin.",
+  pwShort: "Şifrə ən azı 10 simvol olmalıdır.", pwMismatch: "Şifrələr uyğun gəlmir.",
+  pwChanged: "Şifrə dəyişdirildi. Yeni şifrə ilə daxil olun.", resetInvalid: "Sıfırlama linki etibarsızdır və ya vaxtı bitib. Yenisini sorğulayın.",
 };
 
 const all: Record<Lang, Record<PKey, string>> = { en, ru, az };

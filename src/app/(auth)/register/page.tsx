@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
+import { getPortal } from "@/lib/i18n-portal";
 
 async function signUp(fd: FormData) {
   "use server";
   const sb = await supabaseServer();
+  const { L } = await getPortal();
   const { error } = await sb.auth.signUp({
     email: String(fd.get("email")),
     password: String(fd.get("password")),
@@ -19,7 +21,7 @@ async function signUp(fd: FormData) {
     } },
   });
   if (error) redirect("/register?error=" + encodeURIComponent(error.message));
-  redirect("/login?error=" + encodeURIComponent("Registered. We sent a confirmation link to your email — open it, then wait for approval by the service center."));
+  redirect("/login?error=" + encodeURIComponent(L.registeredMsg));
 }
 
 export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string }> }) {

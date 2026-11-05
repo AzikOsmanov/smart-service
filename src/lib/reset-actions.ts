@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getPortal } from "@/lib/i18n-portal";
 
 // Public "Forgot password": always shows the same answer, so nobody can find out which emails are registered.
 export async function forgotPasswordAction(fd: FormData) {
@@ -28,15 +29,16 @@ export async function adminSendResetAction(fd: FormData) {
 }
 
 export async function setNewPasswordAction(fd: FormData) {
+  const { L } = await getPortal();
   const pw = String(fd.get("password") ?? "");
   const again = String(fd.get("again") ?? "");
-  if (pw.length < 10) redirect("/reset-password?error=" + encodeURIComponent("Password must be at least 10 characters."));
-  if (pw !== again) redirect("/reset-password?error=" + encodeURIComponent("Passwords do not match."));
+  if (pw.length < 10) redirect("/reset-password?error=" + encodeURIComponent(L.pwShort));
+  if (pw !== again) redirect("/reset-password?error=" + encodeURIComponent(L.pwMismatch));
   const sb = await supabaseServer();
   const { data } = await sb.auth.getUser();
-  if (!data.user) redirect("/login?error=" + encodeURIComponent("The reset link is invalid or expired. Request a new one."));
+  if (!data.user) redirect("/login?error=" + encodeURIComponent(L.resetInvalid));
   const { error } = await sb.auth.updateUser({ password: pw });
   if (error) redirect("/reset-password?error=" + encodeURIComponent(error.message));
   await sb.auth.signOut();
-  redirect("/login?error=" + encodeURIComponent("Password changed. Sign in with your new password."));
+  redirect("/login?error=" + encodeURIComponent(L.pwChanged));
 }
