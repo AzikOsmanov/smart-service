@@ -1,6 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { processOutbox } from "@/lib/outbox";
 
 export type BoardTarget = "new" | "diagnose" | "ready" | "pickup_new_device" | "repair_not_possible";
 const SERVICE: Record<Exclude<BoardTarget, "new">, string> = {
@@ -23,12 +25,14 @@ export async function moveTicketAction(ticketId: string, target: BoardTarget): P
       .eq("id", ticketId).is("assigned_to", null).select("id");
     if (error) return { error: error.message };
     if (!taken || taken.length === 0) return { error: "Someone else already took this ticket. Refresh the board." };
+    after(() => processOutbox());
     if (target === "diagnose") { revalidatePath("/tickets/board"); return {}; }
   }
   const { error } = await sb.rpc("set_device_service_status", { p_ticket: ticketId, p_status: SERVICE[target], p_comment: "Moved on the board" });
   if (error) {
     return { error: error.message.includes("ticket_frozen") ? "This ticket is closed. Only the administrator can reopen it." : error.message };
   }
+  after(() => processOutbox());
   revalidatePath("/tickets/board");
   return {};
 }

@@ -36,6 +36,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
       <h1>{t("settings")}</h1>
       <div className="card row">
         <a className="btn" href="/admin/login-security" style={{ textDecoration: "none" }}>{S.loginSecurity}</a>
+        <a className="btn" href="/admin/integrations" style={{ textDecoration: "none" }}>{S.integrationsTitle}</a>
         <a className="btn" href="/admin/login-history" style={{ textDecoration: "none" }}>{S.loginHistory}</a>
         <a className="btn" href="/admin/online" style={{ textDecoration: "none" }}>{S.onlineUsers}</a>
       </div>

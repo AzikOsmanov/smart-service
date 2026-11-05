@@ -1,5 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { lookupForTicket, type LookupResult } from "@/lib/onec-tools";
+import { processOutbox } from "@/lib/outbox";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { fmt } from "@/lib/fmt";
 import { supabaseServer } from "@/lib/supabase-server";
 import ConfirmButton from "@/components/ConfirmButton";
 import TicketChat from "@/components/TicketChat";
@@ -16,6 +21,7 @@ async function apply(fd: FormData) {
   const { data: auth } = await sb.auth.getUser();
   const id = String(fd.get("id"));
   await sb.from("tickets").update({ assigned_to: auth.user!.id, status: "assigned" }).eq("id", id).is("assigned_to", null);
+  after(async () => { try { await lookupForTicket(sb, id); } catch { /* never blocks the ticket */ } await processOutbox(); });
   revalidatePath(`/tickets/${id}`);
 }
 
@@ -25,6 +31,7 @@ async function setStatus(fd: FormData) {
   const id = String(fd.get("id"));
   const { error } = await sb.rpc("set_device_service_status", { p_ticket: id, p_status: String(fd.get("status")), p_comment: String(fd.get("comment") || "") });
   if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
+  after(() => processOutbox());
   revalidatePath(`/tickets/${id}`);
 }
 
@@ -37,6 +44,40 @@ async function setFee(fd: FormData) {
   if (amount !== null && (!Number.isFinite(amount) || amount < 0)) redirect(`/tickets/${id}?error=${encodeURIComponent("Enter a valid amount.")}`);
   const { error } = await sb.rpc("set_ticket_fee", { p_ticket: id, p_amount: amount, p_currency: amount === null ? null : String(fd.get("currency") || "") });
   if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/tickets/${id}`);
+}
+
+async function lookupOnec(fd: FormData) {
+  "use server";
+  const sb = await supabaseServer();
+  const { S } = await getStaff();
+  const id = String(fd.get("id"));
+  const r: LookupResult = await lookupForTicket(sb, id);
+  const msg = r.code === "ok" ? S.lookupOk : r.code === "not_found" ? S.lookupNotFound : r.code === "off" ? S.lookupOff : fmt(S.lookupUnavailable, { err: r.detail ?? "—" });
+  revalidatePath(`/tickets/${id}`);
+  redirect(`/tickets/${id}?${r.code === "ok" ? "warn" : "error"}=${encodeURIComponent(msg)}`);
+}
+
+async function saveOnecNumber(fd: FormData) {
+  "use server";
+  const sb = await supabaseServer();
+  const id = String(fd.get("id"));
+  const { error } = await sb.rpc("save_manual_ticket_ref", { p_ticket: id, p_number: String(fd.get("number") || "") });
+  if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/tickets/${id}`);
+}
+
+async function retrySync(fd: FormData) {
+  "use server";
+  const sb = await supabaseServer();
+  const id = String(fd.get("id"));
+  const { data: t } = await sb.from("tickets").select("id,tenant_id").eq("id", id).maybeSingle();
+  const { data: can } = await sb.rpc("has_permission", { p_code: "tickets.edit" });
+  if (t && can === true) {
+    await supabaseAdmin().from("integration_outbox").update({ status: "pending", attempts: 0, next_attempt_at: new Date().toISOString(), last_error: null })
+      .eq("ticket_id", id).eq("tenant_id", t.tenant_id).in("status", ["failed", "dead"]);
+    after(() => processOutbox());
+  }
   revalidatePath(`/tickets/${id}`);
 }
 
@@ -171,6 +212,12 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const platformName = cu ? `${cu.first_name ?? ""} ${cu.last_name ?? ""}`.trim() + (cu.companies?.name ? ` · ${cu.companies.name}${cu.companies.city ? " / " + cu.companies.city : ""}` : "") : "—";
   const customerName = info?.customer_name || platformName;
   const customerSource = info?.customer_name ? (info.source === "integration" ? S.fromIntegration : S.enteredManually) : S.registeredOnPlatform;
+  const [{ data: ref }, { data: integ }] = await Promise.all([
+    sb.from("ticket_external_refs").select("external_number,sync_status,last_error,source").eq("ticket_id", id).maybeSingle(),
+    sb.rpc("integration_state"),
+  ]);
+  const lookupOn = (integ ?? []).some((x: any) => x.kind === "device_lookup" && x.is_enabled);
+  const syncLabel = ref ? ({ pending: S.syncPending, synced: S.syncSynced, failed: S.syncFailed, manual: S.syncManual } as Record<string, string>)[ref.sync_status] ?? ref.sync_status : S.syncNone;
   const modelName = info?.model_name || (devModel as any)?.device_models?.name || "—";
   const fileKeys = (files ?? []).map((f) => f.storage_key);
   const { data: fileUrls } = fileKeys.length ? await sb.storage.from("ticket-files").createSignedUrls(fileKeys, 3600) : { data: [] };
@@ -218,6 +265,25 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         <p>{S.customerSees}: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
         {frozen && <p className="err">{isAdmin === true ? S.frozenAdmin : S.frozenStaff}</p>}
         {error && <p className="err">{error}</p>}
+        {warn && <p>{warn}</p>}
+      </div>
+      <div className="card">
+        <h2>{S.onecCard}</h2>
+        <p>{S.onecNumber}: <b>{ref?.external_number ?? "—"}</b> · {S.syncState}: <b>{syncLabel}</b></p>
+        {ref?.last_error && ref.sync_status === "failed" && <p className="err"><small>{ref.last_error}</small></p>}
+        {!locked && (
+          <div className="row" style={{ alignItems: "flex-end" }}>
+            {lookupOn && <form action={lookupOnec}><input type="hidden" name="id" value={id} /><button>{S.lookupBtn}</button></form>}
+            {!(ref?.source === "integration" && ref.sync_status === "synced") && (
+              <form action={saveOnecNumber} className="row" style={{ alignItems: "flex-end" }}>
+                <input type="hidden" name="id" value={id} />
+                <label>{S.onecManual}<input name="number" defaultValue={ref?.source === "manual" ? ref.external_number ?? "" : ""} style={{ width: 200 }} /></label>
+                <button>{S.saveOnec}</button>
+              </form>
+            )}
+            {ref?.sync_status === "failed" && <form action={retrySync}><input type="hidden" name="id" value={id} /><button className="btn ghost">{S.retrySync}</button></form>}
+          </div>
+        )}
       </div>
       {prr && (
         <div className="card">
