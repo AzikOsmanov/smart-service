@@ -106,10 +106,11 @@ export default function Tickets() {
           <Row>
             <Btn kind="ghost" title={`▦ ${t("board")}`} onPress={() => router.push("/tickets/board")} />
             <Btn kind="ghost" title={`✓ ${t("qc")}`} onPress={() => router.push("/qc")} />
+            <Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} />
           </Row>
           <Choice<Filter> value={filter} onChange={setFilter} options={[{ value: "all", label: t("all") }, { value: "mine", label: t("mine") }, { value: "new", label: t("unassigned") }]} />
         </>
-      ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /></>}
+      ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /><Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} /></>}
       <Field value={q} onChangeText={setQ} placeholder={t("search")} autoCapitalize="none" autoCorrect={false} />
       <Row>
         {["", "received", "diagnose", "ready", "pickup_new_device", "repair_not_possible"].map((k) => (

@@ -12,7 +12,8 @@ import { AuthProvider } from "@/lib/auth";
 // Opens the ticket (or the announcement link) when a push notification is tapped.
 function openFromPush(data: Record<string, unknown> | undefined) {
   if (!data) return;
-  if (typeof data.ticket_id === "string" && data.ticket_id) router.push(`/tickets/${data.ticket_id}`);
+  if (typeof data.tutorial_id === "string" && data.tutorial_id) router.push(`/tutorials/${data.tutorial_id}`);
+  else if (typeof data.ticket_id === "string" && data.ticket_id) router.push(`/tickets/${data.ticket_id}`);
   else if (typeof data.link === "string" && /^https?:\/\//.test(data.link)) Linking.openURL(data.link);
   else router.push("/notifications");
 }
@@ -43,6 +44,8 @@ function Nav() {
         <Stack.Screen name="tickets/[id]" options={{ title: "" }} />
         <Stack.Screen name="tickets/board" options={{ title: t("board") }} />
         <Stack.Screen name="tickets/password-reset" options={{ title: t("prButton") }} />
+        <Stack.Screen name="tutorials/index" options={{ title: t("tutorials") }} />
+        <Stack.Screen name="tutorials/[id]" options={{ title: "" }} />
         <Stack.Screen name="qc/index" options={{ title: t("qcTitle") }} />
         <Stack.Screen name="qc/new" options={{ title: t("newQc") }} />
         <Stack.Screen name="qc/[id]" options={{ title: "" }} />

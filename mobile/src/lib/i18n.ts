@@ -92,6 +92,11 @@ const en = {
   noLabelPhoto: "No label photo.",
   sendCodeHint: "Send the code or file to the customer in the chat below or as a file in Photos and files.",
   scanPick: "Several codes found. Tap the serial number.",
+  tutorials: "Tutorial videos",
+  tutNone: "No tutorials yet.",
+  tutWatch: "Watch",
+  tutOpenLink: "Open the video",
+  tutNotFound: "Tutorial not found.",
 };
 export type Key = keyof typeof en;
 
@@ -187,6 +192,11 @@ const ru: Record<Key, string> = {
   noLabelPhoto: "Нет фото наклейки.",
   sendCodeHint: "Отправьте код или файл клиенту в чате ниже или файлом в разделе «Фото и файлы».",
   scanPick: "Найдено несколько кодов. Нажмите на серийный номер.",
+  tutorials: "Обучающие видео",
+  tutNone: "Видео пока нет.",
+  tutWatch: "Смотреть",
+  tutOpenLink: "Открыть видео",
+  tutNotFound: "Видео не найдено.",
 };
 
 const az: Record<Key, string> = {
@@ -281,6 +291,11 @@ const az: Record<Key, string> = {
   noLabelPhoto: "Etiket şəkli yoxdur.",
   sendCodeHint: "Kodu və ya faylı müştəriyə aşağıdakı çatda və ya «Şəkillər və fayllar» bölməsində fayl kimi göndərin.",
   scanPick: "Bir neçə kod tapıldı. Seriya nömrəsinə toxunun.",
+  tutorials: "Təlim videoları",
+  tutNone: "Hələ video yoxdur.",
+  tutWatch: "İzlə",
+  tutOpenLink: "Videonu aç",
+  tutNotFound: "Video tapılmadı.",
 };
 
 export const TEXTS: Record<Lang, Record<Key, string>> = { en, ru, az };
