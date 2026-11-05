@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(messages),
   });
   const json: any = await res.json().catch(() => null);
+  await db.from("push_log").insert({ notification_id: n.id, response: { status: res.status, body: json } });   // Expo tickets, for checking delivery receipts
   // Forget tokens of uninstalled apps / signed-out devices.
   const dead = (json?.data ?? []).map((r: any, i: number) => (r?.details?.error === "DeviceNotRegistered" ? messages[i].to : null)).filter(Boolean);
   if (dead.length) await db.from("push_tokens").delete().in("token", dead);
