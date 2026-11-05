@@ -27,6 +27,18 @@ async function setStatus(fd: FormData) {
   revalidatePath(`/tickets/${id}`);
 }
 
+async function setFee(fd: FormData) {
+  "use server";
+  const sb = await supabaseServer();
+  const id = String(fd.get("id"));
+  const raw = String(fd.get("amount") || "").trim().replace(",", ".");
+  const amount = raw === "" ? null : Number(raw);
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) redirect(`/tickets/${id}?error=${encodeURIComponent("Enter a valid amount.")}`);
+  const { error } = await sb.rpc("set_reset_fee", { p_ticket: id, p_amount: amount, p_currency: amount === null ? null : String(fd.get("currency") || "") });
+  if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/tickets/${id}`);
+}
+
 async function saveManual(fd: FormData) {
   "use server";
   const sb = await supabaseServer();
@@ -57,7 +69,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     sb.from("ticket_messages").select("id,sender_kind,body,is_internal,created_at").eq("ticket_id", id).is("deleted_at", null).order("created_at"),
   ]);
   const staff = isStaff === true;
-  const { data: prr } = t.kind === "password_reset" ? await sb.from("password_reset_requests").select("serial_number,method,note,label_photo_key,requester_id,device_id,created_at").eq("ticket_id", id).maybeSingle() : { data: null };
+  const { data: prr } = t.kind === "password_reset" ? await sb.from("password_reset_requests").select("serial_number,method,note,label_photo_key,requester_id,device_id,created_at,fee_amount,fee_currency").eq("ticket_id", id).maybeSingle() : { data: null };
   const prrPhoto = prr?.label_photo_key ? (await sb.storage.from("device-labels").createSignedUrl(prr.label_photo_key, 3600)).data?.signedUrl ?? null : null;
   const { data: prrOwner } = prr ? await sb.from("devices").select("owner_id").eq("id", prr.device_id).maybeSingle() : { data: null };
   const chat = (
@@ -109,6 +121,12 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
             ))}
           </ul>
         </div>
+        {prr && (
+          <div className="card">
+            <h2>{L.prFee}</h2>
+            <p>{prr.fee_amount != null ? <b>{Number(prr.fee_amount).toFixed(2)} {prr.fee_currency}</b> : L.prFeeNone}</p>
+          </div>
+        )}
         <div className="card">
           <h2>{L.problemDesc}</h2>
           <p style={{ whiteSpace: "pre-wrap" }}>{t.description}</p>
@@ -201,6 +219,13 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           {prrOwner && prrOwner.owner_id !== prr.requester_id && <p className="err">The requester is not the registered owner of this device. Check the label photo carefully before sending any code.</p>}
           {prr.note && <p style={{ whiteSpace: "pre-wrap" }}>Comment: {prr.note}</p>}
           {prrPhoto ? <a href={prrPhoto} target="_blank" rel="noreferrer"><img src={prrPhoto} alt="SN label" style={{ maxWidth: 360, borderRadius: 8 }} /></a> : <p>No label photo.</p>}
+          <form action={setFee} className="row" style={{ alignItems: "flex-end" }}>
+            <input type="hidden" name="id" value={id} />
+            <label>Service fee (optional)<input name="amount" inputMode="decimal" placeholder="e.g. 25.00" defaultValue={prr.fee_amount ?? ""} style={{ width: 140 }} /></label>
+            <label>Currency<select name="currency" defaultValue={prr.fee_currency ?? "AZN"}><option value="AZN">AZN — Azerbaijan manat</option><option value="EUR">EUR — Euro</option><option value="USD">USD — US dollar</option></select></label>
+            <button>Save fee</button>
+          </form>
+          <p><small>Leave the amount empty if there is no fee. The customer sees the fee on their ticket.</small></p>
           <p><small>Send the code or file to the customer through the messages below or as a file in Photos and files.</small></p>
         </div>
       )}
