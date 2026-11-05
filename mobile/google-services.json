@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "263777721368",
+    "project_id": "smart-service-2b507",
+    "storage_bucket": "smart-service-2b507.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:263777721368:android:7b65b45f59f4498f47776d",
+        "android_client_info": {
+          "package_name": "com.infraneuro.smartservice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAh2LSHKhvYJEdxWijlRy0QTivAirJkmtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
