@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getLoginPolicy, logLoginEvent } from "@/lib/login-security";
+import { getLoginPolicy, logLoginEvent, clientInfo, validIpEntry, ipInList } from "@/lib/login-security";
 import { getStaff } from "@/lib/i18n-staff";
 import { fmt } from "@/lib/fmt";
 
@@ -32,6 +32,50 @@ async function savePolicy(fd: FormData) {
   redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
 }
 
+// Merges new fields into the stored policy without touching the others.
+async function mergePolicy(patch: Record<string, unknown>) {
+  const { tenantId, uid } = await requireAdmin();
+  const admin = supabaseAdmin();
+  const { data: cur } = await admin.from("settings").select("value").eq("tenant_id", tenantId).eq("key", "login_security").maybeSingle();
+  const value = { ...((cur?.value as object) ?? {}), ...patch };
+  const { error } = await admin.from("settings").upsert({ tenant_id: tenantId, key: "login_security", value, updated_by: uid, updated_at: new Date().toISOString() }, { onConflict: "tenant_id,key" });
+  if (error) redirect("/admin/login-security?error=" + encodeURIComponent(error.message));
+  await admin.from("audit_logs").insert({ tenant_id: tenantId, actor_id: uid, action: "settings.login_security", entity_type: "settings", entity_id: "login_security", old_values: cur?.value ?? null, new_values: value });
+  revalidatePath("/admin/login-security");
+}
+
+async function saveIp(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireAdmin();
+  const list = Array.from(new Set(String(fd.get("list") ?? "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)));
+  const bad = list.find((x) => !validIpEntry(x));
+  if (bad) redirect("/admin/login-security?error=" + encodeURIComponent(fmt(S.errIpBad, { bad })));
+  const includeAdmins = fd.get("admins") === "on";
+  const { ip } = await clientInfo();
+  if (list.length && includeAdmins && !ipInList(ip, list)) redirect("/admin/login-security?error=" + encodeURIComponent(fmt(S.errIpSelf, { ip: ip ?? "?" })));
+  await mergePolicy({ ip_allowlist: list, ip_scope: fd.get("scope") === "all" ? "all" : "staff", ip_include_admins: includeAdmins, ip_apply_mobile: fd.get("mobile") === "on" });
+  redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
+}
+
+async function saveSession(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireAdmin();
+  const hours = Number(fd.get("hours"));
+  if (!Number.isFinite(hours) || hours < 0 || hours > 720) redirect("/admin/login-security?error=" + encodeURIComponent(S.errSess));
+  await mergePolicy({ session_hours: Math.round(hours * 10) / 10 });
+  redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
+}
+
+async function saveAlerts(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireAdmin();
+  await mergePolicy({ alert_new_device: fd.get("user") === "on", alert_admins: fd.get("admins") === "on" });
+  redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
+}
+
 async function unlock(fd: FormData) {
   "use server";
   const { S } = await getStaff();
@@ -52,6 +96,7 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
   const { tenantId } = await requireAdmin();
   const { S } = await getStaff();
   const policy = await getLoginPolicy(tenantId);
+  const { ip: myIp } = await clientInfo();
   const { data: locked } = await supabaseAdmin().from("users").select("id,first_name,last_name,email,locked_until").eq("tenant_id", tenantId).gt("locked_until", new Date().toISOString()).order("locked_until");
   return (
     <div>
@@ -65,6 +110,30 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
         <label>{S.lockMinutes}<input name="minutes" type="number" min={1} max={1440} defaultValue={policy.lockout_minutes} required /></label>
         <button>{S.save}</button>
         <p><small>{S.lockHint}</small></p>
+      </form>
+      <form action={saveIp} className="card" style={{ maxWidth: 520 }}>
+        <h2>{S.ipTitle}</h2>
+        <p><small>{S.ipHint}</small></p>
+        <label>{S.ipList}<textarea name="list" rows={5} defaultValue={policy.ip_allowlist.join("\n")} /></label>
+        <label>{S.ipScope}
+          <select name="scope" defaultValue={policy.ip_scope}><option value="staff">{S.ipScopeStaff}</option><option value="all">{S.ipScopeAll}</option></select>
+        </label>
+        <label className="row"><input type="checkbox" name="admins" defaultChecked={policy.ip_include_admins} style={{ width: "auto" }} /> {S.ipAdmins}</label>
+        <label className="row"><input type="checkbox" name="mobile" defaultChecked={policy.ip_apply_mobile} style={{ width: "auto" }} /> {S.ipMobile}</label>
+        <p><small>{fmt(S.ipYour, { ip: myIp ?? "?" })}</small></p>
+        <button>{S.save}</button>
+      </form>
+      <form action={saveSession} className="card" style={{ maxWidth: 520 }}>
+        <h2>{S.sessTitle}</h2>
+        <label>{S.sessHours}<input name="hours" type="number" min={0} max={720} step={0.5} defaultValue={policy.session_hours} required /></label>
+        <p><small>{S.sessHint}</small></p>
+        <button>{S.save}</button>
+      </form>
+      <form action={saveAlerts} className="card" style={{ maxWidth: 520 }}>
+        <h2>{S.alertTitle}</h2>
+        <label className="row"><input type="checkbox" name="user" defaultChecked={policy.alert_new_device} style={{ width: "auto" }} /> {S.alertUser}</label>
+        <label className="row"><input type="checkbox" name="admins" defaultChecked={policy.alert_admins} style={{ width: "auto" }} /> {S.alertAdmins}</label>
+        <button>{S.save}</button>
       </form>
       <div className="card">
         <h2>{fmt(S.lockedAccounts, { n: String((locked ?? []).length) })}</h2>

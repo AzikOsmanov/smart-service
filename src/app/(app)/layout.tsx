@@ -4,7 +4,7 @@ import { getT } from "@/lib/i18n";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import Heartbeat from "@/components/Heartbeat";
-import { logLoginEvent } from "@/lib/login-security";
+import { logLoginEvent, getLoginPolicy, clientInfo, ipAllowed } from "@/lib/login-security";
 import NotificationBell from "@/components/NotificationBell";
 import type { Notif } from "@/lib/notif-text";
 
@@ -42,6 +42,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
     sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
+  // Network allow-list also applies to sessions that are already open (e.g. an employee who leaves the office network).
+  if (me?.kind) {
+    const { data: tn } = await sb.from("users").select("tenant_id").eq("id", sess.session.user.id).maybeSingle();
+    if (tn?.tenant_id) {
+      const policy = await getLoginPolicy(tn.tenant_id);
+      if (policy.ip_allowlist.length) {
+        const { ip } = await clientInfo();
+        const admin = isAdmin === true && !policy.ip_include_admins;
+        if (!ipAllowed(policy, { ip, staff: me.kind === "staff", admin, client: "web" })) redirect("/auth/blocked");
+      }
+    }
+  }
   const brand = typeof brandRow?.value === "string" && brandRow.value ? brandRow.value : "Acom Smart Service";
   const staff = me?.kind === "staff";
   const nav = [{ href: "/tickets", label: t("tickets") }];

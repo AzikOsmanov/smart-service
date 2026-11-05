@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getLoginPolicy, logLoginEvent } from "@/lib/login-security";
+import { getLoginPolicy, logLoginEvent, clientInfo, ipAllowed, isAdminUser, registerDevice, browserLabel } from "@/lib/login-security";
 import HashAuth from "@/components/HashAuth";
 import { getPortal } from "@/lib/i18n-portal";
 
@@ -12,7 +13,7 @@ async function signIn(fd: FormData) {
   const password = String(fd.get("password") ?? "");
   const fail = (m: string): never => redirect("/login?error=" + encodeURIComponent(m));
   const admin = supabaseAdmin();
-  const { data: u } = await admin.from("users").select("id,tenant_id,is_active,locked_until,failed_login_count").eq("email", email).is("deleted_at", null).maybeSingle();
+  const { data: u } = await admin.from("users").select("id,tenant_id,kind,first_name,last_name,is_active,locked_until,failed_login_count").eq("email", email).is("deleted_at", null).maybeSingle();
   const tenantId = u?.tenant_id ?? (await admin.from("tenants").select("id").eq("slug", "default").maybeSingle()).data?.id;
 
   if (u && u.is_active === false) {
@@ -23,6 +24,19 @@ async function signIn(fd: FormData) {
     const mins = Math.max(1, Math.ceil((new Date(u.locked_until).getTime() - Date.now()) / 60000));
     await logLoginEvent({ tenantId: u.tenant_id, userId: u.id, email, event: "login_failed", reason: "locked" });
     fail(`Too many failed attempts. The account is locked for about ${mins} more minute(s), or ask the administrator to unlock it.`);
+  }
+
+  // Network allow-list: checked before the password, so a blocked address learns nothing.
+  if (u && tenantId) {
+    const policy = await getLoginPolicy(tenantId);
+    if (policy.ip_allowlist.length) {
+      const { ip } = await clientInfo();
+      const admin2 = policy.ip_include_admins ? false : await isAdminUser(u.id);
+      if (!ipAllowed(policy, { ip, staff: u.kind === "staff", admin: admin2, client: "web" })) {
+        await logLoginEvent({ tenantId, userId: u.id, email, event: "login_failed", reason: "ip_not_allowed" });
+        fail("Sign-in is not allowed from this network address. Use the company network or contact the administrator.");
+      }
+    }
   }
 
   const sb = await supabaseServer();
@@ -46,6 +60,17 @@ async function signIn(fd: FormData) {
   if (u && tenantId) {
     await admin.from("users").update({ failed_login_count: 0, locked_until: null, last_login_at: new Date().toISOString() }).eq("id", u.id);
     await logLoginEvent({ tenantId, userId: u.id, email, event: "login_success" });
+    const policy = await getLoginPolicy(tenantId);
+    const jar = await cookies();
+    const secure = process.env.NODE_ENV === "production";
+    // Session length: the browser remembers when this sign-in must end (checked on every request).
+    if (policy.session_hours > 0) jar.set("ss_exp", String(Date.now() + policy.session_hours * 3600 * 1000), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    else jar.delete("ss_exp");
+    // New-device alert: every browser gets a private id the first time it signs in.
+    let deviceId = jar.get("ss_dev")?.value ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(deviceId)) { deviceId = crypto.randomUUID(); jar.set("ss_dev", deviceId, { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 400 }); }
+    const { ip, ua } = await clientInfo();
+    try { await registerDevice({ tenantId, userId: u.id, email, name: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || email, deviceId, client: "web", label: browserLabel(ua), ua, ip, policy }); } catch { /* an alert problem must never block sign-in */ }
   }
   redirect("/tickets");
 }

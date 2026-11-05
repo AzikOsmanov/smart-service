@@ -23,7 +23,7 @@ export default function Notifications() {
     if (n.kind === "announcement") return [d.title, d.body].filter(Boolean).join(" — ");
     const status = d.status ? t(({ diagnose: "diagnose", ready: "ready", repair_not_possible: "repair_not_possible", pickup_new_device: "pickup_new_device" } as Record<string, Key>)[d.status] ?? "status") : "";
     const key = ("n_" + n.kind) as Key;
-    return t(key, { no: d.ticket_no, subject: d.subject, name: d.name, email: d.email, amount: d.amount, currency: d.currency, status }) || n.kind;
+    return t(key, { no: d.ticket_no, subject: d.subject, name: d.name, email: d.email, amount: d.amount, currency: d.currency, status, device: d.device, ip: d.ip }) || n.kind;
   };
 
   return (
