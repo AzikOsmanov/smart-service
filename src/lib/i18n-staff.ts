@@ -333,6 +333,10 @@ const en = {
   annStaff: "Staff",
   annSend: "Send",
   annSent: "Sent to {n} users.",
+  custSearch: "Search: name, email, phone, company",
+  clearFilters: "Clear",
+  anyAssignee: "Everyone",
+  resultsCount: "{n} shown",
 };
 export type SKey = keyof typeof en;
 
@@ -668,6 +672,10 @@ const ru: Record<SKey, string> = {
   annStaff: "Сотрудникам",
   annSend: "Отправить",
   annSent: "Отправлено {n} пользователям.",
+  custSearch: "Поиск: имя, email, телефон, компания",
+  clearFilters: "Сбросить",
+  anyAssignee: "Все",
+  resultsCount: "Показано: {n}",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -1001,6 +1009,10 @@ const az: Record<SKey, string> = {
   annStaff: "Əməkdaşlara",
   annSend: "Göndər",
   annSent: "{n} istifadəçiyə göndərildi.",
+  custSearch: "Axtarış: ad, email, telefon, şirkət",
+  clearFilters: "Təmizlə",
+  anyAssignee: "Hamısı",
+  resultsCount: "Göstərilir: {n}",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

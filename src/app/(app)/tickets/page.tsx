@@ -3,18 +3,45 @@ import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
 import { getStaff } from "@/lib/i18n-staff";
 import { warrantyText } from "@/lib/warranty";
+import { fmt } from "@/lib/fmt";
 
-export default async function Tickets() {
+const DEV_STATUSES = ["received", "diagnose", "ready", "pickup_new_device", "repair_not_possible"] as const;
+
+export default async function Tickets({ searchParams }: { searchParams: Promise<{ q?: string; st?: string; who?: string }> }) {
+  const { q, st, who } = await searchParams;
   const sb = await supabaseServer();
   const { t } = await getT();
   const { L } = await getPortal();
   const { S } = await getStaff();
   const { data: sess } = await sb.auth.getSession();
   const uid = sess.session!.user.id;
+  const term = (q ?? "").trim().replace(/[%,()*]/g, "").slice(0, 80);
+  // Text search: find matching devices / customers first, then match tickets by number, subject, device or customer.
+  let orParts: string[] = [];
+  if (term) {
+    const like = `%${term}%`;
+    const [{ data: dm }, { data: em }, { data: um }, { data: cm }] = await Promise.all([
+      sb.from("devices").select("id").ilike("serial_number", like).limit(200),
+      sb.from("device_external_info").select("device_id").or(`model_name.ilike.${like},customer_name.ilike.${like}`).limit(200),
+      sb.from("users").select("id").or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`).limit(200),
+      sb.from("companies").select("id").ilike("name", like).limit(100),
+    ]);
+    const { data: cu } = (cm ?? []).length ? await sb.from("users").select("id").in("company_id", (cm ?? []).map((c) => c.id)).limit(300) : { data: [] };
+    const devIdsHit = Array.from(new Set([...(dm ?? []).map((d) => d.id), ...(em ?? []).map((e: any) => e.device_id).filter(Boolean)]));
+    const custIdsHit = Array.from(new Set([...(um ?? []).map((u) => u.id), ...(cu ?? []).map((u) => u.id)]));
+    orParts = [`subject.ilike.${like}`];
+    if (/^\d{1,9}$/.test(term)) orParts.push(`ticket_no.eq.${term}`);
+    if (devIdsHit.length) orParts.push(`device_id.in.(${devIdsHit.join(",")})`);
+    if (custIdsHit.length) orParts.push(`customer_id.in.(${custIdsHit.join(",")})`);
+  }
+  let tq = sb.from("tickets").select("id,ticket_no,subject,status,priority,kind,customer_id,device_id,customer_device_status,assigned_to,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+  if (orParts.length) tq = tq.or(orParts.join(","));
+  if (st === "received") tq = tq.is("customer_device_status", null);
+  else if (st && (DEV_STATUSES as readonly string[]).includes(st)) tq = tq.eq("customer_device_status", st);
   const [{ data: me }, { data: canBoard }, { data: tickets, error }] = await Promise.all([
     sb.from("users").select("kind,registration").eq("id", uid).maybeSingle(),
     sb.rpc("has_permission", { p_code: "tickets.board.view" }),
-    sb.from("tickets").select("id,ticket_no,subject,status,priority,kind,customer_id,device_id,customer_device_status,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100),
+    who === "mine" ? tq.eq("assigned_to", uid) : who === "new" ? tq.is("assigned_to", null) : tq,
   ]);
   if (me && me.kind === "customer" && me.registration !== "approved") {
     return <div className="card"><h1>{t("waitingTitle")}</h1><p>{me.registration}</p></div>;
@@ -51,6 +78,23 @@ export default async function Tickets() {
         )}
       </div>
       <div className="card">
+        <form className="row" method="get" style={{ marginBottom: 12 }}>
+          <input name="q" defaultValue={q ?? ""} placeholder={S.searchBoard} style={{ minWidth: 260 }} />
+          <select name="st" defaultValue={st ?? ""}>
+            <option value="">{S.allStatuses}</option>
+            {DEV_STATUSES.map((x) => <option key={x} value={x}>{t(`st_${x}` as "st_ready")}</option>)}
+          </select>
+          {staff && (
+            <select name="who" defaultValue={who ?? ""}>
+              <option value="">{S.anyAssignee}</option>
+              <option value="mine">{S.myTickets}</option>
+              <option value="new">{S.colNew}</option>
+            </select>
+          )}
+          <button>{S.filter}</button>
+          {(q || st || who) && <a className="btn ghost" href="/tickets" style={{ textDecoration: "none" }}>{S.clearFilters}</a>}
+          <small>{fmt(S.resultsCount, { n: String(rows.length) })}</small>
+        </form>
         {error && <p className="err">{error.message}</p>}
         <table><thead><tr>
           <th>{t("no")}</th><th>{t("subject")}</th>{staff && <th>{t("customerCol")}</th>}

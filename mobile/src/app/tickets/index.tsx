@@ -7,7 +7,7 @@ import { usePrefs } from "@/lib/prefs";
 import { takeScan } from "@/lib/scan-store";
 import { setBadge } from "@/lib/push";
 import { warrantyText } from "@/lib/warranty";
-import { Badge, Btn, Card, Choice, Err, Loading, Row, Screen, Txt } from "@/components/ui";
+import { Badge, Btn, Card, Choice, Err, Field, Loading, Row, Screen, Txt } from "@/components/ui";
 
 type T = { id: string; ticket_no: number; subject: string; status: string; priority: string; kind: string; customer_id: string; device_id: string; customer_device_status: string | null; assigned_to: string | null; created_at: string };
 type Info = { model_name: string | null; warranty_until: string | null; warranty_note: string | null };
@@ -23,6 +23,8 @@ export default function Tickets() {
   const [custNames, setCustNames] = useState<Map<string, string>>(new Map());
   const [unread, setUnread] = useState(0);
   const [filter, setFilter] = useState<Filter>("all");
+  const [q, setQ] = useState("");
+  const [st, setSt] = useState<string>("");
   const [err, setErr] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -76,7 +78,14 @@ export default function Tickets() {
     return <Screen><Card><Txt>{t("waitingApproval")}</Txt></Card></Screen>;
   }
   const statusLabel = (s: string | null) => t((s ?? "received") as "received");
-  const shown = (rows ?? []).filter((x) => filter === "all" || (filter === "mine" ? x.assigned_to === session.user.id : !x.assigned_to));
+  const needle = q.trim().toLowerCase();
+  const textOf = (x: T) => {
+    const i = staff ? info.get(x.device_id) : info.get(x.id);
+    return [String(x.ticket_no), x.subject, serials.get(x.device_id), i?.model_name, models.get(x.device_id), staff ? (custNames.get("dev:" + x.device_id) ?? custNames.get(x.customer_id)) : ""].join(" ").toLowerCase();
+  };
+  const shown = (rows ?? []).filter((x) => (filter === "all" || (filter === "mine" ? x.assigned_to === session.user.id : !x.assigned_to))
+    && (!st || (st === "received" ? !x.customer_device_status : x.customer_device_status === st))
+    && (!needle || textOf(x).includes(needle)));
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={refreshing} tintColor={c.accent} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}>
@@ -101,6 +110,12 @@ export default function Tickets() {
           <Choice<Filter> value={filter} onChange={setFilter} options={[{ value: "all", label: t("all") }, { value: "mine", label: t("mine") }, { value: "new", label: t("unassigned") }]} />
         </>
       ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /></>}
+      <Field value={q} onChangeText={setQ} placeholder={t("search")} autoCapitalize="none" autoCorrect={false} />
+      <Row>
+        {["", "received", "diagnose", "ready", "pickup_new_device", "repair_not_possible"].map((k) => (
+          <Pressable key={k || "all"} onPress={() => setSt(k)}><Badge text={k ? t(k as "received") : t("allStatuses")} tone={st === k ? "ok" : undefined} /></Pressable>
+        ))}
+      </Row>
       <Err>{err}</Err>
       {rows === null ? <Loading /> : shown.length === 0 ? <Txt muted>{t("noTickets")}</Txt> : shown.map((x) => {
         const i = staff ? info.get(x.device_id) : info.get(x.id);

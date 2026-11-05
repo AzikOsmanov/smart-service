@@ -24,14 +24,14 @@ export default function QcDetail() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const { data } = await sb.from("qc_checks").select("id,sn,status,comment,created_at,ticket_id").eq("id", id).is("deleted_at", null).maybeSingle();
+    const { data } = await sb.from("qc_checks").select("id,sn:serial_number,status,comment,created_at,ticket_id").eq("id", id).is("deleted_at", null).maybeSingle();
     const row = (data as Q) ?? null;
     setQ(row);
     if (!row) return;
     setStatus(row.status); setComment(row.comment ?? "");
     const [{ data: mm }, { data: hh }] = await Promise.all([
       sb.from("qc_media").select("id,path,kind,mime").eq("qc_id", id).order("created_at"),
-      sb.from("qc_checks").select("id,sn,status,comment,created_at,ticket_id").eq("sn", row.sn).is("deleted_at", null).order("created_at", { ascending: false }).limit(30),
+      sb.from("qc_checks").select("id,sn:serial_number,status,comment,created_at,ticket_id").eq("serial_number", row.sn).is("deleted_at", null).order("created_at", { ascending: false }).limit(30),
     ]);
     const signed = await Promise.all((mm ?? []).map(async (m: any) => ({ id: m.id, kind: m.kind, mime: m.mime, url: (await sb.storage.from("qc-media").createSignedUrl(m.path, 3600)).data?.signedUrl ?? "" })));
     setMedia(signed.filter((m) => m.url));

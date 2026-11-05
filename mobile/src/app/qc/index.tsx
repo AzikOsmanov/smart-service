@@ -21,8 +21,8 @@ export default function QcList() {
 
   const load = useCallback(async (sn: string, st: F) => {
     setErr("");
-    let query = sb.from("qc_checks").select("id,sn,status,comment,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
-    if (sn.trim()) query = query.ilike("sn", `%${sn.trim()}%`);
+    let query = sb.from("qc_checks").select("id,sn:serial_number,status,comment,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+    if (sn.trim()) query = query.ilike("serial_number", `%${sn.trim()}%`);
     if (st !== "all") query = query.eq("status", st);
     const { data, error } = await query;
     if (error) setErr(error.message);

@@ -16,20 +16,39 @@ async function review(fd: FormData) {
   revalidatePath("/customers");
 }
 
-export default async function Customers({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
-  const { error: msgErr, ok } = await searchParams;
+export default async function Customers({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; q?: string; reg?: string }> }) {
+  const { error: msgErr, ok, q, reg } = await searchParams;
   const sb = await supabaseServer();
   const { t } = await getT();
   const { S } = await getStaff();
   const regLabel: Record<string, string> = { pending: S.regPending, approved: S.regApproved, rejected: S.regRejected };
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
-  const { data, error } = await sb.from("users").select("id,first_name,last_name,email,phone,registration,registration_note,created_at,companies(name,city)").eq("kind", "customer").is("deleted_at", null).order("created_at", { ascending: false });
+  const term = (q ?? "").trim().replace(/[%,()*]/g, "").slice(0, 80);
+  let cq = sb.from("users").select("id,first_name,last_name,email,phone,registration,registration_note,created_at,companies(name,city)").eq("kind", "customer").is("deleted_at", null).order("created_at", { ascending: false }).limit(300);
+  if (reg && ["pending", "approved", "rejected"].includes(reg)) cq = cq.eq("registration", reg);
+  if (term) {
+    const like = `%${term}%`;
+    const { data: co } = await sb.from("companies").select("id").or(`name.ilike.${like},city.ilike.${like}`).limit(100);
+    const ids = (co ?? []).map((c) => c.id);
+    cq = cq.or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},phone.ilike.${like}` + (ids.length ? `,company_id.in.(${ids.join(",")})` : ""));
+  }
+  const { data, error } = await cq;
   return (
     <div>
       <h1>{t("customers")}</h1>
       {msgErr && <p className="err">{msgErr}</p>}
       {ok && <p>{ok}</p>}
       <div className="card">
+        <form className="row" method="get" style={{ marginBottom: 12 }}>
+          <input name="q" defaultValue={q ?? ""} placeholder={S.custSearch} style={{ minWidth: 260 }} />
+          <select name="reg" defaultValue={reg ?? ""}>
+            <option value="">{S.allStatuses}</option>
+            <option value="pending">{S.regPending}</option><option value="approved">{S.regApproved}</option><option value="rejected">{S.regRejected}</option>
+          </select>
+          <button>{S.filter}</button>
+          {(q || reg) && <a className="btn ghost" href="/customers" style={{ textDecoration: "none" }}>{S.clearFilters}</a>}
+          <small>{fmt(S.resultsCount, { n: String((data ?? []).length) })}</small>
+        </form>
         {error && <p className="err">{error.message}</p>}
         <table><thead><tr><th>{t("name")}</th><th>{t("companyCity")}</th><th>{t("contact")}</th><th>{t("status")}</th><th></th></tr></thead>
           <tbody>{(data ?? []).map((u: any) => (
