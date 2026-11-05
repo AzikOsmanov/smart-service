@@ -37,14 +37,16 @@
         "expo-camera",
         {
           "cameraPermission": "Smart Service uses the camera to scan device serial numbers and take photos for tickets.",
-          "recordAudioAndroid": false
+          "recordAudioAndroid": true,
+          "microphonePermission": "Smart Service uses the microphone when you record a video for a quality-control check."
         }
       ],
       [
         "expo-image-picker",
         {
           "photosPermission": "Smart Service needs your photos to attach them to tickets.",
-          "cameraPermission": "Smart Service uses the camera to take photos for tickets."
+          "cameraPermission": "Smart Service uses the camera to take photos for tickets.",
+          "microphonePermission": "Smart Service uses the microphone when you record a video for a quality-control check."
         }
       ],
       [

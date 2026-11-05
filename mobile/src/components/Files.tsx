@@ -8,17 +8,23 @@ import { Btn, Card, Err, H2, Row, Txt } from "@/components/ui";
 
 type F = { id: string; file_name: string; storage_key: string; kind: string; created_at: string };
 
-export async function pickFiles(camera: boolean, kinds: ("images" | "videos")[] = ["images", "videos"]): Promise<Picked[]> {
+// Like pickFiles, but also tells the caller when the camera / gallery permission was refused.
+export async function pickFilesChecked(camera: boolean, kinds: ("images" | "videos")[] = ["images", "videos"], maxSeconds = 120): Promise<{ files: Picked[]; denied: boolean }> {
   const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return [];
-  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: kinds, quality: 0.8, videoMaxDuration: 120, allowsMultipleSelection: !camera, selectionLimit: 10 };
-  const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-  if (r.canceled) return [];
-  return r.assets.map((a, i) => ({
+  if (!perm.granted) return { files: [], denied: true };
+  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: kinds, quality: 0.8, videoMaxDuration: maxSeconds, allowsMultipleSelection: !camera, selectionLimit: 10 };
+  let r: ImagePicker.ImagePickerResult;
+  try { r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts); } catch { return { files: [], denied: true }; }
+  if (r.canceled) return { files: [], denied: false };
+  return { denied: false, files: r.assets.map((a, i) => ({
     uri: a.uri, size: a.fileSize ?? undefined,
     mime: a.mimeType ?? (a.type === "video" ? "video/mp4" : "image/jpeg"),
     name: a.fileName ?? `${a.type === "video" ? "video" : "photo"}-${Date.now()}-${i}.${a.type === "video" ? "mp4" : "jpg"}`,
-  }));
+  })) };
+}
+
+export async function pickFiles(camera: boolean, kinds: ("images" | "videos")[] = ["images", "videos"]): Promise<Picked[]> {
+  return (await pickFilesChecked(camera, kinds)).files;
 }
 
 export default function Files({ ticketId, tenantId, userId, canAdd }: { ticketId: string; tenantId: string; userId: string; canAdd: boolean }) {
