@@ -3,13 +3,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import SnInput from "@/components/SnInput";
-import { getPortal } from "@/lib/i18n-portal";
+import { getPortal, fmt } from "@/lib/i18n-portal";
+import { getStaff } from "@/lib/i18n-staff";
+import { getT } from "@/lib/i18n";
 
 async function addDevice(fd: FormData) {
   "use server";
+  const { S } = await getStaff();
+  const { L } = await getPortal();
   const sb = await supabaseServer();
   const serial = String(fd.get("serial") || "").replace(/\s+/g, "").toUpperCase();
-  if (!/^[A-Z0-9][A-Z0-9\-_/.]{3,63}$/.test(serial)) redirect("/devices?error=" + encodeURIComponent("Enter a valid serial number (4-64 letters, digits, - _ / .)."));
+  if (!/^[A-Z0-9][A-Z0-9\-_/.]{3,63}$/.test(serial)) redirect("/devices?error=" + encodeURIComponent(L.errInvalidSn));
   const ownerId = String(fd.get("owner") || "");
   const { data: auth } = await sb.auth.getUser();
   const { data: me } = await sb.from("users").select("tenant_id").eq("id", auth.user!.id).single();
@@ -23,14 +27,16 @@ async function addDevice(fd: FormData) {
     owner_id: ownerId || null, company_id: company, added_by: auth.user!.id,
     warranty_until: String(fd.get("warranty") || "") || null,
   });
-  if (error) redirect("/devices?error=" + encodeURIComponent(error.code === "23505" ? "This serial number is already registered." : error.message));
+  if (error) redirect("/devices?error=" + encodeURIComponent(error.code === "23505" ? S.errSerialTaken : error.message));
   revalidatePath("/devices");
-  redirect("/devices?ok=" + encodeURIComponent(`Device ${serial} added.`));
+  redirect("/devices?ok=" + encodeURIComponent(fmt(S.okDeviceAdded, { sn: serial })));
 }
 
 export default async function StaffDevices({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; q?: string }> }) {
   const { error: msgErr, ok, q } = await searchParams;
   const { L } = await getPortal();
+  const { S } = await getStaff();
+  const { t } = await getT();
   const sb = await supabaseServer();
   const [{ data: canEdit }, { data: canModels }] = await Promise.all([
     sb.rpc("has_permission", { p_code: "devices.edit" }), sb.rpc("has_permission", { p_code: "devices.models.view" }),
@@ -48,39 +54,39 @@ export default async function StaffDevices({ searchParams }: { searchParams: Pro
   return (
     <div>
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h1>Devices</h1>
-        {canModels === true && <Link className="btn" href="/devices/models">Device models</Link>}
+        <h1>{t("devices")}</h1>
+        {canModels === true && <Link className="btn" href="/devices/models">{S.deviceModels}</Link>}
       </div>
       {msgErr && <p className="err">{msgErr}</p>}
       {ok && <p>{ok}</p>}
       <form method="get" className="card row">
-        <input name="q" placeholder="Search by serial number" defaultValue={q ?? ""} />
-        <button>Search</button>
+        <input name="q" placeholder={S.searchBySn} defaultValue={q ?? ""} />
+        <button>{S.search}</button>
       </form>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
-        <table><thead><tr><th>Serial number</th><th>Model</th><th>Owner</th><th>Warranty until</th><th>Verified</th><th>Added</th></tr></thead><tbody>
+        <table><thead><tr><th>{S.serialNumber}</th><th>{S.model}</th><th>{S.owner}</th><th>{S.warrantyUntil}</th><th>{S.verified}</th><th>{S.added}</th></tr></thead><tbody>
           {(devices ?? []).map((d) => (
             <tr key={d.id}>
               <td><Link href={`/devices/${d.id}`}><b>{d.serial_number}</b></Link></td>
               <td>{(d.model_id && model.get(d.model_id)) || "—"}</td>
               <td>{(d.owner_id && owner.get(d.owner_id)) || "—"}</td>
               <td>{d.warranty_until ?? "—"}</td>
-              <td>{d.is_verified ? "Yes" : "No"}</td>
+              <td>{d.is_verified ? S.yes : S.no}</td>
               <td>{new Date(d.created_at).toLocaleDateString()}</td>
             </tr>
           ))}
-          {(devices ?? []).length === 0 && <tr><td colSpan={6}>No devices found.</td></tr>}
+          {(devices ?? []).length === 0 && <tr><td colSpan={6}>{S.noDevicesFound}</td></tr>}
         </tbody></table>
       </div>
       {canEdit === true && (
         <form action={addDevice} className="card" style={{ maxWidth: 640 }}>
-          <h2>Add a device for a customer</h2>
-          <label>Serial number<SnInput L={L} name="serial" required /></label>
-          <label>Model<select name="model" defaultValue=""><option value="">— not set —</option>{(models ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-          <label>Owner (approved customer)<select name="owner" defaultValue=""><option value="">— no owner yet —</option>{(customers ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}{c.companies?.name ? ` · ${c.companies.name}` : ""}</option>)}</select></label>
-          <label>Warranty until<input name="warranty" type="date" /></label>
-          <button>Add device</button>
+          <h2>{S.addDeviceForCustomer}</h2>
+          <label>{S.serialNumber}<SnInput L={L} name="serial" required /></label>
+          <label>{S.model}<select name="model" defaultValue=""><option value="">{S.notSetOpt}</option>{(models ?? []).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+          <label>{S.ownerApproved}<select name="owner" defaultValue=""><option value="">{S.noOwnerOpt}</option>{(customers ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}{c.companies?.name ? ` · ${c.companies.name}` : ""}</option>)}</select></label>
+          <label>{S.warrantyUntil}<input name="warranty" type="date" /></label>
+          <button>{S.addDevice}</button>
         </form>
       )}
     </div>
