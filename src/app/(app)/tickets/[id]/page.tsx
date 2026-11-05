@@ -34,7 +34,7 @@ async function setFee(fd: FormData) {
   const raw = String(fd.get("amount") || "").trim().replace(",", ".");
   const amount = raw === "" ? null : Number(raw);
   if (amount !== null && (!Number.isFinite(amount) || amount < 0)) redirect(`/tickets/${id}?error=${encodeURIComponent("Enter a valid amount.")}`);
-  const { error } = await sb.rpc("set_reset_fee", { p_ticket: id, p_amount: amount, p_currency: amount === null ? null : String(fd.get("currency") || "") });
+  const { error } = await sb.rpc("set_ticket_fee", { p_ticket: id, p_amount: amount, p_currency: amount === null ? null : String(fd.get("currency") || "") });
   if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
   revalidatePath(`/tickets/${id}`);
 }
@@ -69,11 +69,14 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     sb.from("ticket_messages").select("id,sender_kind,body,is_internal,created_at").eq("ticket_id", id).is("deleted_at", null).order("created_at"),
   ]);
   const staff = isStaff === true;
-  const { data: prr } = t.kind === "password_reset" ? await sb.from("password_reset_requests").select("serial_number,method,note,label_photo_key,requester_id,device_id,created_at,fee_amount,fee_currency").eq("ticket_id", id).maybeSingle() : { data: null };
+  const { data: frozenRaw } = await sb.rpc("ticket_is_frozen", { p_ticket: id });
+  const frozen = frozenRaw === true;
+  const locked = frozen && isAdmin !== true;
+  const { data: prr } = t.kind === "password_reset" ? await sb.from("password_reset_requests").select("serial_number,method,note,label_photo_key,requester_id,device_id,created_at").eq("ticket_id", id).maybeSingle() : { data: null };
   const prrPhoto = prr?.label_photo_key ? (await sb.storage.from("device-labels").createSignedUrl(prr.label_photo_key, 3600)).data?.signedUrl ?? null : null;
   const { data: prrOwner } = prr ? await sb.from("devices").select("owner_id").eq("id", prr.device_id).maybeSingle() : { data: null };
   const chat = (
-    <TicketChat ticketId={id} initial={(msgs ?? []) as ChatMessage[]} isStaff={staff}
+    <TicketChat ticketId={id} initial={(msgs ?? []) as ChatMessage[]} isStaff={staff} readOnly={locked} readOnlyNote={L.frozenNote}
       labels={{ title: tr("chat"), placeholder: tr("chatPlaceholder"), send: tr("send"), internal: tr("internalNote"), customer: tr("fromCustomer"), staff: tr("fromStaff"), you: tr("you"), empty: tr("noMessages") }} />
   );
 
@@ -109,6 +112,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           {warn && <p className="err">{warn}</p>}
         </div>
         <div className="card">
+          {frozen && <p className="err">{L.frozenNote}</p>}
           <h2>{L.status}</h2>
           <div className="row" style={{ gap: 8 }}>
             {steps.map((st, i) => (
@@ -121,10 +125,10 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
             ))}
           </ul>
         </div>
-        {prr && (
+        {(prr || t.fee_amount != null) && (
           <div className="card">
             <h2>{L.prFee}</h2>
-            <p>{prr.fee_amount != null ? <b>{Number(prr.fee_amount).toFixed(2)} {prr.fee_currency}</b> : L.prFeeNone}</p>
+            <p>{t.fee_amount != null ? <b>{Number(t.fee_amount).toFixed(2)} {t.fee_currency}</b> : L.prFeeNone}</p>
           </div>
         )}
         <div className="card">
@@ -143,7 +147,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
               return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
             })}
           </div>
-          <TicketFiles L={L} tenantId={me!.tenant_id} ticketId={id} userId={uid} />
+          {!locked && <TicketFiles L={L} tenantId={me!.tenant_id} ticketId={id} userId={uid} />}
         </div>
         {chat}
       </div>
@@ -184,7 +188,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
         })}
       </div>
-      {me && <TicketFiles L={L} tenantId={me.tenant_id} ticketId={id} userId={uid} />}
+      {me && !locked && <TicketFiles L={L} tenantId={me.tenant_id} ticketId={id} userId={uid} />}
     </div>
   );
   const timelineCard = (
@@ -210,6 +214,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         <p>Serial number: <b>{dev?.serial_number ?? "—"}</b> · Model: <b>{modelName}</b> · Ticket status: {t.status} · Priority: {t.priority}</p>
         {dev?.serial_number && <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>New QC check for this device</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>QC history</a></p>}
         <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
+        {frozen && <p className="err">{isAdmin === true ? "This ticket is closed (frozen). As administrator you can change the status below to reopen it for review." : "This ticket is closed (frozen). Only the administrator can open it and change the status."}</p>}
         {error && <p className="err">{error}</p>}
       </div>
       {prr && (
@@ -219,25 +224,36 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           {prrOwner && prrOwner.owner_id !== prr.requester_id && <p className="err">The requester is not the registered owner of this device. Check the label photo carefully before sending any code.</p>}
           {prr.note && <p style={{ whiteSpace: "pre-wrap" }}>Comment: {prr.note}</p>}
           {prrPhoto ? <a href={prrPhoto} target="_blank" rel="noreferrer"><img src={prrPhoto} alt="SN label" style={{ maxWidth: 360, borderRadius: 8 }} /></a> : <p>No label photo.</p>}
-          <form action={setFee} className="row" style={{ alignItems: "flex-end" }}>
-            <input type="hidden" name="id" value={id} />
-            <label>Service fee (optional)<input name="amount" inputMode="decimal" placeholder="e.g. 25.00" defaultValue={prr.fee_amount ?? ""} style={{ width: 140 }} /></label>
-            <label>Currency<select name="currency" defaultValue={prr.fee_currency ?? "AZN"}><option value="AZN">AZN — Azerbaijan manat</option><option value="EUR">EUR — Euro</option><option value="USD">USD — US dollar</option></select></label>
-            <button>Save fee</button>
-          </form>
-          <p><small>Leave the amount empty if there is no fee. The customer sees the fee on their ticket.</small></p>
           <p><small>Send the code or file to the customer through the messages below or as a file in Photos and files.</small></p>
         </div>
       )}
+      <div className="card">
+        <h2>Service fee</h2>
+        {locked ? (
+          <p>{t.fee_amount != null ? <b>{Number(t.fee_amount).toFixed(2)} {t.fee_currency}</b> : "No fee."}</p>
+        ) : (
+          <>
+            <form action={setFee} className="row" style={{ alignItems: "flex-end" }}>
+              <input type="hidden" name="id" value={id} />
+              <label>Amount (optional)<input name="amount" inputMode="decimal" placeholder="e.g. 25.00" defaultValue={t.fee_amount ?? ""} style={{ width: 140 }} /></label>
+              <label>Currency<select name="currency" defaultValue={t.fee_currency ?? "AZN"}><option value="AZN">AZN — Azerbaijan manat</option><option value="EUR">EUR — Euro</option><option value="USD">USD — US dollar</option></select></label>
+              <button>Save fee</button>
+            </form>
+            <p><small>A fee can be added for any ticket, with or without warranty. Leave the amount empty if there is no fee. The customer sees it on their ticket.</small></p>
+          </>
+        )}
+      </div>
       {filesCard}
       {timelineCard}
       {qcCard}
-      {!t.assigned_to ? (
+      {locked ? (
+        <div className="card"><h2>Device service status</h2><p>Current: <b>{state?.status ?? "—"}</b></p><p>Locked. Only the administrator can change it.</p></div>
+      ) : !t.assigned_to ? (
         <form action={apply} className="card"><input type="hidden" name="id" value={id} /><button>Apply (take this ticket)</button></form>
       ) : (
         <>
           <form action={setStatus} className="card">
-            <h2>Device service status</h2>
+            <h2>{frozen ? "Reopen for review (administrator)" : "Device service status"}</h2>
             <p>Current: <b>{state?.status ?? "—"}</b></p>
             <input type="hidden" name="id" value={id} />
             <select name="status" defaultValue={state?.status ?? "in_progress"}>

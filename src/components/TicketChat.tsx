@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { postMessage, type ChatMessage } from "@/lib/chat-actions";
 
-export default function TicketChat({ ticketId, initial, isStaff, labels }: {
-  ticketId: string; initial: ChatMessage[]; isStaff: boolean;
+export default function TicketChat({ ticketId, initial, isStaff, labels, readOnly, readOnlyNote }: {
+  ticketId: string; initial: ChatMessage[]; isStaff: boolean; readOnly?: boolean; readOnlyNote?: string;
   labels: { title: string; placeholder: string; send: string; internal: string; customer: string; staff: string; you: string; empty: string };
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initial);
@@ -54,12 +54,12 @@ export default function TicketChat({ ticketId, initial, isStaff, labels }: {
         ))}
         <div ref={endRef} />
       </div>
-      <form onSubmit={send}>
+      {readOnly ? <p><small>{readOnlyNote}</small></p> : <form onSubmit={send}>
         <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={labels.placeholder} rows={3} maxLength={4000} />
         {isStaff && <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" style={{ width: "auto", margin: 0 }} checked={internal} onChange={(e) => setInternal(e.target.checked)} />{labels.internal}</label>}
         {error && <p className="err">{error}</p>}
         <button disabled={busy || !text.trim()}>{labels.send}</button>
-      </form>
+      </form>}
     </div>
   );
 }
