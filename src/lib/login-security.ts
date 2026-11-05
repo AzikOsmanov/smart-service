@@ -21,7 +21,7 @@ export async function clientInfo() {
   return { ip, ua: (h.get("user-agent") ?? "").slice(0, 300) || null };
 }
 
-type Ev = "login_success" | "login_failed" | "account_locked" | "account_unlocked";
+type Ev = "logout" | "login_success" | "login_failed" | "account_locked" | "account_unlocked";
 export async function logLoginEvent(o: { tenantId: string; userId?: string | null; email: string; event: Ev; reason?: string | null }) {
   const { ip, ua } = await clientInfo();
   await supabaseAdmin().from("login_events").insert({

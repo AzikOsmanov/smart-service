@@ -35,6 +35,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
       <div className="card row">
         <a className="btn" href="/admin/login-security" style={{ textDecoration: "none" }}>Login security</a>
         <a className="btn" href="/admin/login-history" style={{ textDecoration: "none" }}>Login history</a>
+        <a className="btn" href="/admin/online" style={{ textDecoration: "none" }}>Online users</a>
       </div>
       <form action={saveBrand} className="card" style={{ maxWidth: 520 }}>
         <label>{t("brandName")}<input name="brand" defaultValue={brand} maxLength={60} required /></label>

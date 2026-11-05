@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 
-const EVENTS = ["login_success", "login_failed", "account_locked", "account_unlocked"] as const;
-const LABEL: Record<string, string> = { login_success: "Signed in", login_failed: "Failed", account_locked: "Account locked", account_unlocked: "Unlocked" };
+const EVENTS = ["login_success", "logout", "login_failed", "account_locked", "account_unlocked"] as const;
+const LABEL: Record<string, string> = { login_success: "Signed in", logout: "Signed out", login_failed: "Failed", account_locked: "Account locked", account_unlocked: "Unlocked" };
 
 export default async function LoginHistory({ searchParams }: { searchParams: Promise<{ email?: string; event?: string }> }) {
   const { email, event } = await searchParams;
@@ -22,7 +22,7 @@ export default async function LoginHistory({ searchParams }: { searchParams: Pro
   };
   return (
     <div>
-      <p><a href="/admin/settings">← Settings</a> · <a href="/admin/login-security">Login security</a></p>
+      <p><a href="/admin/settings">← Settings</a> · <a href="/admin/login-security">Login security</a> · <a href="/admin/online">Online users</a></p>
       <h1>Login history</h1>
       <form method="get" className="card row">
         <input name="email" placeholder="Email" defaultValue={email ?? ""} />

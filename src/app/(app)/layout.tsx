@@ -3,8 +3,24 @@ import TopBar from "@/components/TopBar";
 import { getT } from "@/lib/i18n";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import Heartbeat from "@/components/Heartbeat";
+import { logLoginEvent } from "@/lib/login-security";
 
-async function signOut() { "use server"; const sb = await supabaseServer(); await sb.auth.signOut(); redirect("/login"); }
+async function signOut() {
+  "use server";
+  const sb = await supabaseServer();
+  const { data } = await sb.auth.getUser();
+  if (data.user) {
+    const admin = supabaseAdmin();
+    const { data: u } = await admin.from("users").select("tenant_id,email").eq("id", data.user.id).maybeSingle();
+    if (u) {
+      await admin.from("users").update({ last_seen_at: null }).eq("id", data.user.id);
+      await logLoginEvent({ tenantId: u.tenant_id, userId: data.user.id, email: u.email, event: "logout" });
+    }
+  }
+  await sb.auth.signOut();
+  redirect("/login");
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabaseServer();
@@ -34,6 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <TopBar brand={brand} lang={lang} nav={nav} userName={userName} signOut={signOut} signOutLabel={t("signOut")}
         labels={{ system: t("system"), light: t("light"), dark: t("dark"), theme: t("theme"), language: t("language") }} />
+      <Heartbeat />
       <main className="page">{children}</main>
     </>
   );
