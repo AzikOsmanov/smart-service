@@ -221,7 +221,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   }
 
   const { data: state } = await sb.from("ticket_service_state").select("status,comment,changed_at").eq("ticket_id", id).maybeSingle();
-  const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("ticket_id", id).maybeSingle();
+  const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("device_id", t.device_id).maybeSingle();
   const uid = sess.session!.user.id;
   const [{ data: me }, { data: files }, { data: events }, { data: qcLatest }, { data: custRow }, { data: devModel }] = await Promise.all([
     sb.from("users").select("tenant_id").eq("id", uid).single(),

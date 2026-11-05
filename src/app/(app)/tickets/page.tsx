@@ -23,11 +23,13 @@ export default async function Tickets() {
   const devIds = Array.from(new Set(rows.map((r) => r.device_id)));
   const custIds = Array.from(new Set(rows.map((r) => r.customer_id)));
   const tIds = rows.map((r) => r.id);
-  const [{ data: devs }, { data: custs }, { data: ext }] = await Promise.all([
+  const [{ data: devs }, { data: custs }, { data: ext }, { data: extDev }] = await Promise.all([
     devIds.length ? sb.from("devices").select("id,serial_number,device_models(name)").in("id", devIds) : Promise.resolve({ data: [] }),
     staff && custIds.length ? sb.from("users").select("id,first_name,last_name,companies(name)").in("id", custIds) : Promise.resolve({ data: [] }),
     staff && tIds.length ? sb.from("device_external_info").select("ticket_id,customer_name").in("ticket_id", tIds) : Promise.resolve({ data: [] }),
+    staff && devIds.length ? sb.from("device_external_info").select("device_id,model_name").in("device_id", devIds) : Promise.resolve({ data: [] }),
   ]);
+  const extModel = new Map((extDev ?? []).filter((e: any) => e.model_name).map((e: any) => [e.device_id, e.model_name as string]));
   const dev = new Map((devs ?? []).map((d: any) => [d.id, d]));
   const cust = new Map((custs ?? []).map((c: any) => [c.id, `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() + (c.companies?.name ? ` · ${c.companies.name}` : "")]));
   const extName = new Map((ext ?? []).filter((e: any) => e.customer_name).map((e: any) => [e.ticket_id, e.customer_name as string]));
@@ -57,7 +59,7 @@ export default async function Tickets() {
               <tr key={x.id}>
                 <td><a href={`/tickets/${x.id}`}>{x.ticket_no}</a></td><td>{x.kind === "password_reset" && <span className="badge">{L.prBadge}</span>} {x.subject}</td>
                 {staff && <td>{extName.get(x.id) ?? cust.get(x.customer_id) ?? "—"}</td>}
-                <td>{d?.serial_number ?? "—"}</td><td>{d?.device_models?.name ?? "—"}</td>
+                <td>{d?.serial_number ?? "—"}</td><td>{extModel.get(x.device_id) ?? d?.device_models?.name ?? "—"}</td>
                 <td><span className="badge">{devStatus(x.customer_device_status)}</span></td>
                 {staff && <td>{x.status}</td>}{staff && <td>{x.priority}</td>}
                 <td>{new Date(x.created_at).toLocaleString()}</td>
