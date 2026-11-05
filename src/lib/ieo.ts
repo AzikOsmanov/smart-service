@@ -75,11 +75,11 @@ async function http(c: IeoConn, method: string, url: string, body?: unknown, ext
     try { json = JSON.parse(text); } catch { /* not json */ }
     if (!res.ok && res.status !== 404) {
       const detail = json?.error?.message ?? json?.message ?? json?.error ?? json?.["odata.error"]?.message?.value ?? text;
-      throw new Error(`IEO answered ${res.status}${res.status === 401 || res.status === 403 ? " (access key or login rejected)" : ""}: ${String(typeof detail === "string" ? detail : JSON.stringify(detail)).replace(/\s+/g, " ").slice(0, 250)}`);
+      throw new Error(`IEP answered ${res.status}${res.status === 401 || res.status === 403 ? " (access key or login rejected)" : ""}: ${String(typeof detail === "string" ? detail : JSON.stringify(detail)).replace(/\s+/g, " ").slice(0, 250)}`);
     }
     return { status: res.status, json };
   } catch (e: any) {
-    if (e?.name === "AbortError") throw new Error("IEO did not answer within 20 seconds.");
+    if (e?.name === "AbortError") throw new Error("IEP did not answer within 20 seconds.");
     throw e instanceof Error ? e : new Error(String(e));
   } finally { clearTimeout(timer); }
 }
@@ -188,7 +188,7 @@ export async function updateStatus(c: IeoConn, ref: { id: string; number: string
   const mode = c.fm.mode ?? "rest";
   if (mode === "iep") return iepStatus(c, ref.id, status);
   const value = (c.fm.status_map as Record<string, string> | undefined)?.[status] ?? (mode === "webhook" ? status : undefined);
-  if (!value) throw new Error(`No IEO value is mapped for the status "${status}".`);
+  if (!value) throw new Error(`No IEP value is mapped for the status "${status}".`);
   if (mode === "webhook") { await postSigned(c, { event: "ticket.status_changed", ticket: { ticket_no: ref.ticket_no, external_id: ref.id, status: value, internal_status: status } }); return; }
   if (!m.status_field) throw new Error("Ticket sync is not configured: set the status field.");
   if (mode === "odata") {
@@ -210,10 +210,10 @@ async function postSigned(c: IeoConn, payload: unknown) {
 export async function testReach(c: IeoConn): Promise<string> {
   const mode = c.fm.mode ?? "rest";
   if (mode === "iep") { const ses = await iepSession(c); await iepCall(c, ses, "POST", "rpc/lookup_service_serial", { p_serial: "TEST-CONNECTION" }); return "Connected to IEP and signed in."; }
-  if (mode === "webhook") { await postSigned(c, { event: "ping" }); return "Connected. IEO accepted a test ping."; }
+  if (mode === "webhook") { await postSigned(c, { event: "ping" }); return "Connected. IEP accepted a test ping."; }
   const base = c.base_url.replace(/\/+$/, "");
   const target = mode === "odata" ? `${join(base, encodeURIComponent(c.fm.ticket?.entity || c.fm.lookup?.entity || ""))}?$format=json&$top=1` : base;
   if (mode === "odata" && !(c.fm.ticket?.entity || c.fm.lookup?.entity)) throw new Error("Set the entity name first.");
   const r = await http(c, "GET", target);
-  return r.status === 404 ? "The address answered 404 (not found). Check the base address." : `Connected. IEO answered ${r.status}.`;
+  return r.status === 404 ? "The address answered 404 (not found). Check the base address." : `Connected. IEP answered ${r.status}.`;
 }
