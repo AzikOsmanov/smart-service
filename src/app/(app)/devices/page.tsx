@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
+import BulkAdd from "@/components/BulkAdd";
 import StaffDevices from "./staff";
 
 async function CustomerDevices({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
@@ -23,6 +24,7 @@ async function CustomerDevices({ searchParams }: { searchParams: Promise<{ error
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
       <p>{L.devicesIntro}</p>
+      <BulkAdd L={L} />
       <p><a className="btn" href="/tickets/new" style={{ textDecoration: "none" }}>{t("newTicket")}</a></p>
       <div className="card">
         <table><thead><tr><th>{L.colSn}</th><th>{L.colModel}</th><th>{L.colWarranty}</th><th></th></tr></thead><tbody>

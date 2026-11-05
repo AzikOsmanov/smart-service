@@ -1,14 +1,16 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
+import { getPortal } from "@/lib/i18n-portal";
 
 export default async function Tickets() {
   const sb = await supabaseServer();
   const { t } = await getT();
+  const { L } = await getPortal();
   const { data: sess } = await sb.auth.getSession();
   const uid = sess.session!.user.id;
   const [{ data: me }, { data: tickets, error }] = await Promise.all([
     sb.from("users").select("kind,registration").eq("id", uid).maybeSingle(),
-    sb.from("tickets").select("id,ticket_no,subject,status,priority,customer_id,device_id,customer_device_status,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100),
+    sb.from("tickets").select("id,ticket_no,subject,status,priority,kind,customer_id,device_id,customer_device_status,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(100),
   ]);
   if (me && me.kind === "customer" && me.registration !== "approved") {
     return <div className="card"><h1>{t("waitingTitle")}</h1><p>{me.registration}</p></div>;
@@ -31,7 +33,12 @@ export default async function Tickets() {
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ margin: 0 }}>{t("tickets")}</h1>
-        {me?.kind === "customer" && <a className="btn" href="/tickets/new" style={{ textDecoration: "none" }}>{t("newTicket")}</a>}
+        {me?.kind === "customer" && (
+          <span className="row">
+            <a className="btn" href="/tickets/password-reset" style={{ textDecoration: "none" }}>{L.prButton}</a>
+            <a className="btn" href="/tickets/new" style={{ textDecoration: "none" }}>{t("newTicket")}</a>
+          </span>
+        )}
       </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
@@ -44,7 +51,7 @@ export default async function Tickets() {
             const d: any = dev.get(x.device_id);
             return (
               <tr key={x.id}>
-                <td><a href={`/tickets/${x.id}`}>{x.ticket_no}</a></td><td>{x.subject}</td>
+                <td><a href={`/tickets/${x.id}`}>{x.ticket_no}</a></td><td>{x.kind === "password_reset" && <span className="badge">{L.prBadge}</span>} {x.subject}</td>
                 {staff && <td>{extName.get(x.id) ?? cust.get(x.customer_id) ?? "—"}</td>}
                 <td>{d?.serial_number ?? "—"}</td><td>{d?.device_models?.name ?? "—"}</td>
                 <td><span className="badge">{devStatus(x.customer_device_status)}</span></td>

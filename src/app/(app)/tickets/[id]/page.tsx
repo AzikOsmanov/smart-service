@@ -57,6 +57,9 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     sb.from("ticket_messages").select("id,sender_kind,body,is_internal,created_at").eq("ticket_id", id).is("deleted_at", null).order("created_at"),
   ]);
   const staff = isStaff === true;
+  const { data: prr } = t.kind === "password_reset" ? await sb.from("password_reset_requests").select("serial_number,method,note,label_photo_key,requester_id,device_id,created_at").eq("ticket_id", id).maybeSingle() : { data: null };
+  const prrPhoto = prr?.label_photo_key ? (await sb.storage.from("device-labels").createSignedUrl(prr.label_photo_key, 3600)).data?.signedUrl ?? null : null;
+  const { data: prrOwner } = prr ? await sb.from("devices").select("owner_id").eq("id", prr.device_id).maybeSingle() : { data: null };
   const chat = (
     <TicketChat ticketId={id} initial={(msgs ?? []) as ChatMessage[]} isStaff={staff}
       labels={{ title: tr("chat"), placeholder: tr("chatPlaceholder"), send: tr("send"), internal: tr("internalNote"), customer: tr("fromCustomer"), staff: tr("fromStaff"), you: tr("you"), empty: tr("noMessages") }} />
@@ -191,6 +194,16 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
         {error && <p className="err">{error}</p>}
       </div>
+      {prr && (
+        <div className="card">
+          <h2>Device password reset request</h2>
+          <p>Serial number: <b>{prr.serial_number}</b> · Customer wants: <b>{prr.method === "bring_device" ? "to bring the device to the office" : "to receive the reset code / file"}</b></p>
+          {prrOwner && prrOwner.owner_id !== prr.requester_id && <p className="err">The requester is not the registered owner of this device. Check the label photo carefully before sending any code.</p>}
+          {prr.note && <p style={{ whiteSpace: "pre-wrap" }}>Comment: {prr.note}</p>}
+          {prrPhoto ? <a href={prrPhoto} target="_blank" rel="noreferrer"><img src={prrPhoto} alt="SN label" style={{ maxWidth: 360, borderRadius: 8 }} /></a> : <p>No label photo.</p>}
+          <p><small>Send the code or file to the customer through the messages below or as a file in Photos and files.</small></p>
+        </div>
+      )}
       {filesCard}
       {timelineCard}
       {qcCard}
