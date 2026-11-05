@@ -4,9 +4,12 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import ConfirmButton from "@/components/ConfirmButton";
 import { restoreTicketAction, hardDeleteTicketAction } from "@/lib/delete-actions";
+import { getStaff } from "@/lib/i18n-staff";
+import { fmt } from "@/lib/fmt";
 
 async function restoreQc(fd: FormData) {
   "use server";
+  const { S } = await getStaff();
   const sb = await supabaseServer();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
   if (isAdmin !== true) notFound();
@@ -18,12 +21,13 @@ async function restoreQc(fd: FormData) {
   const { data: me } = await sb.from("users").select("tenant_id").eq("id", auth.user!.id).single();
   await admin.from("audit_logs").insert({ tenant_id: me!.tenant_id, actor_id: auth.user!.id, action: "qc.restore", entity_type: "qc_check", entity_id: id, old_values: null, new_values: null });
   revalidatePath("/admin/trash");
-  redirect("/admin/trash?ok=" + encodeURIComponent("QC check restored."));
+  redirect("/admin/trash?ok=" + encodeURIComponent(S.okQcRestored));
 }
 
 export default async function Trash({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error, ok } = await searchParams;
   const sb = await supabaseServer();
+  const { S } = await getStaff();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
   if (isAdmin !== true) notFound();
   const admin = supabaseAdmin();
@@ -34,12 +38,12 @@ export default async function Trash({ searchParams }: { searchParams: Promise<{ 
   const name = new Map((who ?? []).map((u: any) => [u.id, `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email]));
   return (
     <div>
-      <h1>Trash</h1>
-      <h2>Tickets ({(tickets ?? []).length})</h2>
+      <h1>{S.trashTitle}</h1>
+      <h2>{fmt(S.ticketsCount, { n: String((tickets ?? []).length) })}</h2>
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
       <div className="card">
-        <table><thead><tr><th>No</th><th>Subject</th><th>Deleted</th><th>By</th><th>Reason</th><th></th></tr></thead><tbody>
+        <table><thead><tr><th>{S.noWord}</th><th>{S.subjectWord}</th><th>{S.deletedWord}</th><th>{S.byWord}</th><th>{S.reasonWord}</th><th></th></tr></thead><tbody>
           {(tickets ?? []).map((t) => (
             <tr key={t.id}>
               <td>{t.ticket_no}</td><td>{t.subject}</td>
@@ -49,29 +53,29 @@ export default async function Trash({ searchParams }: { searchParams: Promise<{ 
               <td style={{ whiteSpace: "nowrap" }}>
                 <form action={restoreTicketAction} style={{ display: "inline" }}>
                   <input type="hidden" name="id" value={t.id} /><input type="hidden" name="back" value="/admin/trash" />
-                  <button className="btn ghost">Restore</button>
+                  <button className="btn ghost">{S.restore}</button>
                 </form>
                 <form action={hardDeleteTicketAction} style={{ display: "inline", marginLeft: 8 }}>
                   <input type="hidden" name="id" value={t.id} /><input type="hidden" name="back" value="/admin/trash" />
-                  <input name="reason" placeholder="Reason" required minLength={5} style={{ width: 160, display: "inline-block", margin: "0 8px 0 0" }} />
-                  <ConfirmButton className="btn danger" message="Permanently delete this ticket? This cannot be undone.">Delete permanently</ConfirmButton>
+                  <input name="reason" placeholder={S.reasonWord} required minLength={5} style={{ width: 160, display: "inline-block", margin: "0 8px 0 0" }} />
+                  <ConfirmButton className="btn danger" message={S.deletePermQ}>{S.deletePerm}</ConfirmButton>
                 </form>
               </td>
             </tr>))}
         </tbody></table>
-        {!tickets?.length && <p>No deleted tickets.</p>}
+        {!tickets?.length && <p>{S.noDeletedTickets}</p>}
       </div>
-      <h2>Quality Control checks ({(qcDeleted ?? []).length})</h2>
+      <h2>{fmt(S.qcChecksCount, { n: String((qcDeleted ?? []).length) })}</h2>
       <div className="card">
-        <table><thead><tr><th>Serial number</th><th>QC status</th><th>Comment</th><th>Deleted</th><th></th></tr></thead><tbody>
+        <table><thead><tr><th>{S.serialNumber}</th><th>{S.qcStatusCol}</th><th>{S.comment}</th><th>{S.deletedWord}</th><th></th></tr></thead><tbody>
           {(qcDeleted ?? []).map((c) => (
             <tr key={c.id}>
               <td>{c.serial_number}</td><td>{c.status}</td><td>{(c.comment ?? "").slice(0, 80)}</td>
               <td>{c.deleted_at ? new Date(c.deleted_at).toLocaleString() : ""}</td>
-              <td><form action={restoreQc}><input type="hidden" name="id" value={c.id} /><button className="btn ghost">Restore</button></form></td>
+              <td><form action={restoreQc}><input type="hidden" name="id" value={c.id} /><button className="btn ghost">{S.restore}</button></form></td>
             </tr>))}
         </tbody></table>
-        {!qcDeleted?.length && <p>No deleted QC checks.</p>}
+        {!qcDeleted?.length && <p>{S.noDeletedQc}</p>}
       </div>
     </div>
   );

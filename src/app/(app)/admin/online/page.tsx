@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getStaff } from "@/lib/i18n-staff";
+import { fmt } from "@/lib/fmt";
 
 const ONLINE_SECONDS = 150; // heartbeat is every 60 s
 
@@ -9,6 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function Online({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
   const { kind } = await searchParams;
   const sb = await supabaseServer();
+  const { S } = await getStaff();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
   if (isAdmin !== true) notFound();
   const { data: auth } = await sb.auth.getUser();
@@ -30,31 +33,31 @@ export default async function Online({ searchParams }: { searchParams: Promise<{
   for (const e of events ?? []) if (!ipOf.has(e.user_id as string)) ipOf.set(e.user_id as string, { ip: e.ip_address ? String(e.ip_address) : null, at: e.created_at });
   const staffN = (rows ?? []).filter((r) => r.kind === "staff").length;
   const custN = (rows ?? []).filter((r) => r.kind === "customer").length;
-  const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000)); return s < 60 ? `${s}s ago` : `${Math.round(s / 60)} min ago`; };
+  const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000)); return s < 60 ? fmt(S.agoSec, { n: String(s) }) : fmt(S.agoMin, { n: String(Math.round(s / 60)) }); };
   return (
     <div>
-      <p><a href="/admin/settings">← Settings</a> · <a href="/admin/login-history">Login history</a></p>
-      <h1>Online users</h1>
+      <p><a href="/admin/settings">← {S.settingsWord}</a> · <a href="/admin/login-history">{S.loginHistory}</a></p>
+      <h1>{S.onlineUsers}</h1>
       <div className="card row">
-        <a className="btn" href="/admin/online" style={{ textDecoration: "none" }}>All ({staffN + custN})</a>
-        <a className="btn" href="/admin/online?kind=staff" style={{ textDecoration: "none" }}>Staff</a>
-        <a className="btn" href="/admin/online?kind=customer" style={{ textDecoration: "none" }}>Customers</a>
-        <small>A person counts as online while a page of the platform is open in their browser. Refresh this page to update.</small>
+        <a className="btn" href="/admin/online" style={{ textDecoration: "none" }}>{fmt(S.allWithCount, { n: String(staffN + custN) })}</a>
+        <a className="btn" href="/admin/online?kind=staff" style={{ textDecoration: "none" }}>{S.staffWord}</a>
+        <a className="btn" href="/admin/online?kind=customer" style={{ textDecoration: "none" }}>{S.customersWord}</a>
+        <small>{S.onlineHint}</small>
       </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
-        <table><thead><tr><th>Name</th><th>Type</th><th>Role / company</th><th>Email</th><th>IP address</th><th>Last activity</th></tr></thead><tbody>
+        <table><thead><tr><th>{S.name}</th><th>{S.typeWord}</th><th>{S.roleCompany}</th><th>{S.emailWord}</th><th>{S.ipAddress}</th><th>{S.lastActivity}</th></tr></thead><tbody>
           {(rows ?? []).map((u: any) => (
             <tr key={u.id}>
               <td><b>{u.first_name} {u.last_name}</b></td>
-              <td><span className="badge">{u.kind === "staff" ? "Staff" : "Customer"}</span></td>
+              <td><span className="badge">{u.kind === "staff" ? S.staffOne : S.customerOne}</span></td>
               <td>{u.kind === "staff" ? roleOf(u.id) || "—" : `${u.companies?.name ?? ""}${u.companies?.city ? " / " + u.companies.city : ""}`}</td>
               <td>{u.email}</td>
               <td>{ipOf.get(u.id)?.ip ?? "—"}</td>
               <td>{ago(u.last_seen_at)}</td>
             </tr>
           ))}
-          {(rows ?? []).length === 0 && <tr><td colSpan={6}>Nobody is online right now.</td></tr>}
+          {(rows ?? []).length === 0 && <tr><td colSpan={6}>{S.nobodyOnline}</td></tr>}
         </tbody></table>
       </div>
     </div>
