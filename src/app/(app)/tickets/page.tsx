@@ -2,6 +2,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
 import { getStaff } from "@/lib/i18n-staff";
+import { warrantyText } from "@/lib/warranty";
 
 export default async function Tickets() {
   const sb = await supabaseServer();
@@ -23,13 +24,16 @@ export default async function Tickets() {
   const devIds = Array.from(new Set(rows.map((r) => r.device_id)));
   const custIds = Array.from(new Set(rows.map((r) => r.customer_id)));
   const tIds = rows.map((r) => r.id);
-  const [{ data: devs }, { data: custs }, { data: ext }, { data: extDev }] = await Promise.all([
+  const [{ data: devs }, { data: custs }, { data: ext }, { data: extDev }, { data: custInfo }] = await Promise.all([
     devIds.length ? sb.from("devices").select("id,serial_number,device_models(name)").in("id", devIds) : Promise.resolve({ data: [] }),
     staff && custIds.length ? sb.from("users").select("id,first_name,last_name,companies(name)").in("id", custIds) : Promise.resolve({ data: [] }),
     staff && tIds.length ? sb.from("device_external_info").select("ticket_id,customer_name").in("ticket_id", tIds) : Promise.resolve({ data: [] }),
-    staff && devIds.length ? sb.from("device_external_info").select("device_id,model_name").in("device_id", devIds) : Promise.resolve({ data: [] }),
+    staff && devIds.length ? sb.from("device_external_info").select("device_id,model_name,warranty_until,warranty_note").in("device_id", devIds) : Promise.resolve({ data: [] }),
+    !staff && tIds.length ? sb.rpc("customer_device_info", { p_ticket_ids: tIds }) : Promise.resolve({ data: [] }),
   ]);
-  const extModel = new Map((extDev ?? []).filter((e: any) => e.model_name).map((e: any) => [e.device_id, e.model_name as string]));
+  type DI = { model_name: string | null; warranty_until: string | null; warranty_note: string | null };
+  const infoByDevice = new Map<string, DI>((extDev ?? []).map((e: any) => [e.device_id, e as DI]));
+  const infoByTicket = new Map<string, DI>((custInfo ?? []).map((e: any) => [e.ticket_id, e as DI]));
   const dev = new Map((devs ?? []).map((d: any) => [d.id, d]));
   const cust = new Map((custs ?? []).map((c: any) => [c.id, `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() + (c.companies?.name ? ` · ${c.companies.name}` : "")]));
   const extName = new Map((ext ?? []).filter((e: any) => e.customer_name).map((e: any) => [e.ticket_id, e.customer_name as string]));
@@ -50,16 +54,17 @@ export default async function Tickets() {
         {error && <p className="err">{error.message}</p>}
         <table><thead><tr>
           <th>{t("no")}</th><th>{t("subject")}</th>{staff && <th>{t("customerCol")}</th>}
-          <th>{t("deviceCol")}</th><th>{t("modelCol")}</th><th>{t("deviceStatusCol")}</th>
+          <th>{t("deviceCol")}</th><th>{t("modelCol")}</th><th>{L.warrantyWord}</th><th>{t("deviceStatusCol")}</th>
           {staff && <th>{t("ticketStatusCol")}</th>}{staff && <th>{t("priority")}</th>}<th>{t("created")}</th>
         </tr></thead>
           <tbody>{rows.map((x) => {
             const d: any = dev.get(x.device_id);
+            const info = staff ? infoByDevice.get(x.device_id) : infoByTicket.get(x.id);
             return (
               <tr key={x.id}>
                 <td><a href={`/tickets/${x.id}`}>{x.ticket_no}</a></td><td>{x.kind === "password_reset" && <span className="badge">{L.prBadge}</span>} {x.subject}</td>
                 {staff && <td>{extName.get(x.id) ?? cust.get(x.customer_id) ?? "—"}</td>}
-                <td>{d?.serial_number ?? "—"}</td><td>{extModel.get(x.device_id) ?? d?.device_models?.name ?? "—"}</td>
+                <td>{d?.serial_number ?? "—"}</td><td>{info?.model_name || d?.device_models?.name || "—"}</td><td>{warrantyText(L, info?.warranty_until, info?.warranty_note)}</td>
                 <td><span className="badge">{devStatus(x.customer_device_status)}</span></td>
                 {staff && <td>{x.status}</td>}{staff && <td>{x.priority}</td>}
                 <td>{new Date(x.created_at).toLocaleString()}</td>

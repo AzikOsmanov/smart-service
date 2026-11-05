@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { lookupForTicket, type LookupResult } from "@/lib/onec-tools";
 import { lookupForTicketIeo } from "@/lib/ieo-tools";
+import { warrantyText } from "@/lib/warranty";
 import { processOutbox } from "@/lib/outbox";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fmt } from "@/lib/fmt";
@@ -154,12 +155,14 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
       sb.from("ticket_attachments").select("id,file_name,mime_type,storage_key,kind,created_at").eq("ticket_id", id).order("created_at"),
       sb.from("devices").select("serial_number,device_models(name)").eq("id", t.device_id).maybeSingle(),
     ]);
+    const { data: cdi } = await sb.rpc("customer_device_info", { p_ticket_ids: [id] });
+    const cInfo = (cdi ?? [])[0] as { model_name: string | null; warranty_until: string | null; warranty_note: string | null } | undefined;
     const keys = (files ?? []).map((f) => f.storage_key);
     const { data: signed } = keys.length ? await sb.storage.from("ticket-files").createSignedUrls(keys, 3600) : { data: [] };
     const urlOf = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
     const cur = t.customer_device_status as string | null;
     const stepLabel = cur ? tr(`st_${cur}` as "st_ready") : null;
-    const model = (devFull as { device_models?: { name?: string } | null } | null)?.device_models?.name;
+    const model = cInfo?.model_name || (devFull as { device_models?: { name?: string } | null } | null)?.device_models?.name;
     const steps = [
       { label: tr("st_received"), done: true },
       { label: tr("st_diagnose"), done: !!cur },
@@ -173,6 +176,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           <div className="row">
             <span>{L.colSn}: <b>{devFull?.serial_number ?? dev?.serial_number ?? "—"}</b></span>
             {model && <span>{L.model}: <b>{model}</b></span>}
+            {(cInfo?.warranty_until || cInfo?.warranty_note) && <span>{L.warrantyWord}: <b>{warrantyText(L, cInfo.warranty_until, cInfo.warranty_note)}</b></span>}
             <span><small>{L.created} {new Date(t.created_at).toLocaleString()}</small></span>
           </div>
           {warn && <p className="err">{warn}</p>}
@@ -221,7 +225,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   }
 
   const { data: state } = await sb.from("ticket_service_state").select("status,comment,changed_at").eq("ticket_id", id).maybeSingle();
-  const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,customer_name,source").eq("device_id", t.device_id).maybeSingle();
+  const { data: info } = await sb.from("device_external_info").select("model_name,sold_date,warranty_until,warranty_note,customer_name,source").eq("device_id", t.device_id).maybeSingle();
   const uid = sess.session!.user.id;
   const [{ data: me }, { data: files }, { data: events }, { data: qcLatest }, { data: custRow }, { data: devModel }] = await Promise.all([
     sb.from("users").select("tenant_id").eq("id", uid).single(),

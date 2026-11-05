@@ -27,7 +27,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!dev) return NextResponse.json({ ok: true, stored: false, reason: "unknown_serial" });
     const { error } = await db.from("device_external_info").upsert({
       tenant_id: conn.tenant_id, device_id: dev.id, serial_number: b.serial, status: "ok", source: "integration",
-      model_name: b.model ?? null, warranty_until: asDate(b.warranty_until), sold_date: asDate(b.sold_date), customer_name: b.customer ?? null,
+      model_name: b.model ?? null, warranty_note: typeof b.warranty_note === "string" ? b.warranty_note : null, warranty_until: asDate(b.warranty_until), sold_date: asDate(b.sold_date), customer_name: b.customer ?? null,
       raw_response: { via: "ieo_webhook", record: b }, error_message: null, fetched_at: new Date().toISOString(),
     }, { onConflict: "tenant_id,device_id" });
     if (error) return NextResponse.json({ error: "store_failed" }, { status: 500 });

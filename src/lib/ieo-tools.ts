@@ -19,7 +19,7 @@ export async function lookupForTicketIeo(sb: SupabaseClient, ticketId: string): 
     const admin = supabaseAdmin();
     const { error } = await admin.from("device_external_info").upsert({
       tenant_id: t.tenant_id, device_id: t.device_id, ticket_id: t.id, serial_number: dev.serial_number, status: "ok", source: "integration",
-      model_name: r.model, warranty_until: r.warranty_until, sold_date: r.sold_date, customer_name: r.customer_name, raw_response: { via: "ieo", record: r.raw } as object,
+      model_name: r.model, warranty_note: r.warranty_note ?? null, warranty_until: r.warranty_until, sold_date: r.sold_date, customer_name: r.customer_name, raw_response: { via: "ieo", record: r.raw } as object,
       error_message: null, fetched_by: auth.user.id, fetched_at: new Date().toISOString(),
     }, { onConflict: "tenant_id,device_id" });
     if (error) return { code: "unavailable", detail: error.message };

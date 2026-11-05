@@ -106,8 +106,7 @@ async function iepLookup(c: IeoConn, serial: string): Promise<Lookup> {
   const j = await iepCall(c, ses, "POST", "rpc/lookup_service_serial", { p_serial: serial });
   if (!j?.matched) return { found: false, model: null, warranty_until: null, sold_date: null, customer_name: null, raw: null };
   const name = [j.product_brand, j.product_model || j.product_name].filter(Boolean).join(" ") || null;
-  const model = name ? (j.warranty_label ? `${name} (${j.warranty_label})` : name) : null;
-  return { found: true, model, warranty_until: asDate(j.warranty_until), sold_date: asDate(j.purchase_date), customer_name: null, raw: j };
+  return { found: true, model: name, warranty_note: j.warranty_label ? String(j.warranty_label) : null, warranty_until: asDate(j.warranty_until), sold_date: asDate(j.purchase_date), customer_name: null, raw: j };
 }
 async function iepCreate(c: IeoConn, t: NewTicket): Promise<{ id: string | null; number: string }> {
   const ses = await iepSession(c);
@@ -134,7 +133,7 @@ export function sign(secret: string, body: string): string {
   return "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
 }
 
-export type Lookup = { found: boolean; model: string | null; warranty_until: string | null; sold_date: string | null; customer_name: string | null; raw: unknown };
+export type Lookup = { found: boolean; model: string | null; warranty_note?: string | null; warranty_until: string | null; sold_date: string | null; customer_name: string | null; raw: unknown };
 export async function lookupDevice(c: IeoConn, serial: string): Promise<Lookup> {
   const m = c.fm.lookup ?? {};
   const mode = c.fm.mode ?? "rest";
