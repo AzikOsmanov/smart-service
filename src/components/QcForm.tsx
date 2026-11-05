@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import SnInput from "@/components/SnInput";
 import type { PortalLabels } from "@/lib/i18n-portal";
-import { QC_LABEL, QC_STATUSES } from "@/lib/qc";
+import { QC_STATUSES } from "@/lib/qc";
+import type { StaffLabels } from "@/lib/i18n-staff";
+import { fmt } from "@/lib/fmt";
 
 const MAX = 50 * 1024 * 1024;
 
-export default function QcForm({ tenantId, initialSn, ticketId, L }: { tenantId: string; initialSn: string; ticketId: string | null; L: PortalLabels }) {
+export default function QcForm({ tenantId, initialSn, ticketId, L, S }: { tenantId: string; initialSn: string; ticketId: string | null; L: PortalLabels; S: StaffLabels }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -19,14 +21,14 @@ export default function QcForm({ tenantId, initialSn, ticketId, L }: { tenantId:
     const fd = new FormData(e.currentTarget);
     const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     for (const f of files) {
-      if (f.size > MAX) { setErr(`${f.name} is larger than 50 MB`); setBusy(false); return; }
-      if (!/^(image|video)\//.test(f.type)) { setErr(`${f.name}: only images and videos are allowed`); setBusy(false); return; }
+      if (f.size > MAX) { setErr(fmt(S.errFileLarge, { name: f.name })); setBusy(false); return; }
+      if (!/^(image|video)\//.test(f.type)) { setErr(fmt(S.errOnlyMedia, { name: f.name })); setBusy(false); return; }
     }
     const sb = supabaseBrowser();
     const { data: id, error } = await sb.rpc("qc_record", {
       p_serial: String(fd.get("sn")), p_status: String(fd.get("status")), p_comment: String(fd.get("comment") || ""), p_ticket: ticketId,
     });
-    if (error || !id) { setErr(error?.message === "invalid_serial" ? "Serial number is not valid" : error?.message ?? "Failed"); setBusy(false); return; }
+    if (error || !id) { setErr(error?.message === "invalid_serial" ? S.errSnNotValid : error?.message ?? S.failedWord); setBusy(false); return; }
     const { data: u } = await sb.auth.getUser();
     const failed: string[] = [];
     for (const f of files) {
@@ -40,24 +42,24 @@ export default function QcForm({ tenantId, initialSn, ticketId, L }: { tenantId:
       });
       if (ins.error) failed.push(f.name);
     }
-    if (failed.length) { setErr(`Saved, but these files failed: ${failed.join(", ")}`); setBusy(false); router.push(`/qc/${id}`); return; }
+    if (failed.length) { setErr(fmt(S.savedFilesFailed, { files: failed.join(", ") })); setBusy(false); router.push(`/qc/${id}`); return; }
     router.push(`/qc/${id}`);
   }
 
   return (
     <form onSubmit={submit}>
-      <label>Serial number (SN)<SnInput L={L} name="sn" defaultValue={initialSn} required minLength={4} /></label>
-      <label>QC status
+      <label>{S.serialSn}<SnInput L={L} name="sn" defaultValue={initialSn} required minLength={4} /></label>
+      <label>{S.qcStatusCol}
         <select name="status" defaultValue="done">
-          {QC_STATUSES.map((s) => <option key={s} value={s}>{QC_LABEL[s]}</option>)}
+          {QC_STATUSES.map((s) => <option key={s} value={s}>{({ done: S.qcDone, broken: S.qcBroken, hardware_issue: S.qcHardware } as Record<string, string>)[s]}</option>)}
         </select>
       </label>
-      <label>Comments<textarea name="comment" rows={4} placeholder="What was tested, what you found…" /></label>
-      <label>Photos / videos (up to 50 MB each)
+      <label>{S.comments}<textarea name="comment" rows={4} placeholder={S.qcCommentPh} /></label>
+      <label>{S.photosVideosUpTo}
         <input name="files" type="file" accept="image/*,video/*" multiple />
       </label>
       {err && <p className="err">{err}</p>}
-      <button disabled={busy}>{busy ? "Saving…" : "Save QC check"}</button>
+      <button disabled={busy}>{busy ? S.saving : S.saveQc}</button>
     </form>
   );
 }

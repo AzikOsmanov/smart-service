@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import ConfirmButton from "@/components/ConfirmButton";
-import { QC_LABEL, QC_STATUSES, type QcStatus } from "@/lib/qc";
+import { QC_STATUSES } from "@/lib/qc";
+import { getStaff } from "@/lib/i18n-staff";
 
 async function update(fd: FormData) {
   "use server";
@@ -27,6 +28,8 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
   const { id } = await params;
   const { error } = await searchParams;
   const sb = await supabaseServer();
+  const { S } = await getStaff();
+  const qcName: Record<string, string> = { done: S.qcDone, broken: S.qcBroken, hardware_issue: S.qcHardware };
   const { data: c } = await sb.from("qc_checks").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!c) notFound();
   const [{ data: media }, { data: canEdit }, { data: canDelete }, { data: p }, { data: history }] = await Promise.all([
@@ -43,31 +46,31 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
   return (
     <div>
       <div className="card">
-        <p><Link href="/qc">← Quality Control</Link></p>
+        <p><Link href="/qc">← {S.qcTitle}</Link></p>
         <h1>SN {c.serial_number}</h1>
         <div className="row">
-          <span className="badge">{QC_LABEL[c.status as QcStatus]}</span>
-          <span>Engineer: <b>{p ? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() : "—"}</b></span>
+          <span className="badge">{qcName[c.status] ?? c.status}</span>
+          <span>{S.engineer}: <b>{p ? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() : "—"}</b></span>
           <small>{new Date(c.created_at).toLocaleString()}</small>
-          {c.ticket_id && <Link href={`/tickets/${c.ticket_id}`}>Ticket</Link>}
+          {c.ticket_id && <Link href={`/tickets/${c.ticket_id}`}>{S.ticketWord}</Link>}
         </div>
         {error && <p className="err">{error}</p>}
       </div>
       {mine ? (
         <form action={update} className="card">
           <input type="hidden" name="id" value={id} />
-          <label>QC status
-            <select name="status" defaultValue={c.status}>{QC_STATUSES.map((s) => <option key={s} value={s}>{QC_LABEL[s]}</option>)}</select>
+          <label>{S.qcStatusCol}
+            <select name="status" defaultValue={c.status}>{QC_STATUSES.map((s) => <option key={s} value={s}>{qcName[s]}</option>)}</select>
           </label>
-          <label>Comments<textarea name="comment" rows={4} defaultValue={c.comment ?? ""} /></label>
-          <button>Save</button>
+          <label>{S.comments}<textarea name="comment" rows={4} defaultValue={c.comment ?? ""} /></label>
+          <button>{S.save}</button>
         </form>
       ) : (
-        <div className="card"><h2>Comments</h2><p>{c.comment ?? "—"}</p></div>
+        <div className="card"><h2>{S.comments}</h2><p>{c.comment ?? "—"}</p></div>
       )}
       <div className="card">
-        <h2>Photos and videos</h2>
-        {(media ?? []).length === 0 && <p>No files.</p>}
+        <h2>{S.photosVideos}</h2>
+        {(media ?? []).length === 0 && <p>{S.noFiles}</p>}
         <div className="row" style={{ alignItems: "flex-start" }}>
           {(media ?? []).map((m) => {
             const u = url.get(m.path);
@@ -79,17 +82,17 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
         </div>
       </div>
       <div className="card">
-        <h2>History of this serial number</h2>
+        <h2>{S.historyOfSn}</h2>
         <ul>
           {(history ?? []).map((h) => (
-            <li key={h.id}><Link href={`/qc/${h.id}`}>{new Date(h.created_at).toLocaleString()}</Link> — {QC_LABEL[h.status as QcStatus]}</li>
+            <li key={h.id}><Link href={`/qc/${h.id}`}>{new Date(h.created_at).toLocaleString()}</Link> — {qcName[h.status] ?? h.status}</li>
           ))}
         </ul>
       </div>
       {canDelete === true && (
         <form action={remove} className="card">
           <input type="hidden" name="id" value={id} />
-          <ConfirmButton className="btn danger" message="Delete this QC check?">Delete QC check</ConfirmButton>
+          <ConfirmButton className="btn danger" message={S.deleteQcQ}>{S.deleteQc}</ConfirmButton>
         </form>
       )}
     </div>

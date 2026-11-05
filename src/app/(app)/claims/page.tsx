@@ -1,22 +1,27 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getStaff } from "@/lib/i18n-staff";
+import { fmt } from "@/lib/fmt";
 
 async function review(fd: FormData) {
   "use server";
+  const { S } = await getStaff();
   const sb = await supabaseServer();
   const approve = fd.get("decision") === "approve";
   const note = String(fd.get("note") || "").trim();
-  if (!approve && note.length < 3) redirect("/claims?error=" + encodeURIComponent("Please type a reason to reject."));
+  if (!approve && note.length < 3) redirect("/claims?error=" + encodeURIComponent(S.errClaimReason));
   const { error } = await sb.rpc("review_device_claim", { p_claim: String(fd.get("id")), p_approve: approve, p_note: note || null });
   if (error) redirect("/claims?error=" + encodeURIComponent(error.message));
   revalidatePath("/claims");
-  redirect("/claims?ok=" + encodeURIComponent(approve ? "Ownership transferred to the new owner. The previous owner keeps read-only access." : "Request rejected."));
+  redirect("/claims?ok=" + encodeURIComponent(approve ? S.okClaimApproved : S.okClaimRejected));
 }
 
 export default async function Claims({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error: msgErr, ok } = await searchParams;
   const sb = await supabaseServer();
+  const { S } = await getStaff();
+  const stLabel: Record<string, string> = { pending: S.regPending, approved: S.regApproved, rejected: S.regRejected };
   const [{ data: canView }, { data: canEdit }] = await Promise.all([
     sb.rpc("has_permission", { p_code: "devices.claims.view" }), sb.rpc("has_permission", { p_code: "devices.claims.edit" }),
   ]);
@@ -43,32 +48,32 @@ export default async function Claims({ searchParams }: { searchParams: Promise<{
   const done = rows.filter((c) => c.status !== "pending");
   return (
     <div>
-      <h1>Ownership requests</h1>
+      <h1>{S.ownershipRequests}</h1>
       {msgErr && <p className="err">{msgErr}</p>}
       {ok && <p>{ok}</p>}
       {error && <p className="err">{error.message}</p>}
       <div className="card">
-        <h2>Waiting for review ({pending.length})</h2>
-        {pending.length === 0 && <p>No requests are waiting.</p>}
+        <h2>{fmt(S.waitingReview, { n: String(pending.length) })}</h2>
+        {pending.length === 0 && <p>{S.noRequestsWaiting}</p>}
         {pending.map((c) => {
           const url = c.label_photo_key ? photo.get(c.label_photo_key) : null;
           return (
             <div key={c.id} className="card" style={{ marginTop: 12 }}>
               <div className="row" style={{ alignItems: "flex-start" }}>
                 <div style={{ minWidth: 220 }}>
-                  <p>Serial number: <b>{sn.get(c.device_id) ?? "—"}</b></p>
-                  <p><small>Sent {new Date(c.created_at).toLocaleString()}</small></p>
-                  <p>New owner (requester):<br />{person(c.claimant_id)}</p>
-                  <p>Current owner:<br />{person(c.previous_owner_id)}</p>
+                  <p>{S.serialNumber}: <b>{sn.get(c.device_id) ?? "—"}</b></p>
+                  <p><small>{S.sentAt} {new Date(c.created_at).toLocaleString()}</small></p>
+                  <p>{S.newOwnerRequester}<br />{person(c.claimant_id)}</p>
+                  <p>{S.currentOwner}<br />{person(c.previous_owner_id)}</p>
                 </div>
-                <div>{url ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="SN label" style={{ maxWidth: 320, borderRadius: 8 }} /></a> : <p>No label photo.</p>}</div>
+                <div>{url ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="SN label" style={{ maxWidth: 320, borderRadius: 8 }} /></a> : <p>{S.noLabelPhoto}</p>}</div>
               </div>
               {canEdit === true && (
                 <form action={review} className="row">
                   <input type="hidden" name="id" value={c.id} />
-                  <input name="note" placeholder="Note (required to reject)" style={{ flex: 1 }} />
-                  <button name="decision" value="approve">Approve — transfer device</button>
-                  <button className="btn danger" name="decision" value="reject">Reject</button>
+                  <input name="note" placeholder={S.noteRejectPh} style={{ flex: 1 }} />
+                  <button name="decision" value="approve">{S.approveTransfer}</button>
+                  <button className="btn danger" name="decision" value="reject">{S.reject}</button>
                 </form>
               )}
             </div>
@@ -76,12 +81,12 @@ export default async function Claims({ searchParams }: { searchParams: Promise<{
         })}
       </div>
       <div className="card">
-        <h2>Reviewed</h2>
-        <table><thead><tr><th>Serial number</th><th>New owner</th><th>Result</th><th>Note</th><th>Reviewed</th></tr></thead><tbody>
+        <h2>{S.reviewed}</h2>
+        <table><thead><tr><th>{S.serialNumber}</th><th>{S.newOwner}</th><th>{S.result}</th><th>{S.note}</th><th>{S.reviewed}</th></tr></thead><tbody>
           {done.map((c) => (
-            <tr key={c.id}><td>{sn.get(c.device_id) ?? "—"}</td><td>{person(c.claimant_id)}</td><td><span className="badge">{c.status}</span></td><td>{c.review_note ?? ""}</td><td>{c.reviewed_at ? new Date(c.reviewed_at).toLocaleString() : ""}</td></tr>
+            <tr key={c.id}><td>{sn.get(c.device_id) ?? "—"}</td><td>{person(c.claimant_id)}</td><td><span className="badge">{stLabel[c.status] ?? c.status}</span></td><td>{c.review_note ?? ""}</td><td>{c.reviewed_at ? new Date(c.reviewed_at).toLocaleString() : ""}</td></tr>
           ))}
-          {done.length === 0 && <tr><td colSpan={5}>Nothing reviewed yet.</td></tr>}
+          {done.length === 0 && <tr><td colSpan={5}>{S.nothingReviewed}</td></tr>}
         </tbody></table>
       </div>
     </div>

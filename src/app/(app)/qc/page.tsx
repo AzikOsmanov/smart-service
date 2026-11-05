@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
-import { QC_LABEL, QC_STATUSES, type QcStatus } from "@/lib/qc";
+import { QC_STATUSES } from "@/lib/qc";
+import { getStaff } from "@/lib/i18n-staff";
 
 export default async function QcList({ searchParams }: { searchParams: Promise<{ sn?: string; status?: string }> }) {
   const { sn, status } = await searchParams;
   const sb = await supabaseServer();
+  const { S } = await getStaff();
+  const qcName: Record<string, string> = { done: S.qcDone, broken: S.qcBroken, hardware_issue: S.qcHardware };
   const [{ data: canView }, { data: canEdit }] = await Promise.all([
     sb.rpc("has_permission", { p_code: "qc.view" }), sb.rpc("has_permission", { p_code: "qc.edit" }),
   ]);
@@ -22,33 +25,33 @@ export default async function QcList({ searchParams }: { searchParams: Promise<{
     <div>
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <h1>Quality Control</h1>
-          {canEdit === true && <Link className="btn" href="/qc/new">New QC check</Link>}
+          <h1>{S.qcTitle}</h1>
+          {canEdit === true && <Link className="btn" href="/qc/new">{S.newQc}</Link>}
         </div>
         <form className="row" method="get">
-          <input name="sn" placeholder="Serial number" defaultValue={sn ?? ""} />
+          <input name="sn" placeholder={S.snPlaceholder} defaultValue={sn ?? ""} />
           <select name="status" defaultValue={status ?? ""}>
-            <option value="">All statuses</option>
-            {QC_STATUSES.map((s) => <option key={s} value={s}>{QC_LABEL[s]}</option>)}
+            <option value="">{S.allStatuses}</option>
+            {QC_STATUSES.map((s) => <option key={s} value={s}>{qcName[s] ?? s}</option>)}
           </select>
-          <button>Filter</button>
+          <button>{S.filter}</button>
         </form>
         {error && <p className="err">{error.message}</p>}
       </div>
       <div className="card">
         <table>
-          <thead><tr><th>Serial number</th><th>QC status</th><th>Comment</th><th>Engineer</th><th>Date</th></tr></thead>
+          <thead><tr><th>{S.serialNumber}</th><th>{S.qcStatusCol}</th><th>{S.comment}</th><th>{S.engineer}</th><th>{S.date}</th></tr></thead>
           <tbody>
             {(rows ?? []).map((r) => (
               <tr key={r.id}>
                 <td><Link href={`/qc/${r.id}`}><b>{r.serial_number}</b></Link></td>
-                <td><span className="badge">{QC_LABEL[r.status as QcStatus]}</span></td>
+                <td><span className="badge">{qcName[r.status] ?? r.status}</span></td>
                 <td>{(r.comment ?? "").slice(0, 80)}</td>
                 <td>{who.get(r.performed_by ?? "") ?? "—"}</td>
                 <td>{new Date(r.created_at).toLocaleString()}</td>
               </tr>
             ))}
-            {(rows ?? []).length === 0 && <tr><td colSpan={5}>No QC checks yet.</td></tr>}
+            {(rows ?? []).length === 0 && <tr><td colSpan={5}>{S.noQcChecks}</td></tr>}
           </tbody>
         </table>
       </div>
