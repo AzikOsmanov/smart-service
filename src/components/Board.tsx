@@ -2,6 +2,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { moveTicketAction, type BoardTarget } from "@/lib/board-actions";
+import type { StaffLabels } from "@/lib/i18n-staff";
 
 export type BoardCard = {
   id: string; no: number | string; subject: string; kind: string; priority: string; customer: string; sn: string; model: string;
@@ -11,7 +12,7 @@ type Col = { key: string; title: string };
 
 const colOf = (c: BoardCard) => (!c.assigned ? "new" : c.deviceStatus ?? "diagnose");
 
-export default function Board({ cards: initial, cols, canEdit, isAdmin }: { cards: BoardCard[]; cols: Col[]; canEdit: boolean; isAdmin: boolean }) {
+export default function Board({ cards: initial, cols, canEdit, isAdmin, S }: { cards: BoardCard[]; cols: Col[]; canEdit: boolean; isAdmin: boolean; S: StaffLabels }) {
   const router = useRouter();
   const [cards, setCards] = useState(initial);
   const [q, setQ] = useState("");
@@ -33,9 +34,9 @@ export default function Board({ cards: initial, cols, canEdit, isAdmin }: { card
     const from = colOf(c);
     if (from === target) return;
     setMsg("");
-    if (!canEdit) { setMsg("You can view the board but not move tickets."); return; }
-    if (target === "new") { setMsg("A ticket cannot be moved back to New."); return; }
-    if (from !== "new" && from !== "diagnose" && !isAdmin) { setMsg("This ticket is closed. Only the administrator can reopen it."); return; }
+    if (!canEdit) { setMsg(S.errBoardView); return; }
+    if (target === "new") { setMsg(S.errBackToNew); return; }
+    if (from !== "new" && from !== "diagnose" && !isAdmin) { setMsg(S.errClosedAdmin); return; }
     const before = cards;
     setCards((p) => p.map((x) => (x.id === id ? { ...x, assigned: true, deviceStatus: target, mine: x.mine || !x.assigned } : x)));
     start(async () => {
@@ -48,9 +49,9 @@ export default function Board({ cards: initial, cols, canEdit, isAdmin }: { card
   return (
     <div>
       <div className="row" style={{ marginBottom: 12 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search: number, subject, SN, model, customer" style={{ maxWidth: 380 }} />
-        <label className="row" style={{ cursor: "pointer" }}><input type="checkbox" style={{ width: "auto" }} checked={mine} onChange={(e) => setMine(e.target.checked)} /> My tickets</label>
-        {!canEdit && <small>View only</small>}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={S.searchBoard} style={{ maxWidth: 380 }} />
+        <label className="row" style={{ cursor: "pointer" }}><input type="checkbox" style={{ width: "auto" }} checked={mine} onChange={(e) => setMine(e.target.checked)} /> {S.myTickets}</label>
+        {!canEdit && <small>{S.viewOnly}</small>}
       </div>
       {msg && <p className="err">{msg}</p>}
       <div className="board">
@@ -64,19 +65,19 @@ export default function Board({ cards: initial, cols, canEdit, isAdmin }: { card
               {list.map((c) => (
                 <div key={c.id} className="kcard" draggable={movable(c)} onDragStart={(e) => e.dataTransfer.setData("text/plain", c.id)}
                   style={{ cursor: movable(c) ? "grab" : "default" }}>
-                  <a href={`/tickets/${c.id}`}><b>#{c.no}</b></a> {c.kind === "password_reset" && <span className="badge">Password reset</span>}
+                  <a href={`/tickets/${c.id}`}><b>#{c.no}</b></a> {c.kind === "password_reset" && <span className="badge">{S.pwReset}</span>}
                   <div>{c.subject}</div>
                   <small>{c.customer}</small><br />
                   <small>SN {c.sn}{c.model ? ` · ${c.model}` : ""}</small>
                   <div className="row" style={{ gap: 6, marginTop: 6 }}>
                     <span className="badge">{c.priority}</span>
                     {c.fee && <span className="badge">{c.fee}</span>}
-                    {c.assignee && <small>{c.mine ? "You" : c.assignee}</small>}
+                    {c.assignee && <small>{c.mine ? S.you : c.assignee}</small>}
                   </div>
                   <small>{new Date(c.created).toLocaleDateString()}</small>
                   {movable(c) && (
-                    <select aria-label="Move to" value="" onChange={(e) => { if (e.target.value) move(c.id, e.target.value); }} style={{ marginTop: 6 }}>
-                      <option value="">Move to…</option>
+                    <select aria-label={S.moveTo} value="" onChange={(e) => { if (e.target.value) move(c.id, e.target.value); }} style={{ marginTop: 6 }}>
+                      <option value="">{S.moveTo}</option>
                       {cols.filter((x) => x.key !== "new" && x.key !== colOf(c)).map((x) => <option key={x.key} value={x.key}>{x.title}</option>)}
                     </select>
                   )}

@@ -5,6 +5,7 @@ import ConfirmButton from "@/components/ConfirmButton";
 import TicketChat from "@/components/TicketChat";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
+import { getStaff } from "@/lib/i18n-staff";
 import type { ChatMessage } from "@/lib/chat-actions";
 import TicketFiles from "@/components/TicketFiles";
 import { deleteTicketAction, hardDeleteTicketAction } from "@/lib/delete-actions";
@@ -58,6 +59,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const sb = await supabaseServer();
   const { t: tr } = await getT();
   const { L } = await getPortal();
+  const { S } = await getStaff();
   const { data: t } = await sb.from("tickets").select("*").eq("id", id).maybeSingle();
   if (!t) notFound();
   const { data: sess } = await sb.auth.getSession();
@@ -168,17 +170,17 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const cu: any = custRow;
   const platformName = cu ? `${cu.first_name ?? ""} ${cu.last_name ?? ""}`.trim() + (cu.companies?.name ? ` · ${cu.companies.name}${cu.companies.city ? " / " + cu.companies.city : ""}` : "") : "—";
   const customerName = info?.customer_name || platformName;
-  const customerSource = info?.customer_name ? (info.source === "integration" ? "from integration" : "entered manually") : "registered on the platform";
+  const customerSource = info?.customer_name ? (info.source === "integration" ? S.fromIntegration : S.enteredManually) : S.registeredOnPlatform;
   const modelName = info?.model_name || (devModel as any)?.device_models?.name || "—";
   const fileKeys = (files ?? []).map((f) => f.storage_key);
   const { data: fileUrls } = fileKeys.length ? await sb.storage.from("ticket-files").createSignedUrls(fileKeys, 3600) : { data: [] };
   const urlOf = new Map((fileUrls ?? []).map((x) => [x.path, x.signedUrl]));
   const qc = (qcLatest ?? [])[0] as { id: string; status: string; created_at: string } | undefined;
-  const qcLabel: Record<string, string> = { done: "Done", broken: "Broken", hardware_issue: "Hardware issue" };
+  const qcLabel: Record<string, string> = { done: S.qcDone, broken: S.qcBroken, hardware_issue: S.qcHardware };
   const filesCard = (
     <div className="card">
-      <h2>Photos and files</h2>
-      {(files ?? []).length === 0 && <p>No files.</p>}
+      <h2>{S.photosFiles}</h2>
+      {(files ?? []).length === 0 && <p>{S.noFiles}</p>}
       <div className="row" style={{ alignItems: "flex-start" }}>
         {(files ?? []).map((f) => {
           const u = urlOf.get(f.storage_key);
@@ -193,16 +195,16 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   );
   const timelineCard = (
     <div className="card">
-      <h2>What the customer sees</h2>
-      <p>Current: <b>{t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</b></p>
+      <h2>{S.whatCustomerSees}</h2>
+      <p>{S.current}: <b>{t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</b></p>
       <ul>{(events ?? []).map((ev) => <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>)}</ul>
     </div>
   );
   const qcCard = dev?.serial_number ? (
     <div className="card">
-      <h2>Quality Control</h2>
-      <p>{qc ? <>Last QC: <span className="badge">{qcLabel[qc.status] ?? qc.status}</span> · {new Date(qc.created_at).toLocaleString()} · <a href={`/qc/${qc.id}`}>open</a></> : "No QC check for this serial number yet."}</p>
-      <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>New QC check</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>QC history</a></p>
+      <h2>{S.qcTitle}</h2>
+      <p>{qc ? <>{S.lastQc}: <span className="badge">{qcLabel[qc.status] ?? qc.status}</span> · {new Date(qc.created_at).toLocaleString()} · <a href={`/qc/${qc.id}`}>{S.open}</a></> : S.noQcYet}</p>
+      <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>{S.newQc}</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>{S.qcHistory}</a></p>
     </div>
   ) : null;
   return (
@@ -210,36 +212,36 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
       <div className="card">
         <h1>{t.ticket_no} — {t.subject}</h1>
         <p>{t.description}</p>
-        <p>Customer: <b>{customerName}</b> <small>({customerSource}){cu?.email ? ` · ${cu.email}` : ""}{cu?.phone ? ` · ${cu.phone}` : ""}</small></p>
-        <p>Serial number: <b>{dev?.serial_number ?? "—"}</b> · Model: <b>{modelName}</b> · Ticket status: {t.status} · Priority: {t.priority}</p>
-        {dev?.serial_number && <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>New QC check for this device</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>QC history</a></p>}
-        <p>Customer sees: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
-        {frozen && <p className="err">{isAdmin === true ? "This ticket is closed (frozen). As administrator you can change the status below to reopen it for review." : "This ticket is closed (frozen). Only the administrator can open it and change the status."}</p>}
+        <p>{S.customer}: <b>{customerName}</b> <small>({customerSource}){cu?.email ? ` · ${cu.email}` : ""}{cu?.phone ? ` · ${cu.phone}` : ""}</small></p>
+        <p>{S.serialNumber}: <b>{dev?.serial_number ?? "—"}</b> · {S.model}: <b>{modelName}</b> · {S.ticketStatus}: {t.status} · {S.priority}: {t.priority}</p>
+        {dev?.serial_number && <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>{S.newQcForDevice}</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>{S.qcHistory}</a></p>}
+        <p>{S.customerSees}: {t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</p>
+        {frozen && <p className="err">{isAdmin === true ? S.frozenAdmin : S.frozenStaff}</p>}
         {error && <p className="err">{error}</p>}
       </div>
       {prr && (
         <div className="card">
-          <h2>Device password reset request</h2>
-          <p>Serial number: <b>{prr.serial_number}</b> · Customer wants: <b>{prr.method === "bring_device" ? "to bring the device to the office" : "to receive the reset code / file"}</b></p>
-          {prrOwner && prrOwner.owner_id !== prr.requester_id && <p className="err">The requester is not the registered owner of this device. Check the label photo carefully before sending any code.</p>}
-          {prr.note && <p style={{ whiteSpace: "pre-wrap" }}>Comment: {prr.note}</p>}
-          {prrPhoto ? <a href={prrPhoto} target="_blank" rel="noreferrer"><img src={prrPhoto} alt="SN label" style={{ maxWidth: 360, borderRadius: 8 }} /></a> : <p>No label photo.</p>}
-          <p><small>Send the code or file to the customer through the messages below or as a file in Photos and files.</small></p>
+          <h2>{S.resetReqTitle}</h2>
+          <p>{S.serialNumber}: <b>{prr.serial_number}</b> · {S.customerWants}: <b>{prr.method === "bring_device" ? S.toBring : S.toReceive}</b></p>
+          {prrOwner && prrOwner.owner_id !== prr.requester_id && <p className="err">{S.notOwnerWarn}</p>}
+          {prr.note && <p style={{ whiteSpace: "pre-wrap" }}>{S.comment}: {prr.note}</p>}
+          {prrPhoto ? <a href={prrPhoto} target="_blank" rel="noreferrer"><img src={prrPhoto} alt="SN label" style={{ maxWidth: 360, borderRadius: 8 }} /></a> : <p>{S.noLabelPhoto}</p>}
+          <p><small>{S.sendCodeHint}</small></p>
         </div>
       )}
       <div className="card">
-        <h2>Service fee</h2>
+        <h2>{S.serviceFee}</h2>
         {locked ? (
-          <p>{t.fee_amount != null ? <b>{Number(t.fee_amount).toFixed(2)} {t.fee_currency}</b> : "No fee."}</p>
+          <p>{t.fee_amount != null ? <b>{Number(t.fee_amount).toFixed(2)} {t.fee_currency}</b> : S.noFee}</p>
         ) : (
           <>
             <form action={setFee} className="row" style={{ alignItems: "flex-end" }}>
               <input type="hidden" name="id" value={id} />
-              <label>Amount (optional)<input name="amount" inputMode="decimal" placeholder="e.g. 25.00" defaultValue={t.fee_amount ?? ""} style={{ width: 140 }} /></label>
-              <label>Currency<select name="currency" defaultValue={t.fee_currency ?? "AZN"}><option value="AZN">AZN — Azerbaijan manat</option><option value="EUR">EUR — Euro</option><option value="USD">USD — US dollar</option></select></label>
-              <button>Save fee</button>
+              <label>{S.amountOptional}<input name="amount" inputMode="decimal" placeholder="e.g. 25.00" defaultValue={t.fee_amount ?? ""} style={{ width: 140 }} /></label>
+              <label>{S.currency}<select name="currency" defaultValue={t.fee_currency ?? "AZN"}><option value="AZN">{S.curAZN}</option><option value="EUR">{S.curEUR}</option><option value="USD">{S.curUSD}</option></select></label>
+              <button>{S.saveFee}</button>
             </form>
-            <p><small>A fee can be added for any ticket, with or without warranty. Leave the amount empty if there is no fee. The customer sees it on their ticket.</small></p>
+            <p><small>{S.feeHint}</small></p>
           </>
         )}
       </div>
@@ -247,51 +249,51 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
       {timelineCard}
       {qcCard}
       {locked ? (
-        <div className="card"><h2>Device service status</h2><p>Current: <b>{state?.status ?? "—"}</b></p><p>Locked. Only the administrator can change it.</p></div>
+        <div className="card"><h2>{S.deviceServiceStatus}</h2><p>{S.current}: <b>{state?.status ?? "—"}</b></p><p>{S.lockedAdminOnly}</p></div>
       ) : !t.assigned_to ? (
-        <form action={apply} className="card"><input type="hidden" name="id" value={id} /><button>Apply (take this ticket)</button></form>
+        <form action={apply} className="card"><input type="hidden" name="id" value={id} /><button>{S.applyTicket}</button></form>
       ) : (
         <>
           <form action={setStatus} className="card">
-            <h2>{frozen ? "Reopen for review (administrator)" : "Device service status"}</h2>
-            <p>Current: <b>{state?.status ?? "—"}</b></p>
+            <h2>{frozen ? S.reopenForReview : S.deviceServiceStatus}</h2>
+            <p>{S.current}: <b>{state?.status ?? "—"}</b></p>
             <input type="hidden" name="id" value={id} />
             <select name="status" defaultValue={state?.status ?? "in_progress"}>
-              <option value="in_progress">In progress (Diagnose)</option><option value="done">Done</option>
-              <option value="rma">Replaced new device</option><option value="repair_not_possible">Repair isn&apos;t possible</option>
+              <option value="in_progress">{S.optInProgress}</option><option value="done">{tr("st_ready")}</option>
+              <option value="rma">{tr("st_pickup_new_device")}</option><option value="repair_not_possible">{tr("st_repair_not_possible")}</option>
             </select>
-            <input name="comment" placeholder="Comment (internal)" />
-            <button>Save status</button>
+            <input name="comment" placeholder={S.commentInternal} />
+            <button>{S.saveStatus}</button>
           </form>
           <form action={saveManual} className="card">
-            <h2>Device information (staff only)</h2>
-            <p>Source: {info?.source ?? "not filled"}</p>
+            <h2>{S.deviceInfoTitle}</h2>
+            <p>{S.source}: {info?.source ?? S.notFilled}</p>
             <input type="hidden" name="id" value={id} />
-            <label>Model<input name="model" defaultValue={info?.model_name ?? ""} /></label>
-            <label>Sold date<input name="sold" type="date" defaultValue={info?.sold_date ?? ""} /></label>
-            <label>Warranty until<input name="warranty" type="date" defaultValue={info?.warranty_until ?? ""} /></label>
-            <label>Customer name<input name="customer" defaultValue={info?.customer_name ?? ""} /></label>
-            <button>Save device information</button>
+            <label>{S.model}<input name="model" defaultValue={info?.model_name ?? ""} /></label>
+            <label>{S.soldDate}<input name="sold" type="date" defaultValue={info?.sold_date ?? ""} /></label>
+            <label>{S.warrantyUntil}<input name="warranty" type="date" defaultValue={info?.warranty_until ?? ""} /></label>
+            <label>{S.customerName}<input name="customer" defaultValue={info?.customer_name ?? ""} /></label>
+            <button>{S.saveDeviceInfo}</button>
           </form>
         </>
       )}
       {chat}
       {canDelete === true && (
         <form action={deleteTicketAction} className="card">
-          <h2>Delete ticket</h2>
-          <p>The ticket moves to Trash. The reason is saved with who deleted it.</p>
+          <h2>{S.deleteTicket}</h2>
+          <p>{S.deleteTicketHint}</p>
           <input type="hidden" name="id" value={id} /><input type="hidden" name="back" value={`/tickets/${id}`} />
-          <input name="reason" placeholder="Reason for deleting" required minLength={5} />
-          <ConfirmButton className="btn danger" message="Move this ticket to Trash?">Delete ticket</ConfirmButton>
+          <input name="reason" placeholder={S.reasonDeleting} required minLength={5} />
+          <ConfirmButton className="btn danger" message={S.moveToTrashQ}>{S.deleteTicket}</ConfirmButton>
         </form>
       )}
       {isAdmin === true && (
         <form action={hardDeleteTicketAction} className="card">
-          <h2>Delete permanently (administrator)</h2>
-          <p>Removes the ticket and its messages, files and history for good. Cannot be undone. Recorded in the audit log.</p>
+          <h2>{S.deletePermTitle}</h2>
+          <p>{S.deletePermHint}</p>
           <input type="hidden" name="id" value={id} /><input type="hidden" name="back" value={`/tickets/${id}`} />
-          <input name="reason" placeholder="Reason" required minLength={5} />
-          <ConfirmButton className="btn danger" message="Permanently delete this ticket? This cannot be undone.">Delete permanently</ConfirmButton>
+          <input name="reason" placeholder={S.reason} required minLength={5} />
+          <ConfirmButton className="btn danger" message={S.deletePermQ}>{S.deletePerm}</ConfirmButton>
         </form>
       )}
     </div>

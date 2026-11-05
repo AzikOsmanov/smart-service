@@ -1,0 +1,93 @@
+import { getLang, type Lang } from "@/lib/i18n";
+
+// Texts of the staff screens. Add new keys to all three languages (en is the reference).
+const en = {
+  list: "List", board: "Board", colNew: "New", searchBoard: "Search: number, subject, SN, model, customer", myTickets: "My tickets", viewOnly: "View only",
+  moveTo: "Move to…", you: "You", pwReset: "Password reset",
+  errBoardView: "You can view the board but not move tickets.", errBackToNew: "A ticket cannot be moved back to New.",
+  errClosedAdmin: "This ticket is closed. Only the administrator can reopen it.",
+  customer: "Customer", fromIntegration: "from integration", enteredManually: "entered manually", registeredOnPlatform: "registered on the platform",
+  serialNumber: "Serial number", model: "Model", ticketStatus: "Ticket status", priority: "Priority", newQcForDevice: "New QC check for this device", qcHistory: "QC history",
+  customerSees: "Customer sees",
+  frozenAdmin: "This ticket is closed (frozen). As administrator you can change the status below to reopen it for review.",
+  frozenStaff: "This ticket is closed (frozen). Only the administrator can open it and change the status.",
+  resetReqTitle: "Device password reset request", customerWants: "Customer wants", toBring: "to bring the device to the office", toReceive: "to receive the reset code / file",
+  notOwnerWarn: "The requester is not the registered owner of this device. Check the label photo carefully before sending any code.",
+  comment: "Comment", noLabelPhoto: "No label photo.", sendCodeHint: "Send the code or file to the customer through the messages below or as a file in Photos and files.",
+  serviceFee: "Service fee", noFee: "No fee.", amountOptional: "Amount (optional)", currency: "Currency", saveFee: "Save fee",
+  feeHint: "A fee can be added for any ticket, with or without warranty. Leave the amount empty if there is no fee. The customer sees it on their ticket.",
+  curAZN: "AZN — Azerbaijan manat", curEUR: "EUR — Euro", curUSD: "USD — US dollar",
+  photosFiles: "Photos and files", noFiles: "No files.", whatCustomerSees: "What the customer sees", current: "Current",
+  qcTitle: "Quality Control", lastQc: "Last QC", open: "open", noQcYet: "No QC check for this serial number yet.", newQc: "New QC check",
+  qcDone: "Done", qcBroken: "Broken", qcHardware: "Hardware issue",
+  applyTicket: "Apply (take this ticket)", deviceServiceStatus: "Device service status", reopenForReview: "Reopen for review (administrator)",
+  lockedAdminOnly: "Locked. Only the administrator can change it.", optInProgress: "In progress (Diagnose)", commentInternal: "Comment (internal)", saveStatus: "Save status",
+  deviceInfoTitle: "Device information (staff only)", source: "Source", notFilled: "not filled", soldDate: "Sold date", warrantyUntil: "Warranty until",
+  customerName: "Customer name", saveDeviceInfo: "Save device information",
+  deleteTicket: "Delete ticket", deleteTicketHint: "The ticket moves to Trash. The reason is saved with who deleted it.", reasonDeleting: "Reason for deleting", moveToTrashQ: "Move this ticket to Trash?",
+  deletePermTitle: "Delete permanently (administrator)", deletePermHint: "Removes the ticket and its messages, files and history for good. Cannot be undone. Recorded in the audit log.",
+  reason: "Reason", deletePermQ: "Permanently delete this ticket? This cannot be undone.", deletePerm: "Delete permanently",
+};
+export type SKey = keyof typeof en;
+
+const ru: Record<SKey, string> = {
+  list: "Список", board: "Доска", colNew: "Новые", searchBoard: "Поиск: номер, тема, SN, модель, клиент", myTickets: "Мои заявки", viewOnly: "Только просмотр",
+  moveTo: "Переместить в…", you: "Вы", pwReset: "Сброс пароля",
+  errBoardView: "Вы можете смотреть доску, но не перемещать заявки.", errBackToNew: "Заявку нельзя вернуть в «Новые».",
+  errClosedAdmin: "Заявка закрыта. Только администратор может открыть её снова.",
+  customer: "Клиент", fromIntegration: "из интеграции", enteredManually: "введено вручную", registeredOnPlatform: "зарегистрирован на платформе",
+  serialNumber: "Серийный номер", model: "Модель", ticketStatus: "Статус заявки", priority: "Приоритет", newQcForDevice: "Новая проверка QC для этого устройства", qcHistory: "История QC",
+  customerSees: "Клиент видит",
+  frozenAdmin: "Заявка закрыта (заморожена). Как администратор вы можете изменить статус ниже и открыть её для пересмотра.",
+  frozenStaff: "Заявка закрыта (заморожена). Только администратор может открыть её и изменить статус.",
+  resetReqTitle: "Запрос на сброс пароля устройства", customerWants: "Клиент хочет", toBring: "принести устройство в офис", toReceive: "получить код / файл сброса",
+  notOwnerWarn: "Заявитель не является зарегистрированным владельцем этого устройства. Внимательно проверьте фото наклейки, прежде чем отправлять код.",
+  comment: "Комментарий", noLabelPhoto: "Нет фото наклейки.", sendCodeHint: "Отправьте код или файл клиенту в сообщениях ниже или файлом в разделе «Фото и файлы».",
+  serviceFee: "Стоимость услуги", noFee: "Без оплаты.", amountOptional: "Сумма (необязательно)", currency: "Валюта", saveFee: "Сохранить стоимость",
+  feeHint: "Стоимость можно указать для любой заявки, с гарантией или без. Оставьте сумму пустой, если оплата не нужна. Клиент видит её в своей заявке.",
+  curAZN: "AZN — азербайджанский манат", curEUR: "EUR — евро", curUSD: "USD — доллар США",
+  photosFiles: "Фото и файлы", noFiles: "Нет файлов.", whatCustomerSees: "Что видит клиент", current: "Сейчас",
+  qcTitle: "Контроль качества", lastQc: "Последняя проверка", open: "открыть", noQcYet: "Для этого серийного номера ещё нет проверок QC.", newQc: "Новая проверка QC",
+  qcDone: "Готово", qcBroken: "Неисправно", qcHardware: "Аппаратная проблема",
+  applyTicket: "Взять заявку в работу", deviceServiceStatus: "Сервисный статус устройства", reopenForReview: "Открыть для пересмотра (администратор)",
+  lockedAdminOnly: "Заблокировано. Изменить может только администратор.", optInProgress: "В работе (Диагностика)", commentInternal: "Комментарий (внутренний)", saveStatus: "Сохранить статус",
+  deviceInfoTitle: "Информация об устройстве (только для сотрудников)", source: "Источник", notFilled: "не заполнено", soldDate: "Дата продажи", warrantyUntil: "Гарантия до",
+  customerName: "Имя клиента", saveDeviceInfo: "Сохранить информацию об устройстве",
+  deleteTicket: "Удалить заявку", deleteTicketHint: "Заявка переместится в корзину. Причина сохраняется вместе с тем, кто удалил.", reasonDeleting: "Причина удаления", moveToTrashQ: "Переместить заявку в корзину?",
+  deletePermTitle: "Удалить навсегда (администратор)", deletePermHint: "Безвозвратно удаляет заявку, её сообщения, файлы и историю. Отменить нельзя. Записывается в журнал аудита.",
+  reason: "Причина", deletePermQ: "Удалить заявку навсегда? Это нельзя отменить.", deletePerm: "Удалить навсегда",
+};
+const az: Record<SKey, string> = {
+  list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
+  moveTo: "Köçür…", you: "Siz", pwReset: "Şifrə sıfırlama",
+  errBoardView: "Lövhəyə baxa bilərsiniz, amma sorğuları köçürə bilməzsiniz.", errBackToNew: "Sorğu «Yeni» bölməsinə qaytarıla bilməz.",
+  errClosedAdmin: "Sorğu bağlanıb. Yalnız administrator onu yenidən aça bilər.",
+  customer: "Müştəri", fromIntegration: "inteqrasiyadan", enteredManually: "əllə daxil edilib", registeredOnPlatform: "platformada qeydiyyatdan keçib",
+  serialNumber: "Seriya nömrəsi", model: "Model", ticketStatus: "Sorğunun statusu", priority: "Prioritet", newQcForDevice: "Bu cihaz üçün yeni QC yoxlaması", qcHistory: "QC tarixçəsi",
+  customerSees: "Müştəri görür",
+  frozenAdmin: "Sorğu bağlanıb (dondurulub). Administrator kimi aşağıdakı statusu dəyişib onu yenidən baxış üçün aça bilərsiniz.",
+  frozenStaff: "Sorğu bağlanıb (dondurulub). Yalnız administrator onu aça və statusu dəyişə bilər.",
+  resetReqTitle: "Cihaz şifrəsinin sıfırlanması sorğusu", customerWants: "Müştəri istəyir", toBring: "cihazı ofisə gətirmək", toReceive: "sıfırlama kodunu / faylını almaq",
+  notOwnerWarn: "Sorğu verən bu cihazın qeydiyyatlı sahibi deyil. Kod göndərməzdən əvvəl etiket şəklini diqqətlə yoxlayın.",
+  comment: "Şərh", noLabelPhoto: "Etiket şəkli yoxdur.", sendCodeHint: "Kodu və ya faylı müştəriyə aşağıdakı mesajlarla və ya «Şəkillər və fayllar» bölməsində fayl kimi göndərin.",
+  serviceFee: "Xidmət haqqı", noFee: "Haqq yoxdur.", amountOptional: "Məbləğ (könüllü)", currency: "Valyuta", saveFee: "Haqqı saxla",
+  feeHint: "Haqq istənilən sorğuya, zəmanətlə və ya zəmanətsiz əlavə edilə bilər. Haqq yoxdursa məbləği boş buraxın. Müştəri onu öz sorğusunda görür.",
+  curAZN: "AZN — Azərbaycan manatı", curEUR: "EUR — Avro", curUSD: "USD — ABŞ dolları",
+  photosFiles: "Şəkillər və fayllar", noFiles: "Fayl yoxdur.", whatCustomerSees: "Müştəri nə görür", current: "Hazırda",
+  qcTitle: "Keyfiyyətə nəzarət", lastQc: "Son QC", open: "aç", noQcYet: "Bu seriya nömrəsi üçün hələ QC yoxlaması yoxdur.", newQc: "Yeni QC yoxlaması",
+  qcDone: "Hazırdır", qcBroken: "Xarabdır", qcHardware: "Aparat problemi",
+  applyTicket: "Sorğunu işə götür", deviceServiceStatus: "Cihazın servis statusu", reopenForReview: "Yenidən baxış üçün aç (administrator)",
+  lockedAdminOnly: "Kilidlənib. Yalnız administrator dəyişə bilər.", optInProgress: "İcrada (Diaqnostika)", commentInternal: "Şərh (daxili)", saveStatus: "Statusu saxla",
+  deviceInfoTitle: "Cihaz məlumatı (yalnız işçilər üçün)", source: "Mənbə", notFilled: "doldurulmayıb", soldDate: "Satış tarixi", warrantyUntil: "Zəmanət bitir",
+  customerName: "Müştərinin adı", saveDeviceInfo: "Cihaz məlumatını saxla",
+  deleteTicket: "Sorğunu sil", deleteTicketHint: "Sorğu zibil qutusuna köçürülür. Səbəb, silənin adı ilə saxlanılır.", reasonDeleting: "Silmə səbəbi", moveToTrashQ: "Sorğu zibil qutusuna köçürülsün?",
+  deletePermTitle: "Həmişəlik sil (administrator)", deletePermHint: "Sorğunu, mesajlarını, fayllarını və tarixçəsini həmişəlik silir. Geri qaytarmaq olmaz. Audit jurnalında qeyd olunur.",
+  reason: "Səbəb", deletePermQ: "Sorğu həmişəlik silinsin? Bunu geri qaytarmaq olmaz.", deletePerm: "Həmişəlik sil",
+};
+const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
+
+export async function getStaff() {
+  const lang = await getLang();
+  return { lang, S: all[lang] };
+}
+export type StaffLabels = Record<SKey, string>;

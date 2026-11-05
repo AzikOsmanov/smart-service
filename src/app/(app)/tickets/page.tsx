@@ -1,11 +1,13 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
+import { getStaff } from "@/lib/i18n-staff";
 
 export default async function Tickets() {
   const sb = await supabaseServer();
   const { t } = await getT();
   const { L } = await getPortal();
+  const { S } = await getStaff();
   const { data: sess } = await sb.auth.getSession();
   const uid = sess.session!.user.id;
   const [{ data: me }, { data: canBoard }, { data: tickets, error }] = await Promise.all([
@@ -34,7 +36,7 @@ export default async function Tickets() {
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ margin: 0 }}>{t("tickets")}</h1>
-        {staff && canBoard === true && <span className="row"><a className="btn" href="/tickets" style={{ textDecoration: "none" }}>List</a><a className="btn ghost" href="/tickets/board" style={{ textDecoration: "none" }}>Board</a></span>}
+        {staff && canBoard === true && <span className="row"><a className="btn" href="/tickets" style={{ textDecoration: "none" }}>{S.list}</a><a className="btn ghost" href="/tickets/board" style={{ textDecoration: "none" }}>{S.board}</a></span>}
         {me?.kind === "customer" && (
           <span className="row">
             <a className="btn" href="/tickets/password-reset" style={{ textDecoration: "none" }}>{L.prButton}</a>

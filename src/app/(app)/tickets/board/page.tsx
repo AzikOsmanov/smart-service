@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
+import { getStaff } from "@/lib/i18n-staff";
 import Board, { type BoardCard } from "@/components/Board";
 
 export default async function BoardPage() {
   const sb = await supabaseServer();
   const { t } = await getT();
+  const { S } = await getStaff();
   const { data: sess } = await sb.auth.getSession();
   const uid = sess.session!.user.id;
   const [{ data: me }, { data: canView }, { data: canEdit }, { data: isAdmin }] = await Promise.all([
@@ -46,7 +48,7 @@ export default async function BoardPage() {
     };
   });
   const cols = [
-    { key: "new", title: "New" },
+    { key: "new", title: S.colNew },
     { key: "diagnose", title: t("st_diagnose") },
     { key: "ready", title: t("st_ready") },
     { key: "pickup_new_device", title: t("st_pickup_new_device") },
@@ -56,10 +58,10 @@ export default async function BoardPage() {
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ margin: 0 }}>{t("tickets")}</h1>
-        <span className="row"><a className="btn ghost" href="/tickets" style={{ textDecoration: "none" }}>List</a><a className="btn" href="/tickets/board" style={{ textDecoration: "none" }}>Board</a></span>
+        <span className="row"><a className="btn ghost" href="/tickets" style={{ textDecoration: "none" }}>{S.list}</a><a className="btn" href="/tickets/board" style={{ textDecoration: "none" }}>{S.board}</a></span>
       </div>
       {error && <p className="err">{error.message}</p>}
-      <Board cards={cards} cols={cols} canEdit={canEdit === true} isAdmin={isAdmin === true} />
+      <Board cards={cards} cols={cols} canEdit={canEdit === true} isAdmin={isAdmin === true} S={S} />
     </div>
   );
 }
