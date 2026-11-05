@@ -156,7 +156,8 @@ export async function updateStatus(c: IeoConn, ref: { id: string; number: string
 
 async function postSigned(c: IeoConn, payload: unknown) {
   const body = JSON.stringify(payload);
-  const sig = c.webhook_secret ? { "X-Signature": sign(c.webhook_secret, body) } : {};
+  const sig: Record<string, string> = {};
+  if (c.webhook_secret) sig["X-Signature"] = sign(c.webhook_secret, body);
   await http(c, "POST", c.base_url, JSON.parse(body), sig);   // http() re-serialises the same JSON, so the signature matches the bytes sent
 }
 
