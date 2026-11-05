@@ -1,0 +1,51 @@
+// Notification texts (EN/RU/AZ). Pure module: safe for client components.
+type L = "en" | "ru" | "az";
+export type Notif = { id: string; kind: string; ticket_id: string | null; data: Record<string, unknown>; created_at: string; read_at: string | null };
+
+const STATUS: Record<L, Record<string, string>> = {
+  en: { diagnose: "Diagnose", ready: "Done", repair_not_possible: "Repair isn't possible", pickup_new_device: "Replaced new device" },
+  ru: { diagnose: "Диагностика", ready: "Готово", repair_not_possible: "Ремонт невозможен", pickup_new_device: "Заменено на новое устройство" },
+  az: { diagnose: "Diaqnostika", ready: "Tamamlandı", repair_not_possible: "Təmir mümkün deyil", pickup_new_device: "Yeni cihazla əvəz edildi" },
+};
+const T: Record<L, Record<string, string>> = {
+  en: {
+    title: "Notifications", empty: "No notifications.", markAll: "Mark all as read",
+    ticket_new: "New ticket #{no}: {subject}", reset_new: "New password reset request #{no}", registration_new: "New customer registration: {name} {email}",
+    customer_message: "New message from the customer in ticket #{no}", ticket_assigned: "Ticket #{no} was assigned to you",
+    ticket_status: "Ticket #{no}: status is now “{status}”", ticket_message: "New message from the service team in ticket #{no}",
+    ticket_fee: "Ticket #{no}: service fee {amount} {currency}", ticket_file: "New files in ticket #{no}",
+  },
+  ru: {
+    title: "Уведомления", empty: "Нет уведомлений.", markAll: "Отметить все как прочитанные",
+    ticket_new: "Новая заявка №{no}: {subject}", reset_new: "Новый запрос на сброс пароля №{no}", registration_new: "Новая регистрация клиента: {name} {email}",
+    customer_message: "Новое сообщение от клиента в заявке №{no}", ticket_assigned: "Заявка №{no} назначена вам",
+    ticket_status: "Заявка №{no}: статус «{status}»", ticket_message: "Новое сообщение от сервисной команды в заявке №{no}",
+    ticket_fee: "Заявка №{no}: стоимость услуги {amount} {currency}", ticket_file: "Новые файлы в заявке №{no}",
+  },
+  az: {
+    title: "Bildirişlər", empty: "Bildiriş yoxdur.", markAll: "Hamısını oxunmuş et",
+    ticket_new: "Yeni sorğu №{no}: {subject}", reset_new: "Yeni şifrə sıfırlama sorğusu №{no}", registration_new: "Yeni müştəri qeydiyyatı: {name} {email}",
+    customer_message: "№{no} sorğuda müştəridən yeni mesaj", ticket_assigned: "№{no} sorğu sizə təyin edildi",
+    ticket_status: "№{no} sorğu: status “{status}”", ticket_message: "№{no} sorğuda servis komandasından yeni mesaj",
+    ticket_fee: "№{no} sorğu: xidmət haqqı {amount} {currency}", ticket_file: "№{no} sorğuda yeni fayllar",
+  },
+};
+
+export function notifLabels(lang: string) { const l = (lang in T ? lang : "en") as L; return { title: T[l].title, empty: T[l].empty, markAll: T[l].markAll }; }
+
+export function notifText(lang: string, n: Pick<Notif, "kind" | "data">): string {
+  const l = (lang in T ? lang : "en") as L;
+  const d = n.data ?? {};
+  const tpl = T[l][n.kind] ?? n.kind;
+  const status = typeof d.status === "string" ? STATUS[l][d.status] ?? d.status : "";
+  const amount = typeof d.amount === "number" ? d.amount.toFixed(2) : String(d.amount ?? "");
+  return tpl
+    .replace("{no}", String(d.ticket_no ?? "")).replace("{subject}", String(d.subject ?? "")).replace("{status}", status)
+    .replace("{amount}", amount).replace("{currency}", String(d.currency ?? "")).replace("{name}", String(d.name ?? "")).replace("{email}", String(d.email ?? ""))
+    .trim();
+}
+export function notifHref(n: Pick<Notif, "kind" | "ticket_id">): string {
+  if (n.ticket_id) return `/tickets/${n.ticket_id}`;
+  if (n.kind === "registration_new") return "/customers";
+  return "/tickets";
+}

@@ -5,6 +5,8 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import Heartbeat from "@/components/Heartbeat";
 import { logLoginEvent } from "@/lib/login-security";
+import NotificationBell from "@/components/NotificationBell";
+import type { Notif } from "@/lib/notif-text";
 
 async function signOut() {
   "use server";
@@ -35,6 +37,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sb.rpc("has_permission", { p_code: "devices.claims.view" }),
     sb.rpc("has_permission", { p_code: "devices.view" }),
   ]);
+  const [{ data: nItems }, { count: nUnread }] = await Promise.all([
+    sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
+    sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
+  ]);
   const brand = typeof brandRow?.value === "string" && brandRow.value ? brandRow.value : "Acom Smart Service";
   const staff = me?.kind === "staff";
   const nav = [{ href: "/tickets", label: t("tickets") }];
@@ -48,7 +54,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userName = me ? `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() : sess.session.user.email ?? "";
   return (
     <>
-      <TopBar brand={brand} lang={lang} nav={nav} userName={userName} signOut={signOut} signOutLabel={t("signOut")}
+      <TopBar bell={<NotificationBell userId={sess.session.user.id} lang={lang} initial={(nItems ?? []) as Notif[]} initialUnread={nUnread ?? 0} />} brand={brand} lang={lang} nav={nav} userName={userName} signOut={signOut} signOutLabel={t("signOut")}
         labels={{ system: t("system"), light: t("light"), dark: t("dark"), theme: t("theme"), language: t("language") }} />
       <Heartbeat />
       <main className="page">{children}</main>
