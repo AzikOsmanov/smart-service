@@ -32,6 +32,10 @@ export default async function Settings({ searchParams }: { searchParams: Promise
   return (
     <div>
       <h1>{t("settings")}</h1>
+      <div className="card row">
+        <a className="btn" href="/admin/login-security" style={{ textDecoration: "none" }}>Login security</a>
+        <a className="btn" href="/admin/login-history" style={{ textDecoration: "none" }}>Login history</a>
+      </div>
       <form action={saveBrand} className="card" style={{ maxWidth: 520 }}>
         <label>{t("brandName")}<input name="brand" defaultValue={brand} maxLength={60} required /></label>
         {error && <p className="err">{error}</p>}
