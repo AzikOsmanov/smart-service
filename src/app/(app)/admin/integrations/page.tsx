@@ -3,7 +3,10 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getStaff } from "@/lib/i18n-staff";
 import { saveIntegrationAction, testIntegrationAction, retryOutboxAction, runQueueAction } from "@/lib/integration-actions";
+import { saveIeoAction, testIeoAction } from "@/lib/ieo-actions";
+import { headers } from "next/headers";
 import type { FieldMap } from "@/lib/onec";
+import type { IeoMap } from "@/lib/ieo";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +29,15 @@ export default async function Integrations({ searchParams }: { searchParams: Pro
   const lm = ((lk?.field_map as FieldMap) ?? {}).lookup ?? {};
   const tm = ((sy?.field_map as FieldMap) ?? {}).ticket ?? {};
   const sm = ((sy?.field_map as FieldMap) ?? {}).status_map ?? {};
+  const il = by("ieo_device_lookup"), is = by("ieo_service_sync");
+  const hs = await headers();
+  const origin = `${hs.get("x-forwarded-proto") ?? "https"}://${hs.get("host") ?? ""}`;
+  const ieoSecret = async (id?: string) => {
+    if (!id) return { has: false };
+    const { data: sec } = await supabaseAdmin().rpc("integration_read_secret", { p_integration: id });
+    try { const j = JSON.parse(String(sec ?? "{}")); return { has: !!(j.t || j.p), user: String(j.u ?? ""), hasHook: !!j.w }; } catch { return { has: false }; }
+  };
+  const [ilSec, isSec] = await Promise.all([ieoSecret(il?.id), ieoSecret(is?.id)]);
   const qs: Record<string, string> = { pending: S.qPending, sent: S.qSent, failed: S.qFailed, dead: S.qDead };
 
   const Common = ({ kind, row, user }: { kind: string; row: any; user: string }) => (
@@ -106,6 +118,94 @@ export default async function Integrations({ searchParams }: { searchParams: Pro
         <input type="hidden" name="kind" value="service_sync" />
         <button>{S.testBtn}</button>
       </form>
+
+
+      {[{ kind: "ieo_device_lookup", row: il, sec: ilSec, title: S.ieoLookupConn }, { kind: "ieo_service_sync", row: is, sec: isSec, title: S.ieoSyncConn }].map(({ kind, row, sec, title }) => {
+        const im = ((row?.field_map as IeoMap) ?? {}) as IeoMap;
+        const lk2 = im.lookup ?? {}, tk = im.ticket ?? {}, st = im.status_map ?? {};
+        const mode = im.mode ?? "rest";
+        const sync = kind === "ieo_service_sync";
+        return (
+          <div key={kind}>
+            <form action={saveIeoAction} className="card" style={{ maxWidth: 760 }}>
+              <h2>{title}</h2>
+              <input type="hidden" name="kind" value={kind} />
+              <label className="row" style={{ cursor: "pointer" }}><input type="checkbox" name="enabled" defaultChecked={row?.is_enabled === true} style={{ width: "auto" }} /> {S.switchedOn}</label>
+              <div className="row">
+                <label>{S.modeWord}<select name="mode" defaultValue={mode}><option value="rest">{S.modeRest}</option><option value="odata">{S.modeOdata}</option><option value="webhook">{S.modeWebhook}</option></select></label>
+                <label>{S.authWord}<select name="auth_type" defaultValue={(row as any)?.auth_type ?? "api_key"}><option value="api_key">{S.authApiKey}</option><option value="bearer">{S.authBearer}</option><option value="basic">{S.authBasic}</option></select></label>
+              </div>
+              <label>{S.baseUrl}<input name="base_url" defaultValue={row?.base_url ?? ""} placeholder="https://" /></label>
+              <p><small>{S.baseUrlHint}</small></p>
+              <div className="row">
+                <label>{S.apiKeyWord}<input name="token" type="password" autoComplete="new-password" placeholder={sec.has ? S.keyKeep : ""} /></label>
+                <label>{S.authHeaderWord}<input name="auth_header" defaultValue={im.auth_header ?? ""} placeholder="X-API-Key" /></label>
+              </div>
+              <div className="row">
+                <label>{S.loginWord}<input name="username" defaultValue={(sec as any).user ?? ""} autoComplete="off" /></label>
+                <label>{S.passwordWord}<input name="password" type="password" autoComplete="new-password" /></label>
+                <label>{S.webhookSecretWord}<input name="webhook_secret" type="password" autoComplete="new-password" placeholder={(sec as any).hasHook ? S.keyKeep : ""} /></label>
+              </div>
+              {!sync ? (
+                <>
+                  <div className="row">
+                    <label>{S.pathWord}<input name="path" defaultValue={lk2.path ?? ""} placeholder="/devices/{serial}" /></label>
+                    <label>{S.resultPathWord}<input name="result_path" defaultValue={lk2.result_path ?? ""} /></label>
+                    <label>{S.entityWord} (OData)<input name="entity" defaultValue={lk2.entity ?? ""} /></label>
+                    <label>{S.serialField}<input name="serial_field" defaultValue={lk2.serial_field ?? ""} /></label>
+                  </div>
+                  <div className="row">
+                    <label>{S.modelField}<input name="model_field" defaultValue={lk2.model_field ?? ""} /></label>
+                    <label>{S.warrantyField}<input name="warranty_field" defaultValue={lk2.warranty_field ?? ""} /></label>
+                    <label>{S.soldField}<input name="sold_field" defaultValue={lk2.sold_field ?? ""} /></label>
+                    <label>{S.customerField}<input name="customer_field" defaultValue={lk2.customer_field ?? ""} /></label>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="row">
+                    <label>{S.createPathWord}<input name="create_path" defaultValue={tk.create_path ?? ""} placeholder="/tickets" /></label>
+                    <label>{S.createMethodWord}<input name="create_method" defaultValue={tk.create_method ?? ""} placeholder="POST" /></label>
+                    <label>{S.updatePathWord}<input name="update_path" defaultValue={tk.update_path ?? ""} placeholder="/tickets/{id}" /></label>
+                    <label>{S.updateMethodWord}<input name="update_method" defaultValue={tk.update_method ?? ""} placeholder="PATCH" /></label>
+                    <label>{S.entityWord} (OData)<input name="entity" defaultValue={tk.entity ?? ""} /></label>
+                  </div>
+                  <div className="row">
+                    <label>{S.ticketNoField}<input name="ticket_no_field" defaultValue={tk.ticket_no_field ?? ""} /></label>
+                    <label>{S.serialField}<input name="serial_field" defaultValue={tk.serial_field ?? ""} /></label>
+                    <label>{S.subjectField}<input name="subject_field" defaultValue={tk.subject_field ?? ""} /></label>
+                    <label>{S.descriptionField}<input name="description_field" defaultValue={tk.description_field ?? ""} /></label>
+                    <label>{S.customerField}<input name="customer_field" defaultValue={tk.customer_field ?? ""} /></label>
+                    <label>{S.statusField}<input name="status_field" defaultValue={tk.status_field ?? ""} /></label>
+                    <label>{S.idField}<input name="id_field" defaultValue={tk.id_field ?? ""} /></label>
+                    <label>{S.numberField}<input name="number_field" defaultValue={tk.number_field ?? ""} /></label>
+                  </div>
+                  <label>{S.extraJson}<textarea name="extra" rows={3} defaultValue={tk.extra && Object.keys(tk.extra).length ? JSON.stringify(tk.extra, null, 2) : ""} /></label>
+                  <h3>{S.statusValues}</h3>
+                  <div className="row">
+                    <label>{S.stInProgress}<input name="st_in_progress" defaultValue={st.in_progress ?? ""} /></label>
+                    <label>{S.qcDone}<input name="st_done" defaultValue={st.done ?? ""} /></label>
+                    <label>{S.stReplaced}<input name="st_rma" defaultValue={st.rma ?? ""} /></label>
+                    <label>{S.stNotPossible}<input name="st_repair_not_possible" defaultValue={st.repair_not_possible ?? ""} /></label>
+                  </div>
+                  <p><small>{S.webhookOutHint}</small></p>
+                </>
+              )}
+              {row?.id && <p><small>{S.webhookInHint} <code>{origin}/api/webhooks/ieo/{row.id}</code></small></p>}
+              {row?.last_success_at && <p><small>{S.lastSuccess}: {new Date(row.last_success_at).toLocaleString()}</small></p>}
+              {row?.last_error && <p className="err"><small>{S.lastError}: {row.last_error}</small></p>}
+              {k === kind && error && <p className="err">{error}</p>}
+              {k === kind && ok && <p>{ok}</p>}
+              <button>{S.saveConn}</button>
+            </form>
+            <form action={testIeoAction} className="card row" style={{ maxWidth: 760 }}>
+              <input type="hidden" name="kind" value={kind} />
+              {!sync && <label>{S.testSerialLabel}<input name="serial" /></label>}
+              <button>{S.testBtn}</button>
+            </form>
+          </div>
+        );
+      })}
 
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>

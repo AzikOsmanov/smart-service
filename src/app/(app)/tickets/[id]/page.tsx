@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { lookupForTicket, type LookupResult } from "@/lib/onec-tools";
+import { lookupForTicketIeo } from "@/lib/ieo-tools";
 import { processOutbox } from "@/lib/outbox";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fmt } from "@/lib/fmt";
@@ -21,7 +22,8 @@ async function apply(fd: FormData) {
   const { data: auth } = await sb.auth.getUser();
   const id = String(fd.get("id"));
   await sb.from("tickets").update({ assigned_to: auth.user!.id, status: "assigned" }).eq("id", id).is("assigned_to", null);
-  after(async () => { try { await lookupForTicket(sb, id); } catch { /* never blocks the ticket */ } await processOutbox(); });
+  const { data: tg } = await sb.from("tickets").select("sync_target").eq("id", id).maybeSingle();
+  after(async () => { try { await (tg?.sync_target === "ieo" ? lookupForTicketIeo(sb, id) : lookupForTicket(sb, id)); } catch { /* never blocks the ticket */ } await processOutbox(); });
   revalidatePath(`/tickets/${id}`);
 }
 
@@ -56,6 +58,27 @@ async function lookupOnec(fd: FormData) {
   const msg = r.code === "ok" ? S.lookupOk : r.code === "not_found" ? S.lookupNotFound : r.code === "off" ? S.lookupOff : fmt(S.lookupUnavailable, { err: r.detail ?? "—" });
   revalidatePath(`/tickets/${id}`);
   redirect(`/tickets/${id}?${r.code === "ok" ? "warn" : "error"}=${encodeURIComponent(msg)}`);
+}
+
+async function lookupIeo(fd: FormData) {
+  "use server";
+  const sb = await supabaseServer();
+  const { S } = await getStaff();
+  const id = String(fd.get("id"));
+  const r: LookupResult = await lookupForTicketIeo(sb, id);
+  const msg = r.code === "ok" ? S.lookupOk : r.code === "not_found" ? S.lookupNotFound : r.code === "off" ? S.lookupOff : fmt(S.lookupUnavailable, { err: r.detail ?? "—" });
+  revalidatePath(`/tickets/${id}`);
+  redirect(`/tickets/${id}?${r.code === "ok" ? "warn" : "error"}=${encodeURIComponent(msg)}`);
+}
+
+async function setTarget(fd: FormData) {
+  "use server";
+  const sb = await supabaseServer();
+  const id = String(fd.get("id"));
+  const { error } = await sb.rpc("set_ticket_sync_target", { p_ticket: id, p_target: String(fd.get("target")) });
+  if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
+  after(() => processOutbox());
+  revalidatePath(`/tickets/${id}`);
 }
 
 async function saveOnecNumber(fd: FormData) {
@@ -216,7 +239,8 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     sb.from("ticket_external_refs").select("external_number,sync_status,last_error,source").eq("ticket_id", id).maybeSingle(),
     sb.rpc("integration_state"),
   ]);
-  const lookupOn = (integ ?? []).some((x: any) => x.kind === "device_lookup" && x.is_enabled);
+  const toIeo = t.sync_target === "ieo";
+  const lookupOn = (integ ?? []).some((x: any) => x.kind === (toIeo ? "ieo_device_lookup" : "device_lookup") && x.is_enabled);
   const syncLabel = ref ? ({ pending: S.syncPending, synced: S.syncSynced, failed: S.syncFailed, manual: S.syncManual } as Record<string, string>)[ref.sync_status] ?? ref.sync_status : S.syncNone;
   const modelName = info?.model_name || (devModel as any)?.device_models?.name || "—";
   const fileKeys = (files ?? []).map((f) => f.storage_key);
@@ -268,12 +292,19 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         {warn && <p>{warn}</p>}
       </div>
       <div className="card">
-        <h2>{S.onecCard}</h2>
-        <p>{S.onecNumber}: <b>{ref?.external_number ?? "—"}</b> · {S.syncState}: <b>{syncLabel}</b></p>
+        <h2>{toIeo ? S.ieoCard : S.onecCard}</h2>
+        {!locked && !(ref?.source === "integration" && ref.sync_status === "synced") && (
+          <form action={setTarget} className="row" style={{ alignItems: "flex-end" }}>
+            <input type="hidden" name="id" value={id} />
+            <label>{S.sendTo}<select name="target" defaultValue={toIeo ? "ieo" : "onec"}><option value="onec">{S.targetOnec}</option><option value="ieo">{S.targetIeo}</option></select></label>
+            <button className="btn ghost">{S.saveTarget}</button>
+          </form>
+        )}
+        <p>{toIeo ? S.ieoNumber : S.onecNumber}: <b>{ref?.external_number ?? "—"}</b> · {S.syncState}: <b>{syncLabel}</b></p>
         {ref?.last_error && ref.sync_status === "failed" && <p className="err"><small>{ref.last_error}</small></p>}
         {!locked && (
           <div className="row" style={{ alignItems: "flex-end" }}>
-            {lookupOn && <form action={lookupOnec}><input type="hidden" name="id" value={id} /><button>{S.lookupBtn}</button></form>}
+            {lookupOn && <form action={toIeo ? lookupIeo : lookupOnec}><input type="hidden" name="id" value={id} /><button>{S.lookupBtn}</button></form>}
             {!(ref?.source === "integration" && ref.sync_status === "synced") && (
               <form action={saveOnecNumber} className="row" style={{ alignItems: "flex-end" }}>
                 <input type="hidden" name="id" value={id} />

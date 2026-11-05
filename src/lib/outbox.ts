@@ -1,6 +1,7 @@
 // Sends queued changes to 1C. Called right after a change, by the daily cron, and by the administrator ("Run now").
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { loadConnectionById, createServiceTicket, updateStatus } from "@/lib/onec";
+import { processIeoItem } from "@/lib/ieo-outbox";
 
 const MAX_ATTEMPTS = 8;
 
@@ -26,7 +27,10 @@ export async function processOutbox(limit = 20): Promise<{ sent: number; failed:
       if (!t) { await admin.from("integration_outbox").update({ status: "dead", last_error: "Ticket no longer exists." }).eq("id", it.id); failed++; continue; }
       const { data: ref } = await admin.from("ticket_external_refs").select("external_id,external_number,source").eq("ticket_id", t.id).maybeSingle();
 
-      if (it.operation === "create_ticket") {
+      if (conn.kind.startsWith("ieo_")) {   // IEO has its own code; the 1C branches below are unchanged
+        const w = await processIeoItem(admin, it, t as any, ref as any, conn.id);
+        if (w === "waiting") { waiting++; continue; }
+      } else if (it.operation === "create_ticket") {
         if (ref?.external_id) { await admin.from("integration_outbox").update({ status: "sent", sent_at: new Date().toISOString(), last_error: null }).eq("id", it.id); sent++; continue; }
         const [{ data: dev }, { data: ext }, { data: cust }] = await Promise.all([
           admin.from("devices").select("serial_number").eq("id", t.device_id).maybeSingle(),
