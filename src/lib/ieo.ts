@@ -101,21 +101,63 @@ async function iepCall(c: IeoConn, ses: { key: string; jwt: string }, method: st
   const r = await http(c, method, `${c.base_url.replace(/\/+$/, "")}/rest/v1/${path}`, body, { apikey: ses.key, Authorization: `Bearer ${ses.jwt}`, "Content-Profile": "public", "Accept-Profile": "public" });
   return r.json;
 }
+// The last sale of this serial in IEP (not returned): who bought it and when (invoice date, else dispatch date).
+async function iepSale(c: IeoConn, ses: { key: string; jwt: string }, serial: string): Promise<{ customer_id: string; customer_name: string | null; sold: string | null } | null> {
+  const sn = encodeURIComponent(serial.replace(/[%*,()]/g, ""));
+  const rows = await iepCall(c, ses, "GET", `sales_warehouse_dispatch_serials?select=customer_id,invoice_id,dispatch_id,created_at&serial_number=ilike.${sn}&return_closed_at=is.null&order=created_at.desc&limit=1`);
+  const r = rows?.[0];
+  if (!r?.customer_id) return null;
+  const [cust, inv, dis] = await Promise.all([
+    iepCall(c, ses, "GET", `customers?select=display_name&id=eq.${encodeURIComponent(r.customer_id)}&limit=1`).catch(() => null),
+    r.invoice_id ? iepCall(c, ses, "GET", `sales_invoices?select=invoice_date&id=eq.${encodeURIComponent(r.invoice_id)}&limit=1`).catch(() => null) : null,
+    r.dispatch_id ? iepCall(c, ses, "GET", `sales_warehouse_dispatches?select=dispatched_at&id=eq.${encodeURIComponent(r.dispatch_id)}&limit=1`).catch(() => null) : null,
+  ]);
+  return { customer_id: String(r.customer_id), customer_name: cust?.[0]?.display_name ?? null, sold: asDate(inv?.[0]?.invoice_date) ?? asDate(dis?.[0]?.dispatched_at) ?? asDate(r.created_at) };
+}
+// Sold date + the warranty period stored on the product ("24 months").
+function addPeriod(start: string, amount: number, unit: string): string | null {
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const d = new Date(start + "T00:00:00Z");
+  const u = unit.toLowerCase();
+  if (u.startsWith("year")) d.setUTCMonth(d.getUTCMonth() + Math.round(amount * 12));
+  else if (u.startsWith("month")) d.setUTCMonth(d.getUTCMonth() + Math.round(amount));
+  else if (u.startsWith("week")) d.setUTCDate(d.getUTCDate() + Math.round(amount * 7));
+  else if (u.startsWith("day")) d.setUTCDate(d.getUTCDate() + Math.round(amount));
+  else return null;
+  return d.toISOString().slice(0, 10);
+}
 async function iepLookup(c: IeoConn, serial: string): Promise<Lookup> {
   const ses = await iepSession(c);
   const j = await iepCall(c, ses, "POST", "rpc/lookup_service_serial", { p_serial: serial });
   if (!j?.matched) return { found: false, model: null, warranty_until: null, sold_date: null, customer_name: null, raw: null };
   const name = [j.product_brand, j.product_model || j.product_name].filter(Boolean).join(" ") || null;
-  return { found: true, model: name, warranty_note: j.warranty_label ? String(j.warranty_label) : null, warranty_until: asDate(j.warranty_until), sold_date: asDate(j.purchase_date), customer_name: null, raw: j };
+  // Extra data from the sales records; a missing permission or record never breaks the lookup.
+  const [sale, prod] = await Promise.all([
+    iepSale(c, ses, String(j.serial_number ?? serial)).catch(() => null),
+    j.product_id ? iepCall(c, ses, "GET", `inventory_products?select=warranty_type,warranty_duration,warranty_unit&id=eq.${encodeURIComponent(j.product_id)}&limit=1`).then((r: any) => r?.[0] ?? null).catch(() => null) : Promise.resolve(null),
+  ]);
+  const amount = Number(prod?.warranty_duration), unit = String(prod?.warranty_unit ?? "");
+  const period = Number.isFinite(amount) && amount > 0 && unit ? `${prod?.warranty_type ? prod.warranty_type + " " : ""}${Number(amount.toFixed(2))} ${unit}` : null;
+  const until = sale?.sold && period ? addPeriod(sale.sold, amount, unit) : null;
+  return {
+    found: true, model: name, warranty_note: period ?? (j.warranty_label ? String(j.warranty_label) : null),
+    warranty_until: until, sold_date: sale?.sold ?? null, customer_name: sale?.customer_name ?? null,
+    raw: { ...j, sale, warranty: prod },
+  };
 }
 async function iepCreate(c: IeoConn, t: NewTicket): Promise<{ id: string | null; number: string }> {
   const ses = await iepSession(c);
   const tag = `[Smart Service #${t.ticket_no}]`;   // marker in the complaint: a retry finds the ticket it already made instead of making a second one
   const dup = await iepCall(c, ses, "GET", `service_tickets?select=id,ticket_number&deleted_at=is.null&customer_complaint=like.${encodeURIComponent("*" + tag + "*")}&order=created_at.asc&limit=1`);
   if (dup?.[0]?.id) return { id: String(dup[0].id), number: String(dup[0].ticket_number ?? t.ticket_no) };
+  // Prefer the customer IEP sold this serial to; otherwise match by name, otherwise create.
+  const sale = await iepSale(c, ses, t.serial).catch(() => null);
+  let customerId: string | undefined = sale?.customer_id;
   const name = (t.customer || "").trim() || "Smart Service customer";
-  const found = await iepCall(c, ses, "GET", `customers?select=id&deleted_at=is.null&display_name=ilike.${encodeURIComponent(name.replace(/[%*,()]/g, " ").trim())}&limit=1`);
-  let customerId: string | undefined = found?.[0]?.id;
+  if (!customerId) {
+    const found = await iepCall(c, ses, "GET", `customers?select=id&deleted_at=is.null&display_name=ilike.${encodeURIComponent(name.replace(/[%*,()]/g, " ").trim())}&limit=1`);
+    customerId = found?.[0]?.id;
+  }
   if (!customerId) customerId = String(await iepCall(c, ses, "POST", "rpc/create_customer", { p_display_name: name, p_customer_type: "business", p_notes: "Created by Smart Service" }));
   const complaint = [t.subject, t.description].filter(Boolean).join("\n");
   const id = String(await iepCall(c, ses, "POST", "rpc/create_service_ticket", { p_payload: { serial_number: t.serial, customer_id: customerId, customer_complaint: `${tag} ${complaint}`.slice(0, 2000) } }));
