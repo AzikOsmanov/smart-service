@@ -8,10 +8,10 @@ import { Btn, Card, Err, H2, Row, Txt } from "@/components/ui";
 
 type F = { id: string; file_name: string; storage_key: string; kind: string; created_at: string };
 
-export async function pickFiles(camera: boolean): Promise<Picked[]> {
+export async function pickFiles(camera: boolean, kinds: ("images" | "videos")[] = ["images", "videos"]): Promise<Picked[]> {
   const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) return [];
-  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ["images", "videos"], quality: 0.8, allowsMultipleSelection: !camera, selectionLimit: 10 };
+  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: kinds, quality: 0.8, videoMaxDuration: 120, allowsMultipleSelection: !camera, selectionLimit: 10 };
   const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
   if (r.canceled) return [];
   return r.assets.map((a, i) => ({

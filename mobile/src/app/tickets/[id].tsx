@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { RefreshControl } from "react-native";
+import { Image } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { sb, serverAfter } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -9,7 +10,10 @@ import Chat from "@/components/Chat";
 import Files from "@/components/Files";
 import { Badge, Btn, Card, Choice, Err, Field, H1, H2, Loading, Row, Screen, Txt } from "@/components/ui";
 
-type Ticket = { id: string; tenant_id: string; ticket_no: number; subject: string; description: string | null; status: string; priority: string; kind: string; customer_id: string; device_id: string; customer_device_status: string | null; assigned_to: string | null; created_at: string; fee_amount: number | null; fee_currency: string | null };
+type Ticket = { id: string; tenant_id: string; ticket_no: number; subject: string; description: string | null; status: string; priority: string; kind: string; customer_id: string; device_id: string; customer_device_status: string | null; assigned_to: string | null; created_at: string; fee_amount: number | null; fee_currency: string | null; sync_target: string | null };
+type Prr = { serial_number: string; method: string; note: string | null; photo: string | null; notOwner: boolean };
+type Ext = { external_number: string | null; sync_status: string | null; last_error: string | null };
+type Target = "onec" | "ieo";
 type Info = { model_name: string | null; warranty_until: string | null; warranty_note: string | null; sold_date?: string | null; customer_name?: string | null };
 type SvcStatus = "in_progress" | "done" | "rma" | "repair_not_possible";
 type Cur = "AZN" | "EUR" | "USD";
@@ -28,13 +32,17 @@ export default function TicketScreen() {
   const [amount, setAmount] = useState("");
   const [cur, setCur] = useState<Cur>("AZN");
   const [customer, setCustomer] = useState("");
+  const [target, setTarget] = useState<Target>("onec");
+  const [ext, setExt] = useState<Ext | null>(null);
+  const [prr, setPrr] = useState<Prr | null>(null);
+  const [canTarget, setCanTarget] = useState(false);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const { data } = await sb.from("tickets").select("id,tenant_id,ticket_no,subject,description,status,priority,kind,customer_id,device_id,customer_device_status,assigned_to,created_at,fee_amount,fee_currency").eq("id", id).maybeSingle();
+    const { data } = await sb.from("tickets").select("id,tenant_id,ticket_no,subject,description,status,priority,kind,customer_id,device_id,customer_device_status,assigned_to,created_at,fee_amount,fee_currency,sync_target").eq("id", id).maybeSingle();
     const ticket = (data as Ticket) ?? null;
     setTk(ticket);
     if (!ticket) return;
@@ -54,6 +62,22 @@ export default function TicketScreen() {
         sb.from("users").select("first_name,last_name,email,phone,companies(name)").eq("id", ticket.customer_id).maybeSingle(),
       ]);
       setInfo((ext as Info) ?? null);
+      setTarget(ticket.sync_target === "ieo" ? "ieo" : "onec");
+      const [{ data: er }, { data: cp }] = await Promise.all([
+        sb.from("ticket_external_refs").select("external_number,sync_status,last_error").eq("ticket_id", ticket.id).maybeSingle(),
+        sb.rpc("has_permission", { p_code: "tickets.external_info.edit" }),
+      ]);
+      setExt((er as Ext) ?? null); setCanTarget(cp === true);
+      if (ticket.kind === "password_reset") {
+        const { data: r } = await sb.from("password_reset_requests").select("serial_number,method,note,label_photo_key,requester_id,device_id").eq("ticket_id", ticket.id).maybeSingle();
+        if (r) {
+          const [ph, ow] = await Promise.all([
+            r.label_photo_key ? sb.storage.from("device-labels").createSignedUrl(r.label_photo_key, 3600) : Promise.resolve({ data: null }),
+            sb.from("devices").select("owner_id").eq("id", r.device_id).maybeSingle(),
+          ]);
+          setPrr({ serial_number: r.serial_number, method: r.method, note: r.note, photo: (ph as any).data?.signedUrl ?? null, notOwner: !!ow.data && ow.data.owner_id !== r.requester_id });
+        } else setPrr(null);
+      } else setPrr(null);
       if (st?.status) setSvc(st.status as SvcStatus);
       const u: any = cu;
       setCustomer((ext as any)?.customer_name || (u ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() + (u.companies?.name ? ` · ${u.companies.name}` : "") + (u.phone ? ` · ${u.phone}` : "") : "—"));
@@ -128,6 +152,27 @@ export default function TicketScreen() {
           return null;
         })} />}
       </Card>
+      {prr && (
+        <Card>
+          <H2>{t("pwReset")}</H2>
+          <Txt>{t("customerWants")}: <Txt bold>{prr.method === "bring_device" ? t("toBring") : t("toReceive")}</Txt></Txt>
+          {prr.note ? <Txt>{prr.note}</Txt> : null}
+          {prr.notOwner && <Txt color={c.danger}>{t("notOwnerWarn")}</Txt>}
+          {prr.photo ? <Image source={{ uri: prr.photo }} style={{ width: "100%", height: 200, borderRadius: 8 }} resizeMode="contain" /> : <Txt muted>{t("noLabelPhoto")}</Txt>}
+          {prr.method !== "bring_device" && <Txt muted small>{t("sendCodeHint")}</Txt>}
+        </Card>
+      )}
+      {canTarget && !locked && (
+        <Card>
+          <H2>{t("sendTo")}</H2>
+          <Choice<Target> value={target} onChange={(v) => run("target", async () => {
+            const { error } = await sb.rpc("set_ticket_sync_target", { p_ticket: tk.id, p_target: v });
+            if (error) return error.message;
+            setMsg(t("saved")); return null;
+          })} options={[{ value: "onec", label: t("targetOnec") }, { value: "ieo", label: t("targetIep") }]} />
+          {ext ? <Txt muted small>{t("externalNo")}: {ext.external_number ?? "—"} · {t("syncState")}: {ext.sync_status ?? "—"}{ext.last_error ? ` (${ext.last_error})` : ""}</Txt> : null}
+        </Card>
+      )}
       <Err>{err}</Err>
       {msg ? <Txt color={c.ok}>{msg}</Txt> : null}
       {locked ? null : !tk.assigned_to ? (

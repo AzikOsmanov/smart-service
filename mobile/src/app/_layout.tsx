@@ -41,6 +41,11 @@ function Nav() {
         <Stack.Screen name="tickets/index" options={{ title: t("tickets") }} />
         <Stack.Screen name="tickets/new" options={{ title: t("newTicket") }} />
         <Stack.Screen name="tickets/[id]" options={{ title: "" }} />
+        <Stack.Screen name="tickets/board" options={{ title: t("board") }} />
+        <Stack.Screen name="tickets/password-reset" options={{ title: t("prButton") }} />
+        <Stack.Screen name="qc/index" options={{ title: t("qcTitle") }} />
+        <Stack.Screen name="qc/new" options={{ title: t("newQc") }} />
+        <Stack.Screen name="qc/[id]" options={{ title: "" }} />
         <Stack.Screen name="scan" options={{ title: t("scanTitle"), presentation: "modal" }} />
         <Stack.Screen name="notifications" options={{ title: t("notifications") }} />
         <Stack.Screen name="settings" options={{ title: t("settings") }} />

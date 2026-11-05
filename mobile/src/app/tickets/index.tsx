@@ -94,9 +94,13 @@ export default function Tickets() {
       {staff ? (
         <>
           <Btn title={`📷 ${t("findBySn")}`} onPress={() => router.push({ pathname: "/scan", params: { target: "find" } })} />
+          <Row>
+            <Btn kind="ghost" title={`▦ ${t("board")}`} onPress={() => router.push("/tickets/board")} />
+            <Btn kind="ghost" title={`✓ ${t("qc")}`} onPress={() => router.push("/qc")} />
+          </Row>
           <Choice<Filter> value={filter} onChange={setFilter} options={[{ value: "all", label: t("all") }, { value: "mine", label: t("mine") }, { value: "new", label: t("unassigned") }]} />
         </>
-      ) : <Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} />}
+      ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /></>}
       <Err>{err}</Err>
       {rows === null ? <Loading /> : shown.length === 0 ? <Txt muted>{t("noTickets")}</Txt> : shown.map((x) => {
         const i = staff ? info.get(x.device_id) : info.get(x.id);
