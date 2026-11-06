@@ -45,5 +45,5 @@ export async function POST(req: Request) {
   if (deviceId) {
     try { await registerDevice({ tenantId: u.tenant_id, userId: u.id, email: u.email, name: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email, deviceId, client: "mobile", label, ua, ip, policy }); } catch { /* never blocks */ }
   }
-  return NextResponse.json({ ok: true, session_hours: policy.session_hours }, { headers: CORS });
+  return NextResponse.json({ ok: true, session_hours: policy.session_hours, idle_minutes: policy.idle_minutes_mobile }, { headers: CORS });
 }

@@ -67,6 +67,11 @@ async function signIn(fd: FormData) {
     // Session length: the browser remembers when this sign-in must end (checked on every request).
     if (policy.session_hours > 0) jar.set("ss_exp", String(Date.now() + policy.session_hours * 3600 * 1000), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
     else jar.delete("ss_exp");
+    // Inactivity sign-out: the server remembers when this browser was last active (refreshed by /api/activity and page visits).
+    if (policy.idle_minutes_web > 0) {
+      jar.set("ss_idle", String(policy.idle_minutes_web), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+      jar.set("ss_act", String(Date.now()), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    } else { jar.delete("ss_idle"); jar.delete("ss_act"); }
     // New-device alert: every browser gets a private id the first time it signs in.
     let deviceId = jar.get("ss_dev")?.value ?? "";
     if (!/^[0-9a-f-]{36}$/i.test(deviceId)) { deviceId = crypto.randomUUID(); jar.set("ss_dev", deviceId, { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 400 }); }
@@ -80,7 +85,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   const sp = await searchParams;
   const { S } = await getStaff();
   const n = String(Math.min(9999, Math.max(1, Number(sp.n) || 1)));
-  const codes: Record<string, string> = { deactivated: S.loginDeactivated, locked: S.loginLocked.replace("{n}", n), ip: S.loginIpBlocked, blocked: S.accessIpBlocked, session: S.loginSessionEnded, creds: S.loginBadCreds, unconfirmed: S.loginEmailUnconfirmed };
+  const codes: Record<string, string> = { deactivated: S.loginDeactivated, locked: S.loginLocked.replace("{n}", n), ip: S.loginIpBlocked, blocked: S.accessIpBlocked, session: S.loginSessionEnded, idle: S.loginIdle, creds: S.loginBadCreds, unconfirmed: S.loginEmailUnconfirmed };
   const error = sp.e ? (codes[sp.e] ?? (sp.e.startsWith("raw:") ? (() => { try { return decodeURIComponent(sp.e!.slice(4)); } catch { return ""; } })() : "")) : sp.error;
   const { t } = await getT();
   const { L } = await getPortal();

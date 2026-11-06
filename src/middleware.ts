@@ -28,6 +28,22 @@ export async function middleware(req: NextRequest) {
     r.cookies.delete("ss_exp");
     return r;
   }
+  // Inactivity: the browser reports real activity to /api/activity (the online heartbeat does not count); a session idle for longer ends here.
+  const idleMin = Number(req.cookies.get("ss_idle")?.value ?? 0);
+  const act = Number(req.cookies.get("ss_act")?.value ?? 0);
+  if (data.user && idleMin > 0 && act > 0 && Date.now() - act > (idleMin + 1) * 60000) {
+    await supabase.auth.signOut();
+    const r = NextResponse.redirect(new URL("/login?e=idle", req.url));
+    res.cookies.getAll().forEach((c) => r.cookies.set(c));
+    r.cookies.delete("ss_exp"); r.cookies.delete("ss_idle"); r.cookies.delete("ss_act");
+    r.headers.set("Cache-Control", "no-store");
+    return r;
+  }
+  if (data.user) {
+    const activity = path === "/api/activity" || (req.method === "GET" && !req.headers.get("next-router-prefetch") && !path.startsWith("/api/"));
+    if (idleMin > 0 && (activity || !act)) res.cookies.set("ss_act", String(Date.now()), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    res.headers.set("Cache-Control", "no-store");   // signed-in pages are never kept in the browser cache
+  }
   if (!data.user && !open) return NextResponse.redirect(new URL("/login", req.url));
   if (data.user && open) return NextResponse.redirect(new URL("/tickets", req.url));
   return res;

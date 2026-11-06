@@ -511,6 +511,15 @@ const en = {
   dashQcListFor: "QC checks behind:",
   dashColResult: "Result",
   dashColBy: "Checked by",
+  idleTitle: "Inactivity sign-out",
+  idleWeb: "Website: sign out after minutes without activity (0 = off, otherwise 3–480)",
+  idleMobile: "Mobile app: sign out after minutes without activity (0 = off, otherwise 3–480)",
+  idleHint: "The person is asked for the password again. On the website a warning appears 1 minute before. The app also counts time spent in the background. The website value applies at once to open pages; the server also ends sessions that stay idle (a closed laptop, an old tab).",
+  errIdle: "Enter 0 or a number of minutes from 3 to 480.",
+  idleWarnTitle: "Are you still there?",
+  idleWarnBody: "You will be signed out in {s} seconds because of inactivity.",
+  idleStay: "Stay signed in",
+  loginIdle: "You were signed out because of inactivity. Please sign in again.",
 };
 export type SKey = keyof typeof en;
 
@@ -1024,6 +1033,15 @@ const ru: Record<SKey, string> = {
   dashQcListFor: "Проверки QC для:",
   dashColResult: "Результат",
   dashColBy: "Проверил",
+  idleTitle: "Выход при бездействии",
+  idleWeb: "Сайт: выход после стольких минут без действий (0 = выкл., иначе 3–480)",
+  idleMobile: "Приложение: выход после стольких минут без действий (0 = выкл., иначе 3–480)",
+  idleHint: "Нужно снова ввести пароль. На сайте за 1 минуту появляется предупреждение. Приложение учитывает и время в фоне. Значение для сайта действует сразу на открытых страницах; сервер также завершает бездействующие сессии (закрытый ноутбук, старая вкладка).",
+  errIdle: "Введите 0 или число минут от 3 до 480.",
+  idleWarnTitle: "Вы ещё здесь?",
+  idleWarnBody: "Через {s} с вы будете выведены из системы из-за бездействия.",
+  idleStay: "Остаться в системе",
+  loginIdle: "Вы вышли из системы из-за бездействия. Войдите снова.",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -1535,6 +1553,15 @@ const az: Record<SKey, string> = {
   dashQcListFor: "Bunun arxasındakı QC yoxlamaları:",
   dashColResult: "Nəticə",
   dashColBy: "Yoxladı",
+  idleTitle: "Hərəkətsizlik zamanı çıxış",
+  idleWeb: "Sayt: fəaliyyətsiz dəqiqələrdən sonra çıxış (0 = söndürülüb, əks halda 3–480)",
+  idleMobile: "Mobil tətbiq: fəaliyyətsiz dəqiqələrdən sonra çıxış (0 = söndürülüb, əks halda 3–480)",
+  idleHint: "Şəxsdən yenidən parol tələb olunur. Saytda 1 dəqiqə əvvəl xəbərdarlıq çıxır. Tətbiq arxa fonda keçən vaxtı da sayır. Saytın dəyəri açıq səhifələrə dərhal tətbiq olunur; server də fəaliyyətsiz sessiyaları bağlayır (bağlı noutbuk, köhnə tab).",
+  errIdle: "0 və ya 3-dən 480-ə qədər dəqiqə daxil edin.",
+  idleWarnTitle: "Hələ buradasınız?",
+  idleWarnBody: "Fəaliyyətsizlik səbəbindən {s} saniyəyə sistemdən çıxarılacaqsınız.",
+  idleStay: "Sistemdə qal",
+  loginIdle: "Fəaliyyətsizlik səbəbindən sistemdən çıxarıldınız. Yenidən daxil olun.",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

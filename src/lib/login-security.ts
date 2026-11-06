@@ -5,13 +5,16 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export type LoginPolicy = {
   max_failed_attempts: number; lockout_minutes: number;
   ip_allowlist: string[]; ip_scope: "staff" | "all"; ip_include_admins: boolean; ip_apply_mobile: boolean;
-  session_hours: number; alert_new_device: boolean; alert_admins: boolean;
+  session_hours: number; idle_minutes_web: number; idle_minutes_mobile: number; alert_new_device: boolean; alert_admins: boolean;
 };
 const DEFAULTS: LoginPolicy = {
   max_failed_attempts: 5, lockout_minutes: 15,
   ip_allowlist: [], ip_scope: "staff", ip_include_admins: false, ip_apply_mobile: false,
-  session_hours: 0, alert_new_device: true, alert_admins: true,
+  session_hours: 0, idle_minutes_web: 15, idle_minutes_mobile: 0, alert_new_device: true, alert_admins: true,
 };
+
+// 0 = off, otherwise 3..480 minutes.
+const idleOf = (x: unknown, d: number) => (typeof x === "number" && Number.isFinite(x) ? (x <= 0 ? 0 : Math.min(480, Math.max(3, Math.round(x)))) : d);
 
 export async function getLoginPolicy(tenantId: string): Promise<LoginPolicy> {
   const { data } = await supabaseAdmin().from("settings").select("value").eq("tenant_id", tenantId).eq("key", "login_security").maybeSingle();
@@ -24,6 +27,8 @@ export async function getLoginPolicy(tenantId: string): Promise<LoginPolicy> {
     ip_include_admins: v.ip_include_admins === true,
     ip_apply_mobile: v.ip_apply_mobile === true,
     session_hours: Number.isFinite(v.session_hours) ? Math.min(720, Math.max(0, Number(v.session_hours))) : 0,
+    idle_minutes_web: idleOf(v.idle_minutes_web, DEFAULTS.idle_minutes_web),
+    idle_minutes_mobile: idleOf(v.idle_minutes_mobile, DEFAULTS.idle_minutes_mobile),
     alert_new_device: v.alert_new_device !== false,
     alert_admins: v.alert_admins !== false,
   };

@@ -5,7 +5,7 @@ import { sb } from "@/lib/supabase";
 import { runSecurityCheck } from "@/lib/security";
 
 export type Profile = { id: string; kind: "staff" | "customer"; tenant_id: string; company_id: string | null; registration: string | null; first_name: string | null; last_name: string | null; email: string | null };
-type Auth = { ready: boolean; session: Session | null; profile: Profile | null; staff: boolean; isAdmin: boolean; reload: () => Promise<void>; secMsg: "" | "ip" | "expired"; clearSecMsg: () => void };
+type Auth = { ready: boolean; session: Session | null; profile: Profile | null; staff: boolean; isAdmin: boolean; reload: () => Promise<void>; secMsg: "" | "ip" | "expired" | "idle"; clearSecMsg: () => void; endSession: (reason: "idle") => Promise<void> };
 const Ctx = createContext<Auth | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -13,7 +13,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [secMsg, setSecMsg] = useState<"" | "ip" | "expired">("");
+  const [secMsg, setSecMsg] = useState<"" | "ip" | "expired" | "idle">("");
   const lastCheck = useRef(0);
 
   const loadProfile = useCallback(async (s: Session | null) => {
@@ -50,8 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { sub.remove(); clearInterval(timer); };
   }, [uid]);
 
+  const endSession = useCallback(async (reason: "idle") => { setSecMsg(reason); await sb.auth.signOut({ scope: "local" }); }, []);
   const reload = useCallback(() => loadProfile(session), [loadProfile, session]);
-  return <Ctx.Provider value={{ ready, session, profile, staff: profile?.kind === "staff", isAdmin, reload, secMsg, clearSecMsg: () => setSecMsg("") }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ready, session, profile, staff: profile?.kind === "staff", isAdmin, reload, secMsg, clearSecMsg: () => setSecMsg(""), endSession }}>{children}</Ctx.Provider>;
 }
 export function useAuth(): Auth {
   const v = useContext(Ctx);

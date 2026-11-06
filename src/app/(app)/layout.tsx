@@ -4,6 +4,9 @@ import { getT } from "@/lib/i18n";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import Heartbeat from "@/components/Heartbeat";
+import IdleLogout from "@/components/IdleLogout";
+import { getStaff } from "@/lib/i18n-staff";
+import { cookies } from "next/headers";
 import { logLoginEvent, getLoginPolicy, clientInfo, ipAllowed } from "@/lib/login-security";
 import NotificationBell from "@/components/NotificationBell";
 import type { Notif } from "@/lib/notif-text";
@@ -21,6 +24,8 @@ async function signOut() {
     }
   }
   await sb.auth.signOut();
+  const jar = await cookies();
+  jar.delete("ss_act"); jar.delete("ss_idle");
   redirect("/login");
 }
 
@@ -29,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: sess } = await sb.auth.getSession();
   if (!sess.session) redirect("/login");
   const { t, lang } = await getT();
+  const { S } = await getStaff();
   const [{ data: me }, { data: isAdmin }, { data: brandRow }, { data: canQc }, { data: canClaims }, { data: canDevices }, { data: canTut }, { data: canMat }, { data: canDash }] = await Promise.all([
     sb.from("users").select("first_name,last_name,kind,registration").eq("id", sess.session.user.id).maybeSingle(),
     sb.rpc("is_tenant_admin"),
@@ -44,11 +50,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
     sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
+  let idleMinutes = 0;
   // Network allow-list also applies to sessions that are already open (e.g. an employee who leaves the office network).
   if (me?.kind) {
     const { data: tn } = await sb.from("users").select("tenant_id").eq("id", sess.session.user.id).maybeSingle();
     if (tn?.tenant_id) {
       const policy = await getLoginPolicy(tn.tenant_id);
+      idleMinutes = policy.idle_minutes_web;
       if (policy.ip_allowlist.length) {
         const { ip } = await clientInfo();
         const admin = isAdmin === true && !policy.ip_include_admins;
@@ -75,6 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <TopBar bell={<NotificationBell userId={sess.session.user.id} lang={lang} initial={(nItems ?? []) as Notif[]} initialUnread={nUnread ?? 0} />} brand={brand} lang={lang} nav={nav} userName={userName} signOut={signOut} signOutLabel={t("signOut")}
         labels={{ system: t("system"), light: t("light"), dark: t("dark"), theme: t("theme"), language: t("language") }} />
       <Heartbeat />
+      {idleMinutes > 0 && <IdleLogout minutes={idleMinutes} labels={{ title: S.idleWarnTitle, body: S.idleWarnBody, stay: S.idleStay }} />}
       <main className="page">{children}</main>
     </>
   );

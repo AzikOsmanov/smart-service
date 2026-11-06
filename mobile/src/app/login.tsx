@@ -37,7 +37,7 @@ export default function Login() {
           <H1>{t("signIn")}</H1>
           <Field label={t("email")} value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="username" />
           <Field label={t("password")} value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" textContentType="password" onSubmitEditing={signIn} />
-          <Err>{err || (secMsg === "ip" ? t("secIp") : secMsg === "expired" ? t("secExpired") : "")}</Err>
+          <Err>{err || (secMsg === "ip" ? t("secIp") : secMsg === "expired" ? t("secExpired") : secMsg === "idle" ? t("secIdle") : "")}</Err>
           <Btn title={busy ? t("signingIn") : t("signIn")} onPress={signIn} busy={busy} disabled={!email || !password} />
           <Pressable onPress={() => Linking.openURL(`${WEB_URL}/register`)}><Txt color={c.accent}>{t("register")}</Txt></Pressable>
           <Pressable onPress={() => Linking.openURL(`${WEB_URL}/forgot`)}><Txt color={c.accent}>{t("forgot")}</Txt></Pressable>

@@ -9,6 +9,7 @@ import { unregisterPush } from "@/lib/push";
 import { useAuth } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
 import { hashPin } from "@/lib/sha256";
+import { getIdleMinutes } from "@/lib/security";
 import { Btn, Card, Err, Field, H1, Txt } from "@/components/ui";
 
 // App lock: the phone's own screen lock (fingerprint / face / pattern / PIN) opens the app. A phone with no screen lock gets an app PIN instead.
@@ -26,7 +27,7 @@ const LockCtx = createContext<Ctx>({ closeApp: () => {} });
 export const useAppLock = () => useContext(LockCtx);
 
 export function AppLockProvider({ children }: { children: ReactNode }) {
-  const { ready, session } = useAuth();
+  const { ready, session, endSession } = useAuth();
   const { c, t } = usePrefs();
   const uid = session?.user.id ?? null;
   const native = Platform.OS !== "web";
@@ -40,6 +41,21 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const authBusy = useRef(false);
   const prompted = useRef(false);
   const started = useRef(false);
+  const lastTouch = useRef(Date.now());
+  const idling = useRef(false);
+
+  // Inactivity sign-out (set by the administrator): too long without touching the app, or too long in the background, ends the sign-in.
+  const idleOut = useCallback(async () => {
+    if (idling.current) return;
+    idling.current = true;
+    const id = session?.user.id;
+    await unregisterPush().catch(() => {});
+    if (id) { await del("ss_pin_" + id); await del("ss_pin_tries_" + id); }
+    await endSession("idle");
+    setLocked(true); setHasPin(null);
+    router.replace("/login");
+    setTimeout(() => { idling.current = false; }, 1500);
+  }, [session, endSession]);
 
   const checkSecure = useCallback(async () => {
     try { setDeviceSecure((await LocalAuthentication.getEnrolledLevelAsync()) > LocalAuthentication.SecurityLevel.NONE); }
@@ -62,12 +78,25 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       if (authBusy.current) return;
       if (st === "background") bgAt.current = Date.now();
       else if (st === "active") {
+        const im = getIdleMinutes();
+        if (bgAt.current && im > 0 && Date.now() - bgAt.current > im * 60000) { bgAt.current = 0; idleOut(); return; }
+        lastTouch.current = Date.now();
         if (bgAt.current && Date.now() - bgAt.current > LOCK_AFTER_MS) { prompted.current = false; setLocked(true); }
         bgAt.current = 0; checkSecure();
       }
     });
     return () => sub.remove();
-  }, [native, checkSecure]);
+  }, [native, checkSecure, idleOut]);
+
+  useEffect(() => {
+    if (!native || !uid) return;
+    lastTouch.current = Date.now();
+    const iv = setInterval(() => {
+      const im = getIdleMinutes();
+      if (im > 0 && AppState.currentState === "active" && Date.now() - lastTouch.current > im * 60000) idleOut();
+    }, 15000);
+    return () => clearInterval(iv);
+  }, [native, uid, idleOut]);
 
   const askDevice = useCallback(async () => {
     authBusy.current = true;
@@ -121,7 +150,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
 
   return (
     <LockCtx.Provider value={{ closeApp }}>
-      {children}
+      <View style={{ flex: 1 }} onTouchStartCapture={() => { lastTouch.current = Date.now(); }}>{children}</View>
       {visible && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, zIndex: 1000, elevation: 1000 }]}>
           <SafeAreaView style={{ flex: 1, justifyContent: "center", padding: 20, gap: 16 }}>

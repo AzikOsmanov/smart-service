@@ -69,6 +69,17 @@ async function saveSession(fd: FormData) {
   redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
 }
 
+async function saveIdle(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireAdmin();
+  const web = Math.round(Number(fd.get("web"))), mob = Math.round(Number(fd.get("mobile")));
+  const ok = (n: number) => Number.isFinite(n) && (n === 0 || (n >= 3 && n <= 480));
+  if (!ok(web) || !ok(mob)) redirect("/admin/login-security?error=" + encodeURIComponent(S.errIdle));
+  await mergePolicy({ idle_minutes_web: web, idle_minutes_mobile: mob });
+  redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
+}
+
 async function saveAlerts(fd: FormData) {
   "use server";
   const { S } = await getStaff();
@@ -128,6 +139,13 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
         <h2>{S.sessTitle}</h2>
         <label>{S.sessHours}<input name="hours" type="number" min={0} max={720} step={0.5} defaultValue={policy.session_hours} required /></label>
         <p><small>{S.sessHint}</small></p>
+        <button>{S.save}</button>
+      </form>
+      <form action={saveIdle} className="card" style={{ maxWidth: 520 }}>
+        <h2>{S.idleTitle}</h2>
+        <label>{S.idleWeb}<input name="web" type="number" min={0} max={480} step={1} defaultValue={policy.idle_minutes_web} required /></label>
+        <label>{S.idleMobile}<input name="mobile" type="number" min={0} max={480} step={1} defaultValue={policy.idle_minutes_mobile} required /></label>
+        <p><small>{S.idleHint}</small></p>
         <button>{S.save}</button>
       </form>
       <form action={saveAlerts} className="card" style={{ maxWidth: 520 }}>
