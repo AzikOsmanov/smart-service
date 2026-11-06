@@ -612,9 +612,14 @@ const en = {
   calcHaveDays2: "Days with the disks you have (vendor tool method)",
   calcHaveDays3: "Days with the disks you have (15% reserve kept)",
   calcUnitsNote: "GB are counted as the recorder counts them (1 GB = 1,073,741,824 bytes) and 1 Kbps = 1024 bits per second. Disk sizes are decimal TB as printed on the disk.",
-  calcUnvNote: "UNV bitrates come from the UNV storage tool (medium complexity). The UNV bitrate does not change with the frame rate. Some resolutions were not read from the tool. Values marked estimated are not yet checked against that tool.",
+  calcUnvNote: "UNV bitrates come from the UNV storage tool. The U-Code and complexity steps were read at 1080P and applied to the other resolutions. The UNV bitrate does not change with the frame rate. Values marked estimated are not yet checked against that tool.",
   calcDahuaNote: "Dahua bitrates are typical estimates and are not yet matched to Dahua's own tool.",
   calcEstimated: "estimated",
+  calcUcodeBasic: "Basic Mode",
+  calcComplexity: "Environmental complexity",
+  calcCxLow: "Low",
+  calcCxMed: "Medium",
+  calcCxHigh: "High",
 };
 export type SKey = keyof typeof en;
 
@@ -1229,9 +1234,14 @@ const ru: Record<SKey, string> = {
   calcHaveDays2: "Дней на имеющихся дисках (метод как у производителя)",
   calcHaveDays3: "Дней на имеющихся дисках (с запасом 15%)",
   calcUnitsNote: "ГБ считаются как в регистраторе (1 ГБ = 1 073 741 824 байт), 1 Кбит/с = 1024 бит/с. Размеры дисков — десятичные ТБ, как на этикетке.",
-  calcUnvNote: "Битрейты UNV взяты из программы расчёта UNV (средняя сложность сцены). Битрейт UNV не зависит от частоты кадров. Некоторые разрешения не сверены с программой; значения с пометкой «оценка» ещё не проверены.",
+  calcUnvNote: "Битрейты UNV взяты из программы расчёта UNV. Шаги U-Code и сложности сцены считаны при 1080P и применены к другим разрешениям. Битрейт UNV не зависит от частоты кадров. Значения с пометкой «оценка» ещё не проверены.",
   calcDahuaNote: "Битрейты Dahua — типовые оценки, ещё не сверены с программой Dahua.",
   calcEstimated: "оценка",
+  calcUcodeBasic: "Базовый режим",
+  calcComplexity: "Сложность сцены",
+  calcCxLow: "Низкая",
+  calcCxMed: "Средняя",
+  calcCxHigh: "Высокая",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -1844,9 +1854,14 @@ const az: Record<SKey, string> = {
   calcHaveDays2: "Mövcud disklərlə günlər (istehsalçı üsulu)",
   calcHaveDays3: "Mövcud disklərlə günlər (15% ehtiyatla)",
   calcUnitsNote: "GB qeydiyyatçıdakı kimi hesablanır (1 GB = 1 073 741 824 bayt), 1 Kbit/s = 1024 bit/s. Disk ölçüləri diskin üzərindəki kimi onluq TB-dir.",
-  calcUnvNote: "UNV bitrate-ləri UNV hesablama proqramından götürülüb (orta mürəkkəblik). UNV bitrate-i kadr tezliyindən asılı deyil. Bəzi həllər proqramla yoxlanılmayıb; «təxmini» işarəli dəyərlər hələ yoxlanılmayıb.",
+  calcUnvNote: "UNV bitrate-ləri UNV hesablama proqramından götürülüb. U-Code və mürəkkəblik pillələri 1080P-də oxunub və digər həllərə tətbiq olunub. UNV bitrate-i kadr tezliyindən asılı deyil. «Təxmini» işarəli dəyərlər hələ yoxlanılmayıb.",
   calcDahuaNote: "Dahua bitrate-ləri tipik təxminlərdir və hələ Dahua proqramı ilə uyğunlaşdırılmayıb.",
   calcEstimated: "təxmini",
+  calcUcodeBasic: "Əsas rejim",
+  calcComplexity: "Mühit mürəkkəbliyi",
+  calcCxLow: "Aşağı",
+  calcCxMed: "Orta",
+  calcCxHigh: "Yüksək",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

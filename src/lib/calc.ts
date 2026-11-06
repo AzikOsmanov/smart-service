@@ -50,7 +50,7 @@ const RAID_MIN: Record<Raid, number> = { none: 1, "1": 2, "5": 3, "6": 4, "10": 
 const usableDisks = (r: Raid, n: number) => (r === "none" ? n : r === "1" ? (n % 2 ? 0 : n / 2) : r === "5" ? n - 1 : r === "6" ? n - 2 : n % 2 ? 0 : n / 2);
 
 export type DiskIn = {
-  brand: Brand; cameras: number; res: string; codec: Codec; ucode?: boolean; fps: number; bitrate?: number | null;
+  brand: Brand; cameras: number; res: string; codec: Codec; ucode?: "off" | "basic" | "adv"; cx?: "low" | "med" | "high"; fps: number; bitrate?: number | null;
   mode: "cont" | "motion"; motionPct: number; days: number; raid: Raid; diskTb: number; haveDisks?: number | null;
   nvr: { channels: number; bays: number; maxTb: number; mbps: number; raid: boolean } | null;
 };
@@ -65,10 +65,14 @@ const GIB = 1073741824;   // recorders show GB as 1,073,741,824 bytes and Kbps a
 export function diskCalc(i: DiskIn): DiskOut {
   let base: number, estimated = false;
   if (i.brand === "unv") {
+    // Seen in the UNV tool at 1080P: Off = full value; Basic Mode = 0.75 / 0.21875 / 1.0 and Advanced Mode = 0.5 / 0.125 / 0.75 for medium / low / high complexity.
+    // The same steps are applied to every resolution (checked for medium complexity and for H.264 and H.265 at several resolutions).
     const r = UNV_RES.find((x) => x.id === i.res) ?? UNV_RES[2];
-    const adv = i.ucode !== false;
-    if (i.codec === "h264") { base = r.h264 * (adv ? 0.5 : 1); estimated = !r.ok264; }
-    else { base = r.kbps * (adv ? 1 : 2); estimated = r.id === "4mp3"; }
+    const mode = i.ucode ?? "adv", cx = i.cx ?? "med";
+    const off = i.codec === "h264" ? r.h264 : r.kbps * 2;
+    const F = { off: { low: 1, med: 1, high: 1 }, basic: { low: 0.21875, med: 0.75, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode];
+    base = off * F[cx];
+    estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "basic" && !(i.codec === "h264" && r.id === "1080")) || (mode !== "off" && cx !== "med" && r.id !== "1080");
   } else {
     base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
     estimated = true;
