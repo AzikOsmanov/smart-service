@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!sess.session) redirect("/login");
   const { t, lang } = await getT();
   const { S } = await getStaff();
-  const [{ data: me }, { data: isAdmin }, { data: brandRow }, { data: canQc }, { data: canClaims }, { data: canDevices }, { data: canTut }, { data: canMat }, { data: canDash }] = await Promise.all([
+  const [{ data: me }, { data: isAdmin }, { data: brandRow }, { data: canQc }, { data: canClaims }, { data: canDevices }, { data: canTut }, { data: canMat }, { data: canDash }, { data: canProj }, { data: canCat }] = await Promise.all([
     sb.from("users").select("first_name,last_name,kind,registration").eq("id", sess.session.user.id).maybeSingle(),
     sb.rpc("is_tenant_admin"),
     supabaseAdmin().from("settings").select("value").eq("key", "brand_name").maybeSingle(),
@@ -45,6 +45,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sb.rpc("has_permission", { p_code: "tutorials.view" }),
     sb.rpc("has_permission", { p_code: "materials.view" }),
     sb.rpc("has_permission", { p_code: "dashboard.view" }),
+    sb.rpc("has_permission", { p_code: "projects.view" }),
+    sb.rpc("has_permission", { p_code: "catalog.view" }),
   ]);
   const [{ data: nItems }, { count: nUnread }] = await Promise.all([
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
@@ -76,6 +78,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
   if (staff && canMat === true) nav.push({ href: "/materials", label: t("materials") });
   if (isAdmin === true) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
+  if ((staff && canProj === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/projects", label: t("projects") });
+  if (staff && canCat === true) nav.push({ href: "/catalog", label: t("catalog") });
   nav.push({ href: "/calculator", label: t("calculator") });
   nav.push({ href: "/account", label: t("account") });
   const userName = me ? `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() : sess.session.user.email ?? "";
