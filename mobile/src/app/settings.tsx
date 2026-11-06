@@ -4,6 +4,7 @@ import { sb, WEB_URL } from "@/lib/supabase";
 import { unregisterPush } from "@/lib/push";
 import { useAuth } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
+import { useAppLock } from "@/lib/applock";
 import { Btn, Card, Choice, H2, Screen, Txt } from "@/components/ui";
 import type { Lang } from "@/lib/i18n";
 import type { ThemeName } from "@/lib/theme";
@@ -11,6 +12,7 @@ import type { ThemeName } from "@/lib/theme";
 export default function Settings() {
   const { t, lang, setLang, theme, setTheme } = usePrefs();
   const { profile } = useAuth();
+  const { closeApp } = useAppLock();
   return (
     <Screen>
       <Card>
@@ -27,7 +29,8 @@ export default function Settings() {
         <Choice<ThemeName> value={theme} onChange={setTheme} options={[{ value: "navy", label: t("themeNavy") }, { value: "dark", label: t("themeDark") }, { value: "light", label: t("themeLight") }]} />
       </Card>
       <Btn kind="ghost" title={t("openWeb")} onPress={() => Linking.openURL(WEB_URL)} />
-      <Btn kind="danger" title={t("signOut")} onPress={async () => { await unregisterPush(); await sb.auth.signOut(); router.replace("/login"); }} />
+      <Btn kind="danger" title={t("closeApp")} onPress={closeApp} />
+      <Btn kind="ghost" title={t("signOutChange")} onPress={async () => { await unregisterPush(); await sb.auth.signOut(); router.replace("/login"); }} />
     </Screen>
   );
 }

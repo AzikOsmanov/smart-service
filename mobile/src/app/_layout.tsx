@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PrefsProvider, usePrefs } from "@/lib/prefs";
 import { AuthProvider } from "@/lib/auth";
+import { AppLockProvider } from "@/lib/applock";
 
 // Opens the ticket (or the announcement link) when a push notification is tapped.
 function openFromPush(data: Record<string, unknown> | undefined) {
@@ -66,8 +67,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <PrefsProvider>
         <AuthProvider>
-          <PushSetup />
-          <Nav />
+          <AppLockProvider>
+            <PushSetup />
+            <Nav />
+          </AppLockProvider>
         </AuthProvider>
       </PrefsProvider>
     </SafeAreaProvider>
