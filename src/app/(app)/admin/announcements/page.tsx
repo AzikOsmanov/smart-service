@@ -22,10 +22,11 @@ export default async function Announcements({ searchParams }: { searchParams: Pr
   const sb = await supabaseServer();
   const { S } = await getStaff();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
-  if (isAdmin !== true) notFound();
+  // the administrator, or a staff role that has the Announcements edit permission (e.g. SMM)
+  if (isAdmin !== true && (await sb.rpc("has_permission", { p_code: "announcements.edit" })).data !== true) notFound();
   return (
     <div>
-      <SettingsNav active="announcements" />
+      {isAdmin === true && <SettingsNav active="announcements" />}
       <h1>{S.annTitle}</h1>
       <p>{S.annIntro}</p>
       <form action={send} className="card" style={{ maxWidth: 680 }}>
