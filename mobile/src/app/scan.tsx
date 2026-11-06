@@ -32,7 +32,10 @@ async function rank(all: Map<string, Cand>): Promise<Scored[]> {
     const h = hints.get(x.code);
     const digitsOnly = /^\d+$/.test(x.code);
     const mixed = /[A-Z]/.test(x.code) && /\d/.test(x.code);
-    const score = (h?.exact ? 1000 : 0) + (h?.shape ? 500 : 0) + (x.linear ? 100 : 0) + (x.code.length >= 10 && x.code.length <= 24 ? 20 : 0) + (mixed ? 10 : 0) - (digitsOnly && x.code.length <= 13 ? 60 : 0) - (x.code.length < 8 ? 40 : 0) + x.code.length * 0.1;
+    const alnum = /^[A-Z0-9]+$/.test(x.code);          // a serial number is letters + digits only; model names carry hyphens (UAC-B112-AF28-W)
+    const score = (h?.exact ? 1000 : 0) + (h?.shape ? 500 : 0) + (x.linear ? 100 : 0)
+      + (alnum && mixed ? 60 : 0) + (alnum && x.code.length >= 12 ? 30 : 0) + (x.code.length >= 10 && x.code.length <= 24 ? 20 : 0)
+      - (/[-_/.]/.test(x.code) ? 80 : 0) - (digitsOnly && x.code.length <= 13 ? 60 : 0) - (x.code.length < 8 ? 40 : 0) + x.code.length * 0.1;
     return { ...x, score };
   }).sort((p, q) => q.score - p.score);
 }
