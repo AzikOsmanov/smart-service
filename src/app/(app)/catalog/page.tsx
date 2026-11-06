@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getStaff } from "@/lib/i18n-staff";
 import { pmCtx } from "@/lib/pm-ctx";
 import { AI_OPTIONS, FORMS, KINDS } from "@/lib/projects";
+import { parseWorkbook } from "@/lib/catalog-io";
 
 const num = (v: FormDataEntryValue | string | null | undefined) => { const s = String(v ?? "").trim().replace(",", "."); const x = Number(s); return s !== "" && Number.isFinite(x) && x >= 0 ? x : null; };
 const list = (s: string) => s.split(/[;|]/).map((x) => x.trim().toLowerCase()).filter(Boolean);
@@ -43,6 +44,34 @@ async function deleteDevice(fd: FormData) {
   revalidatePath("/catalog");
   redirect("/catalog");
 }
+// Excel: the sheet from "Export" or "Template". A row whose brand + model already exists updates that device; any other row adds a device.
+async function importXlsx(fd: FormData) {
+  "use server";
+  const c = await pmCtx();
+  if (!c.canEditCatalog) redirect("/catalog");
+  const f = fd.get("file");
+  if (!(f instanceof File) || f.size === 0) redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxNoFile));
+  if (f.size > 4 * 1024 * 1024) redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxBig));
+  let parsed;
+  try { parsed = await parseWorkbook(await f.arrayBuffer()); } catch { redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxBad)); }
+  if (parsed.missing.length) redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxCols.replace("{c}", parsed.missing.join(", "))));
+  const { data: existing } = await c.sb.from("catalog_devices").select("id,brand,model").is("deleted_at", null);
+  const key = (b: unknown, m: unknown) => `${String(b)}|${String(m).trim().toLowerCase()}`;
+  const have = new Map((existing ?? []).map((d) => [key(d.brand, d.model), d.id as string]));
+  let added = 0, updated = 0;
+  const bad: number[] = [];
+  const now = new Date().toISOString();
+  for (const { line, row } of parsed.rows) {
+    if (!row) { bad.push(line); continue; }
+    const id = have.get(key(row.brand, row.model));
+    const res = id ? await c.sb.from("catalog_devices").update({ ...row, updated_at: now }).eq("id", id) : await c.sb.from("catalog_devices").insert({ ...row, tenant_id: c.tenantId, created_by: c.uid });
+    if (res.error) { bad.push(line); continue; }
+    if (id) updated++; else added++;
+    if (!id) have.set(key(row.brand, row.model), "new");
+  }
+  revalidatePath("/catalog");
+  redirect(`/catalog?xa=${added}&xu=${updated}&xb=${encodeURIComponent(bad.slice(0, 30).join(","))}`);
+}
 // CSV: first line = column names (brand, kind, model, description, form, mpx, lens_mm, hfov_deg, ir_range_m, night_modes, audio, ai, poe_w, outdoor, channels, bays, max_tb_per_disk, throughput_mbps, ports, poe_ports, poe_budget_w); lists use ";".
 async function importCsv(fd: FormData) {
   "use server";
@@ -74,8 +103,8 @@ async function importCsv(fd: FormData) {
   redirect("/catalog?ok=" + rows.length);
 }
 
-export default async function Catalog({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; edit?: string; brand?: string; kind?: string }> }) {
-  const { error, ok, edit, brand, kind } = await searchParams;
+export default async function Catalog({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; edit?: string; brand?: string; kind?: string; xa?: string; xu?: string; xb?: string }> }) {
+  const { error, ok, edit, brand, kind, xa, xu, xb } = await searchParams;
   const c = await pmCtx();
   if (!c.canCatalog) redirect("/tickets");
   const { S } = await getStaff();
@@ -92,6 +121,7 @@ export default async function Catalog({ searchParams }: { searchParams: Promise<
       <h1>{S.catTitle}</h1>
       {error && <p className="err">{error}</p>}
       {ok && <p>{S.catImported.replace("{n}", ok)}</p>}
+      {xa !== undefined && <p><b>{S.catXlsxResult.replace("{a}", String(Number(xa) || 0)).replace("{u}", String(Number(xu) || 0))}</b>{xb ? ` ${S.catXlsxSkipped.replace("{rows}", xb)}` : ""}</p>}
       {c.canEditCatalog && (
         <form action={saveDevice} className="card" key={editing?.id ?? "new"}>
           <h2>{editing ? S.catEdit : S.catAdd}</h2>
@@ -116,6 +146,20 @@ export default async function Catalog({ searchParams }: { searchParams: Promise<
           <div className="row" style={{ gap: 8 }}><button>{S.save}</button>{editing && <Link className="btn ghost" href="/catalog">{S.pmCancel}</Link>}</div>
         </form>
       )}
+      <div className="card">
+        <h2>{S.catExcel}</h2>
+        <p><small>{S.catExcelHint}</small></p>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <a className="btn" href="/api/catalog/export">{S.catExport}</a>
+          <a className="btn ghost" href="/api/catalog/export?template=1">{S.catTemplate}</a>
+        </div>
+        {c.canEditCatalog && (
+          <form action={importXlsx} className="row" style={{ gap: 8, alignItems: "end", flexWrap: "wrap" }}>
+            <label>{S.catUploadXlsx}<input type="file" name="file" accept=".xlsx" required /></label>
+            <button>{S.catImportXlsx}</button>
+          </form>
+        )}
+      </div>
       {c.canEditCatalog && (
         <form action={importCsv} className="card">
           <h2>{S.catImport}</h2>
