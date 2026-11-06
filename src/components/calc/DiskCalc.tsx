@@ -8,7 +8,7 @@ export default function DiskCalc({ L }: { L: L }) {
   const [brand, setBrand] = useState<Brand>("dahua");
   const [cameras, setCameras] = useState("8");
   const [res, setRes] = useState("4");
-  const [ucode, setUcode] = useState<"off" | "basic" | "adv">("adv");
+  const [ucode, setUcode] = useState<"off" | "adv">("adv");
   const [cx, setCx] = useState<"low" | "med" | "high">("med");
   const [codec, setCodec] = useState<Codec>("h265");
   const [fps, setFps] = useState("25");
@@ -39,7 +39,7 @@ export default function DiskCalc({ L }: { L: L }) {
   const raidName = raid === "none" ? L.calcRaidNone : `RAID ${raid}`;
 
   const inputs: [string, string][] = [
-    [L.calcBrand, BRANDS.find((b) => b.id === brand)!.name], [L.calcCameras, String(num(cameras))], [L.calcRes, resName], [L.calcCodec, codecName], ...(brand === "unv" ? [[L.calcUcode, ucode === "adv" ? L.calcUcodeAdv : ucode === "basic" ? L.calcUcodeBasic : L.calcUcodeOff] as [string, string], ...(ucode !== "off" ? [[L.calcComplexity, cx === "low" ? L.calcCxLow : cx === "high" ? L.calcCxHigh : L.calcCxMed] as [string, string]] : [])] : []),
+    [L.calcBrand, BRANDS.find((b) => b.id === brand)!.name], [L.calcCameras, String(num(cameras))], [L.calcRes, resName], [L.calcCodec, codecName], ...(brand === "unv" ? [[L.calcUcode, ucode === "adv" ? L.calcUcodeAdv : L.calcUcodeOff] as [string, string], ...(ucode !== "off" ? [[L.calcComplexity, cx === "low" ? L.calcCxLow : cx === "high" ? L.calcCxHigh : L.calcCxMed] as [string, string]] : [])] : []),
     ...(brand === "unv" ? [] : [[L.calcFps, String(num(fps, 25))] as [string, string]]), ...(bitrate ? [[L.calcBitrate, `${bitrate} Kbps`] as [string, string]] : []),
     [L.calcMode, mode === "cont" ? L.calcModeCont : `${L.calcModeMotion} (${num(motion)}%)`], [L.calcDays, String(num(days))],
     [L.calcRaid, raidName], [L.calcDiskSize, String(num(diskTb))], [L.calcNvr, modelName],
@@ -61,7 +61,7 @@ export default function DiskCalc({ L }: { L: L }) {
         <Field label={L.calcCameras}><input type="number" min={1} max={256} value={cameras} onChange={(e) => setCameras(e.target.value)} /></Field>
         <Field label={L.calcRes}><select value={res} onChange={(e) => setRes(e.target.value)}>{resList.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></Field>
         <Field label={L.calcCodec}><select value={codec} onChange={(e) => setCodec(e.target.value as Codec)}><option value="h264">H.264</option><option value="h265">H.265</option>{brand === "dahua" && <option value="smart">{SMART_NAME[brand]}</option>}</select></Field>
-        {brand === "unv" && <Field label={L.calcUcode}><select value={ucode} onChange={(e) => setUcode(e.target.value as "off" | "basic" | "adv")}><option value="adv">{L.calcUcodeAdv}</option><option value="basic">{L.calcUcodeBasic}</option><option value="off">{L.calcUcodeOff}</option></select></Field>}
+        {brand === "unv" && <Field label={L.calcUcode}><select value={ucode} onChange={(e) => setUcode(e.target.value as "off" | "adv")}><option value="adv">{L.calcUcodeAdv}</option><option value="off">{L.calcUcodeOff}</option></select></Field>}
         {brand === "unv" && ucode !== "off" && <Field label={L.calcComplexity}><select value={cx} onChange={(e) => setCx(e.target.value as "low" | "med" | "high")}><option value="low">{L.calcCxLow}</option><option value="med">{L.calcCxMed}</option><option value="high">{L.calcCxHigh}</option></select></Field>}
         {brand !== "unv" && <Field label={L.calcFps}><input type="number" min={1} max={60} value={fps} onChange={(e) => setFps(e.target.value)} /></Field>}
         <Field label={L.calcBitrate}><input type="number" min={0} step="1" value={bitrate} onChange={(e) => setBitrate(e.target.value)} /></Field>

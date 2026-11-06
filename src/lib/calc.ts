@@ -50,7 +50,7 @@ const RAID_MIN: Record<Raid, number> = { none: 1, "1": 2, "5": 3, "6": 4, "10": 
 const usableDisks = (r: Raid, n: number) => (r === "none" ? n : r === "1" ? (n % 2 ? 0 : n / 2) : r === "5" ? n - 1 : r === "6" ? n - 2 : n % 2 ? 0 : n / 2);
 
 export type DiskIn = {
-  brand: Brand; cameras: number; res: string; codec: Codec; ucode?: "off" | "basic" | "adv"; cx?: "low" | "med" | "high"; fps: number; bitrate?: number | null;
+  brand: Brand; cameras: number; res: string; codec: Codec; ucode?: "off" | "adv"; cx?: "low" | "med" | "high"; fps: number; bitrate?: number | null;
   mode: "cont" | "motion"; motionPct: number; days: number; raid: Raid; diskTb: number; haveDisks?: number | null;
   nvr: { channels: number; bays: number; maxTb: number; mbps: number; raid: boolean } | null;
 };
@@ -66,14 +66,12 @@ export function diskCalc(i: DiskIn): DiskOut {
   let base: number, estimated = false;
   if (i.brand === "unv") {
     // From the UNV tool. Off = full value. Advanced Mode = 0.5 / 0.125 / 0.75 of it for medium / low / high complexity (H.264 and H.265 at 1080P, medium at many resolutions).
-    // Basic Mode is not a fixed share: read for H.264 1080P (896 / 3072 / 4096) and H.265 4MP (896 / 3328 / 4480). Medium = full value minus 1024 (at least 75%), low = 896,
-    // high = full value plus half of what it is above 4096; other resolutions follow that rule and are marked estimated.
+    // Basic Mode is not offered: everyone uses Advanced Mode.
     const r = UNV_RES.find((x) => x.id === i.res) ?? UNV_RES[2];
     const mode = i.ucode ?? "adv", cx = i.cx ?? "med";
     const off = i.codec === "h264" ? r.h264 : r.kbps * 2;
-    if (mode === "basic") base = cx === "med" ? Math.max(0.75 * off, off - 1024) : cx === "low" ? Math.min(896, 0.21875 * off) : off + Math.max(0, off - 4096) / 2;
-    else base = off * { off: { low: 1, med: 1, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode][cx];
-    estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "basic" && !((i.codec === "h264" && r.id === "1080") || (i.codec === "h265" && r.id === "4mp"))) || (mode === "adv" && cx !== "med" && r.id !== "1080");
+    base = off * { off: { low: 1, med: 1, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode][cx];
+    estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "adv" && cx !== "med" && r.id !== "1080");
   } else {
     base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
     estimated = true;
