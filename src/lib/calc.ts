@@ -25,8 +25,8 @@ export const UNV_RES: { id: string; label: string; kbps: number; h264: number; o
   { id: "4mp3", label: "2688*1520 (4MP)", kbps: 2176, h264: 6144, ok264: false },
   { id: "5mp", label: "2592*2048 (5MP)", kbps: 2176, h264: 6144, ok264: true }, { id: "6mp", label: "3072*2048 (6MP)", kbps: 2560, h264: 7168, ok264: true },
   { id: "4k", label: "3840*2160 (4K)", kbps: 2944, h264: 8192, ok264: false }, { id: "8mp", label: "4096*2160 (8MP)", kbps: 2944, h264: 8192, ok264: true },
-  { id: "9mp", label: "3000*3000 (9MP)", kbps: 2944, h264: 8192, ok264: false }, { id: "12mp", label: "4800*2688 (12MP)", kbps: 4352, h264: 12288, ok264: false },
-  { id: "16mp", label: "4000*4000 (16MP)", kbps: 4352, h264: 12288, ok264: false }, { id: "32mp", label: "8640*3840 (32MP)", kbps: 4352, h264: 12288, ok264: false },
+  { id: "9mp", label: "3000*3000 (9MP)", kbps: 2944, h264: 8192, ok264: false }, { id: "12mp", label: "4800*2688 (12MP)", kbps: 4352, h264: 12288, ok264: true },
+  { id: "16mp", label: "4000*4000 (16MP)", kbps: 4352, h264: 12288, ok264: true }, { id: "32mp", label: "8640*3840 (32MP)", kbps: 4352, h264: 12288, ok264: true },
 ];
 
 export type Nvr = { id: string; brand: Brand; model: string; channels: number; bays: number; maxTb: number; mbps: number; raid: boolean };
@@ -67,13 +67,14 @@ export function diskCalc(i: DiskIn): DiskOut {
   if (i.brand === "unv") {
     const r = UNV_RES.find((x) => x.id === i.res) ?? UNV_RES[2];
     const adv = i.ucode !== false;
-    if (i.codec === "h264") { base = r.h264 * (adv ? 0.5 : 1); estimated = !r.ok264 || adv; }
+    if (i.codec === "h264") { base = r.h264 * (adv ? 0.5 : 1); estimated = !r.ok264; }
     else { base = r.kbps * (adv ? 1 : 2); estimated = r.id === "4mp3"; }
   } else {
     base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
     estimated = true;
   }
-  const kbpsPerCam = i.bitrate && i.bitrate > 0 ? i.bitrate : base * (i.fps / 25);
+  // The UNV tool gives the same bitrate at 12, 15 and 25 fps, so UNV is not scaled by frame rate; Dahua estimates are scaled.
+  const kbpsPerCam = i.bitrate && i.bitrate > 0 ? i.bitrate : base * (i.brand === "unv" ? 1 : i.fps / 25);
   const share = i.mode === "motion" ? Math.min(100, Math.max(0, i.motionPct)) / 100 : 1;
   const bytesPerCamDay = ((kbpsPerCam * 1024 * 86400) / 8) * share;
   const bytesAllDay = bytesPerCamDay * i.cameras;

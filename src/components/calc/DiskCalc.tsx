@@ -39,7 +39,7 @@ export default function DiskCalc({ L }: { L: L }) {
 
   const inputs: [string, string][] = [
     [L.calcBrand, BRANDS.find((b) => b.id === brand)!.name], [L.calcCameras, String(num(cameras))], [L.calcRes, resName], [L.calcCodec, codecName], ...(brand === "unv" ? [[L.calcUcode, ucode ? L.calcUcodeAdv : L.calcUcodeOff] as [string, string]] : []),
-    [L.calcFps, String(num(fps, 25))], ...(bitrate ? [[L.calcBitrate, `${bitrate} Kbps`] as [string, string]] : []),
+    ...(brand === "unv" ? [] : [[L.calcFps, String(num(fps, 25))] as [string, string]]), ...(bitrate ? [[L.calcBitrate, `${bitrate} Kbps`] as [string, string]] : []),
     [L.calcMode, mode === "cont" ? L.calcModeCont : `${L.calcModeMotion} (${num(motion)}%)`], [L.calcDays, String(num(days))],
     [L.calcRaid, raidName], [L.calcDiskSize, String(num(diskTb))], [L.calcNvr, modelName],
     ...(nvr ? [[`${L.calcNvrChannels} / ${L.calcNvrBays} / ${L.calcNvrMaxTb} / ${L.calcNvrBw}`, `${nvr.channels} / ${nvr.bays} / ${nvr.maxTb} / ${nvr.mbps}`] as [string, string]] : []),
@@ -61,7 +61,7 @@ export default function DiskCalc({ L }: { L: L }) {
         <Field label={L.calcRes}><select value={res} onChange={(e) => setRes(e.target.value)}>{resList.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></Field>
         <Field label={L.calcCodec}><select value={codec} onChange={(e) => setCodec(e.target.value as Codec)}><option value="h264">H.264</option><option value="h265">H.265</option>{brand === "dahua" && <option value="smart">{SMART_NAME[brand]}</option>}</select></Field>
         {brand === "unv" && <Field label={L.calcUcode}><select value={ucode ? "1" : "0"} onChange={(e) => setUcode(e.target.value === "1")}><option value="1">{L.calcUcodeAdv}</option><option value="0">{L.calcUcodeOff}</option></select></Field>}
-        <Field label={L.calcFps}><input type="number" min={1} max={60} value={fps} onChange={(e) => setFps(e.target.value)} /></Field>
+        {brand !== "unv" && <Field label={L.calcFps}><input type="number" min={1} max={60} value={fps} onChange={(e) => setFps(e.target.value)} /></Field>}
         <Field label={L.calcBitrate}><input type="number" min={0} step="1" value={bitrate} onChange={(e) => setBitrate(e.target.value)} /></Field>
         <Field label={L.calcMode}><select value={mode} onChange={(e) => setMode(e.target.value as "cont" | "motion")}><option value="cont">{L.calcModeCont}</option><option value="motion">{L.calcModeMotion}</option></select></Field>
         {mode === "motion" && <Field label={L.calcMotionPct}><input type="number" min={0} max={100} value={motion} onChange={(e) => setMotion(e.target.value)} /></Field>}
