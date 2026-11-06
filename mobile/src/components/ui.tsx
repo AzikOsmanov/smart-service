@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle, type RefreshControlProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePrefs } from "@/lib/prefs";
+import StatusStrip from "@/components/StatusStrip";
 
 export function Screen({ children, scroll = true, refreshControl }: { children: ReactNode; scroll?: boolean; refreshControl?: React.ReactElement<RefreshControlProps> }) {
   const { c } = usePrefs();
   return (
     <SafeAreaView edges={["bottom", "left", "right"]} style={{ flex: 1, backgroundColor: c.bg }}>
+      <StatusStrip />
       {scroll ? (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled" refreshControl={refreshControl}>{children}</ScrollView>
       ) : <View style={{ flex: 1, padding: 16, gap: 12 }}>{children}</View>}

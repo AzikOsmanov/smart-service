@@ -19,6 +19,7 @@ export default function TopBar({ brand, lang, labels, nav, userName, signOut, si
   return (
     <header className="topbar">
       <Link href="/" className="brand">{brand}</Link>
+      <span className="powered">Powered by infraneuro</span>
       {nav && <NavLinks items={nav} />}
       <div className="right">
         {bell}
