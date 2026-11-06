@@ -76,6 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
   if (staff && canMat === true) nav.push({ href: "/materials", label: t("materials") });
   if (isAdmin === true) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
+  nav.push({ href: "/calculator", label: t("calculator") });
   nav.push({ href: "/account", label: t("account") });
   const userName = me ? `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() : sess.session.user.email ?? "";
   return (

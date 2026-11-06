@@ -12,6 +12,8 @@
     "@supabase/supabase-js": "^2.47.0",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
