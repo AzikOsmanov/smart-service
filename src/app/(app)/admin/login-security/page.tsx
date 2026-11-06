@@ -89,6 +89,14 @@ async function saveAlerts(fd: FormData) {
   redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
 }
 
+async function saveMfa(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireAdmin();
+  await mergePolicy({ require_2fa_staff: fd.get("staff") === "on" });
+  redirect("/admin/login-security?ok=" + encodeURIComponent(S.savedOk));
+}
+
 async function unlock(fd: FormData) {
   "use server";
   const { S } = await getStaff();
@@ -147,6 +155,12 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
         <label>{S.idleWeb}<input name="web" type="number" min={0} max={480} step={1} defaultValue={policy.idle_minutes_web} required /></label>
         <label>{S.idleMobile}<input name="mobile" type="number" min={0} max={480} step={1} defaultValue={policy.idle_minutes_mobile} required /></label>
         <p><small>{S.idleHint}</small></p>
+        <button>{S.save}</button>
+      </form>
+      <form action={saveMfa} className="card" style={{ maxWidth: 520 }}>
+        <h2>{S.mfaPolicyTitle}</h2>
+        <label className="row"><input type="checkbox" name="staff" defaultChecked={policy.require_2fa_staff} style={{ width: "auto" }} /> {S.mfaPolicyStaff}</label>
+        <p><small>{S.mfaPolicyHint}</small></p>
         <button>{S.save}</button>
       </form>
       <form action={saveAlerts} className="card" style={{ maxWidth: 520 }}>

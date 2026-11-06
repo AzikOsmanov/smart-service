@@ -17,6 +17,21 @@ async function requireAdmin() {
   return { sb, tenantId: me!.tenant_id as string, myId: auth.user!.id };
 }
 
+async function resetMfa(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  const { tenantId, myId } = await requireAdmin();
+  const id = String(fd.get("id"));
+  const admin = supabaseAdmin();
+  const { data: u } = await admin.from("users").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+  if (u) {
+    const { data: fl } = await admin.auth.admin.mfa.listFactors({ userId: id });
+    for (const f of fl?.factors ?? []) await admin.auth.admin.mfa.deleteFactor({ id: f.id, userId: id });
+    await admin.from("audit_logs").insert({ tenant_id: tenantId, actor_id: myId, action: "user.mfa_reset", entity_type: "user", entity_id: id });
+  }
+  redirect(`/admin/edit/${id}?ok=${encodeURIComponent(S.mfaAdminResetDone)}`);
+}
+
 async function save(fd: FormData) {
   "use server";
   const { S } = await getStaff();
@@ -95,6 +110,8 @@ export default async function EditPerson({ params, searchParams }: { params: Pro
   const isAdminUser = (cur ?? []).some((x: any) => x.roles?.is_admin);
   const curRole = (cur ?? [])[0]?.role_id ?? "";
   const back = customer ? "/customers" : "/admin/users";
+  const { data: mf } = await supabaseAdmin().auth.admin.mfa.listFactors({ userId: id });
+  const mfaOn = (mf?.factors ?? []).some((f) => f.status === "verified");
   return (
     <div>
       <p><Link href={back}>← {customer ? t("customers") : t("staffUsers")}</Link></p>
@@ -129,6 +146,11 @@ export default async function EditPerson({ params, searchParams }: { params: Pro
         ))}
         <button>{S.saveChanges}</button>
         <p><small>{S.auditNote}</small></p>
+      </form>
+      <form action={resetMfa} className="card" style={{ maxWidth: 620 }}>
+        <input type="hidden" name="id" value={id} />
+        <p>{S.mfaAdminStatus}: <b>{mfaOn ? S.mfaStatusOn : S.mfaStatusOff}</b></p>
+        {mfaOn && <button>{S.mfaAdminReset}</button>}
       </form>
     </div>
   );

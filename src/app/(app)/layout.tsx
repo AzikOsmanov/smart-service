@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
     sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
-  const sh = (shell ?? {}) as { first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
+  const sh = (shell ?? {}) as { mfa_enrolled?: boolean; first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
   const me = shell ? { first_name: sh.first_name, last_name: sh.last_name, kind: sh.kind, registration: sh.registration } : null;
   const isAdmin = sh.is_admin === true;
   const pm = sh.perms ?? {};
@@ -51,6 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (me?.kind && sh.tenant_id) {
     const policy = parseLoginPolicy(sh.login_security);
     idleMinutes = policy.idle_minutes_web;
+    if (me.kind === "staff" && policy.require_2fa_staff && !sh.mfa_enrolled) redirect("/mfa/setup?required=1");
     if (policy.ip_allowlist.length) {
       const { ip } = await clientInfo();
       const admin = isAdmin && !policy.ip_include_admins;

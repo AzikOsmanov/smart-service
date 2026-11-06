@@ -6,11 +6,13 @@ export type LoginPolicy = {
   max_failed_attempts: number; lockout_minutes: number;
   ip_allowlist: string[]; ip_scope: "staff" | "all"; ip_include_admins: boolean; ip_apply_mobile: boolean;
   session_hours: number; idle_minutes_web: number; idle_minutes_mobile: number; alert_new_device: boolean; alert_admins: boolean;
+  require_2fa_staff: boolean;
 };
 const DEFAULTS: LoginPolicy = {
   max_failed_attempts: 5, lockout_minutes: 15,
   ip_allowlist: [], ip_scope: "staff", ip_include_admins: false, ip_apply_mobile: false,
   session_hours: 0, idle_minutes_web: 15, idle_minutes_mobile: 0, alert_new_device: true, alert_admins: true,
+  require_2fa_staff: true,
 };
 
 // 0 = off, otherwise 3..480 minutes.
@@ -34,6 +36,7 @@ export function parseLoginPolicy(raw: unknown): LoginPolicy {
     idle_minutes_mobile: idleOf(v.idle_minutes_mobile, DEFAULTS.idle_minutes_mobile),
     alert_new_device: v.alert_new_device !== false,
     alert_admins: v.alert_admins !== false,
+    require_2fa_staff: v.require_2fa_staff !== false,
   };
 }
 

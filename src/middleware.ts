@@ -44,6 +44,21 @@ export async function middleware(req: NextRequest) {
     if (idleMin > 0 && (activity || !act)) res.cookies.set("ss_act", String(Date.now()), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
     res.headers.set("Cache-Control", "no-store");   // signed-in pages are never kept in the browser cache
   }
+  // Two-step login: a person who has it switched on must pass the code check before anything else.
+  if (data.user && !path.startsWith("/mfa")) {
+    const verified = (data.user.factors ?? []).some((f) => f.status === "verified" && f.factor_type === "totp");
+    if (verified) {
+      const { data: s } = await supabase.auth.getSession();
+      let aal = "aal1";
+      try { aal = JSON.parse(atob((s.session?.access_token ?? "").split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).aal ?? "aal1"; } catch { /* treated as aal1 */ }
+      if (aal !== "aal2") {
+        if (path.startsWith("/api/")) return new NextResponse(null, { status: 401 });
+        const r = NextResponse.redirect(new URL("/mfa/verify", req.url));
+        res.cookies.getAll().forEach((c) => r.cookies.set(c));
+        return r;
+      }
+    }
+  }
   if (!data.user && !open) return NextResponse.redirect(new URL("/login", req.url));
   if (data.user && open) return NextResponse.redirect(new URL("/dashboard", req.url));
   return res;
