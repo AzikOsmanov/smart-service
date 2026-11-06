@@ -15,11 +15,15 @@ export const SMART_NAME: Record<Brand, string> = { dahua: "H.265+ (Smart Codec)"
 
 // UNV: taken from the UNV storage tool (H.265, 25 fps, U-Code Advanced Mode, environmental complexity Medium), Kbps per camera.
 // The tool uses steps by resolution. U-Code Off doubles the value (seen at 32 MP: 8704 against 4352).
-// h265 = H.265 with U-Code Advanced Mode; h264 = H.264 (the tool shows U-Code Off for H.264). ok264 = the H.264 value was read from the tool.
+// kbps = H.265 with U-Code Advanced Mode; h264 = H.264 (the tool shows U-Code Off for H.264). H.265 with U-Code Off is exactly twice kbps (seen at 720P, 960P, 1080P, 4MP, 32MP).
+// ok264 = the H.264 value was read from the tool (the tool groups resolutions by megapixel class: 3MP, 4MP, 5MP, 6MP ...).
 export const UNV_RES: { id: string; label: string; kbps: number; h264: number; ok264: boolean }[] = [
-  { id: "1080", label: "1920*1080 (1080P)", kbps: 1024, h264: 4096, ok264: true }, { id: "3mp", label: "2000*1500 (3MP)", kbps: 1280, h264: 5120, ok264: false },
-  { id: "4mp", label: "3000*1500 (4MP)", kbps: 2176, h264: 6144, ok264: true }, { id: "4mp2", label: "2688*1520 (4MP)", kbps: 2176, h264: 6144, ok264: false },
-  { id: "5mp", label: "2592*2048 (5MP)", kbps: 2176, h264: 6144, ok264: false }, { id: "6mp", label: "3072*2048 (6MP)", kbps: 2560, h264: 7168, ok264: false },
+  { id: "720", label: "1280*720 (720P)", kbps: 512, h264: 2048, ok264: true }, { id: "960", label: "1280*960 (960P)", kbps: 512, h264: 2048, ok264: true },
+  { id: "1080", label: "1920*1080 (1080P)", kbps: 1024, h264: 4096, ok264: true },
+  { id: "3mp", label: "2000*1500 (3MP)", kbps: 1280, h264: 5120, ok264: true }, { id: "3mp2", label: "2304*1296 (3MP)", kbps: 1280, h264: 5120, ok264: true },
+  { id: "4mp", label: "3000*1500 (4MP)", kbps: 2176, h264: 6144, ok264: true }, { id: "4mp2", label: "2560*1440 (4MP)", kbps: 2176, h264: 6144, ok264: true },
+  { id: "4mp3", label: "2688*1520 (4MP)", kbps: 2176, h264: 6144, ok264: false },
+  { id: "5mp", label: "2592*2048 (5MP)", kbps: 2176, h264: 6144, ok264: true }, { id: "6mp", label: "3072*2048 (6MP)", kbps: 2560, h264: 7168, ok264: true },
   { id: "4k", label: "3840*2160 (4K)", kbps: 2944, h264: 8192, ok264: false }, { id: "8mp", label: "4096*2160 (8MP)", kbps: 2944, h264: 8192, ok264: true },
   { id: "9mp", label: "3000*3000 (9MP)", kbps: 2944, h264: 8192, ok264: false }, { id: "12mp", label: "4800*2688 (12MP)", kbps: 4352, h264: 12288, ok264: false },
   { id: "16mp", label: "4000*4000 (16MP)", kbps: 4352, h264: 12288, ok264: false }, { id: "32mp", label: "8640*3840 (32MP)", kbps: 4352, h264: 12288, ok264: false },
@@ -64,7 +68,7 @@ export function diskCalc(i: DiskIn): DiskOut {
     const r = UNV_RES.find((x) => x.id === i.res) ?? UNV_RES[2];
     const adv = i.ucode !== false;
     if (i.codec === "h264") { base = r.h264 * (adv ? 0.5 : 1); estimated = !r.ok264 || adv; }
-    else { base = r.kbps * (adv ? 1 : 2); estimated = r.id === "4mp2" || (!adv && r.id !== "32mp"); }
+    else { base = r.kbps * (adv ? 1 : 2); estimated = r.id === "4mp3"; }
   } else {
     base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
     estimated = true;

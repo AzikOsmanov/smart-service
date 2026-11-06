@@ -612,7 +612,7 @@ const en = {
   calcHaveDays2: "Days with the disks you have (vendor tool method)",
   calcHaveDays3: "Days with the disks you have (15% reserve kept)",
   calcUnitsNote: "GB are counted as the recorder counts them (1 GB = 1,073,741,824 bytes) and 1 Kbps = 1024 bits per second. Disk sizes are decimal TB as printed on the disk.",
-  calcUnvNote: "UNV bitrates come from the UNV storage tool (H.265, U-Code Advanced Mode, 25 fps, medium complexity). H.264 and U-Code Off values were read at a few resolutions only. Values marked estimated are not yet checked against that tool.",
+  calcUnvNote: "UNV bitrates come from the UNV storage tool (H.265, U-Code Advanced Mode, 25 fps, medium complexity). Some resolutions were not read from the tool. Values marked estimated are not yet checked against that tool.",
   calcDahuaNote: "Dahua bitrates are typical estimates and are not yet matched to Dahua's own tool.",
   calcEstimated: "estimated",
 };
