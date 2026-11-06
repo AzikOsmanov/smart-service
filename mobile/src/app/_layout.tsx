@@ -56,6 +56,7 @@ function Nav() {
         <Stack.Screen name="qc/[id]" options={{ title: "" }} />
         <Stack.Screen name="scan" options={{ title: t("scanTitle"), presentation: "modal" }} />
         <Stack.Screen name="notifications" options={{ title: t("notifications") }} />
+        <Stack.Screen name="calculator" options={{ title: t("calculator") }} />
         <Stack.Screen name="settings" options={{ title: t("settings") }} />
       </Stack>
     </>
