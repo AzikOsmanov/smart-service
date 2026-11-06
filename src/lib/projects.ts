@@ -1,7 +1,6 @@
 import { diskCalc, disksFor, type Raid } from "@/lib/calc";
 
 // Project Management: choosing devices for a camera point from the catalog. Rules only, no AI.
-export const AI_OPTIONS = ["face_detection", "face_recognition", "plate_recognition", "people_counting", "line_crossing", "intrusion", "heat_map", "smart_motion"] as const;
 export const GOALS = ["detect", "observe", "recognize", "identify"] as const;
 export type Goal = (typeof GOALS)[number];
 // Pixels per metre at the target (EN 62676-4 style): detect 25, observe 62, recognize 125, identify 250.
@@ -12,14 +11,14 @@ export const KINDS = ["camera", "nvr", "switch", "hdd", "ups", "accessory", "oth
 
 export type CatDevice = {
   id: string; brand: string; kind: string; model: string; description: string | null; form: string | null; mpx: number | null; lens_mm: number | null; hfov_deg: number | null;
-  ir_range_m: number | null; night_modes: string[]; audio: string; ai: string[]; poe_w: number | null; outdoor: boolean;
+  ir_range_m: number | null; night_modes: string[]; audio: string; functions: string[]; series: string | null; poe_w: number | null; outdoor: boolean;
   light_range_m: number | null; dori_detect_m: number | null; dori_observe_m: number | null; dori_recognize_m: number | null; dori_identify_m: number | null;
   channels: number | null; bays: number | null; max_tb_per_disk: number | null; throughput_mbps: number | null; ports: number | null; poe_ports: number | null; poe_budget_w: number | null;
 };
-export const CAT_COLS = "id,brand,kind,model,description,form,mpx,lens_mm,hfov_deg,ir_range_m,night_modes,audio,ai,poe_w,outdoor,light_range_m,dori_detect_m,dori_observe_m,dori_recognize_m,dori_identify_m,channels,bays,max_tb_per_disk,throughput_mbps,ports,poe_ports,poe_budget_w";
+export const CAT_COLS = "id,brand,kind,model,description,form,mpx,lens_mm,hfov_deg,ir_range_m,night_modes,audio,functions,series,poe_w,outdoor,light_range_m,dori_detect_m,dori_observe_m,dori_recognize_m,dori_identify_m,channels,bays,max_tb_per_disk,throughput_mbps,ports,poe_ports,poe_budget_w";
 export type Point = {
   id: string; name: string; env: string; mount_h_m: number | null; dist_m: number | null; width_m: number | null; goal: string; night_m: number | null; night_type: string;
-  min_mpx: number | null; audio: string; ai: string[]; form: string | null; qty: number; chosen_device_id: string | null; notes: string | null;
+  min_mpx: number | null; audio: string; functions: string[]; form: string | null; qty: number; chosen_device_id: string | null; notes: string | null;
 };
 
 const H_PIXELS: [number, number][] = [[1, 1280], [2, 1920], [3, 2304], [4, 2560], [5, 2592], [6, 3072], [8, 3840], [12, 4000]];
@@ -47,7 +46,7 @@ export function matchPoint(p: Point, devices: CatDevice[], brand: string): Match
     if (p.env === "outdoor" && !d.outdoor) fails.push("outdoor");
     if (p.form && p.form !== "any" && d.form !== p.form) fails.push("form");
     if ((AUDIO_RANK[d.audio] ?? 0) < (AUDIO_RANK[p.audio] ?? 0)) fails.push("audio");
-    for (const a of p.ai ?? []) if (!d.ai.includes(a)) { fails.push("ai"); break; }
+    for (const a of p.functions ?? []) if (!(d.functions ?? []).includes(a)) { fails.push("fn"); break; }
     if (p.night_type === "color" && !d.night_modes.includes("color")) fails.push("night");
     if (p.night_type === "ir" && !d.night_modes.includes("ir")) fails.push("night");
     if (p.night_m && p.night_m > 0) {
@@ -83,7 +82,7 @@ const DAHUA_ID: [number, string][] = [[1, "d720"], [2, "d1080"], [3, "d3"], [4, 
 const nearestId = (tbl: [number, string][], mpx: number) => tbl.reduce((a, b) => (Math.abs(b[0] - mpx) < Math.abs(a[0] - mpx) ? b : a))[1];
 export const DISK_SIZES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
 
-export type SysIn = { days: number; diskTb: number; raid: Raid; upsMin: number };
+export type SysIn = { days: number; diskTb: number; raid: Raid; upsMin: number; recFns?: string[] };
 export type NvrPick = { device: CatDevice; ok: boolean; fails: string[] };
 export type SysPlan = {
   cams: number; mbps: number; needTb: number; disks: number | null; nvr: NvrPick | null; nvrCount: number; fitDiskTb: number | null;
@@ -114,6 +113,7 @@ export function planSystem(chosen: { device: CatDevice; qty: number }[], devices
     if (disks != null && (n.bays ?? 0) < disks) fails.push("bays");
     if (n.max_tb_per_disk != null && n.max_tb_per_disk < s.diskTb) fails.push("diskSize");
     if (n.throughput_mbps != null && n.throughput_mbps < mbps) fails.push("bw");
+    for (const f of s.recFns ?? []) if (!(n.functions ?? []).includes(f)) { fails.push("fn"); break; }
     return { device: n, ok: fails.length === 0, fails };
   };
   const picks = nvrs.map(check).sort((a, b) => (a.ok === b.ok ? (a.ok ? (a.device.channels ?? 0) - (b.device.channels ?? 0) : a.fails.length - b.fails.length) : a.ok ? -1 : 1));

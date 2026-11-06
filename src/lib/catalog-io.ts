@@ -1,9 +1,9 @@
 import ExcelJS from "exceljs";
-import { AI_OPTIONS, FORMS, KINDS, type CatDevice } from "@/lib/projects";
+import { FORMS, KINDS, type CatDevice } from "@/lib/projects";
 import type { StaffLabels } from "@/lib/i18n-staff";
 
 // One column per catalog field. The first row of the Excel sheet holds these names; the importer reads them from there.
-export const COLUMNS = ["brand", "kind", "model", "description", "form", "mpx", "lens_mm", "hfov_deg", "ir_range_m", "light_range_m", "night_modes", "audio", "ai", "poe_w", "outdoor",
+export const COLUMNS = ["brand", "kind", "model", "description", "form", "mpx", "lens_mm", "hfov_deg", "ir_range_m", "light_range_m", "night_modes", "audio", "series", "functions", "poe_w", "outdoor",
   "dori_detect_m", "dori_observe_m", "dori_recognize_m", "dori_identify_m", "channels", "bays", "max_tb_per_disk", "throughput_mbps", "ports", "poe_ports", "poe_budget_w", "notes"] as const;
 export type Col = (typeof COLUMNS)[number];
 
@@ -13,21 +13,21 @@ const oneOf = <T extends string>(v: string, allowed: readonly T[]): T | null => 
 
 export type CatRow = Record<string, string | string[] | boolean | number | null>;
 // Turns one row of text cells (keyed by column name) into a database row, or null when brand/model are missing or wrong.
-export function toCatRow(get: (k: string) => string): CatRow | null {
+export function toCatRow(get: (k: string) => string, fnKeys: string[]): CatRow | null {
   const brand = oneOf(get("brand").trim().toLowerCase(), ["dahua", "unv"] as const), model = get("model").trim().slice(0, 120);
   if (!brand || !model) return null;
   return {
     brand, kind: oneOf(get("kind").trim().toLowerCase(), KINDS) ?? "camera", model, description: get("description").trim().slice(0, 300) || null,
     form: oneOf(get("form").trim().toLowerCase(), FORMS), mpx: num(get("mpx")), lens_mm: num(get("lens_mm")), hfov_deg: num(get("hfov_deg")), ir_range_m: num(get("ir_range_m")), light_range_m: num(get("light_range_m")),
     night_modes: list(get("night_modes")).filter((x) => x === "ir" || x === "color"), audio: oneOf(get("audio").trim().toLowerCase(), ["none", "mic", "two_way"] as const) ?? "none",
-    ai: list(get("ai")).filter((a) => (AI_OPTIONS as readonly string[]).includes(a)), poe_w: num(get("poe_w")), outdoor: ["on", "yes", "true", "1", "y"].includes(get("outdoor").trim().toLowerCase()),
+    series: get("series").trim().slice(0, 80) || null, functions: list(get("functions")).filter((a) => fnKeys.includes(a)), poe_w: num(get("poe_w")), outdoor: ["on", "yes", "true", "1", "y"].includes(get("outdoor").trim().toLowerCase()),
     dori_detect_m: num(get("dori_detect_m")), dori_observe_m: num(get("dori_observe_m")), dori_recognize_m: num(get("dori_recognize_m")), dori_identify_m: num(get("dori_identify_m")),
     channels: num(get("channels")), bays: num(get("bays")), max_tb_per_disk: num(get("max_tb_per_disk")), throughput_mbps: num(get("throughput_mbps")), ports: num(get("ports")), poe_ports: num(get("poe_ports")), poe_budget_w: num(get("poe_budget_w")),
     notes: get("notes").trim().slice(0, 500) || null,
   };
 }
 
-export async function buildWorkbook(devices: (CatDevice & { notes?: string | null })[], S: StaffLabels, template: boolean): Promise<Buffer> {
+export async function buildWorkbook(devices: (CatDevice & { notes?: string | null })[], S: StaffLabels, template: boolean, fns: { key: string; grp: string; name: string; dahua: string | null; unv: string | null }[]): Promise<Buffer> {
   const L = (k: string) => (S as Record<string, string>)[k] ?? k;
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Devices", { views: [{ state: "frozen", ySplit: 1 }] });
@@ -60,7 +60,7 @@ export async function buildWorkbook(devices: (CatDevice & { notes?: string | nul
     ["brand", L("pmBrand"), "dahua | unv"], ["kind", L("catKind"), KINDS.join(" | ")], ["model", L("pmModel"), L("catHelpModel")], ["description", L("catDesc"), ""],
     ["form", L("pmForm"), FORMS.join(" | ")], ["mpx", "Mpx", L("catHelpNumber")], ["lens_mm", L("catLens"), L("catHelpNumber")], ["hfov_deg", L("catFov"), L("catHelpFov")],
     ["ir_range_m", L("catIr"), L("catHelpNumber")], ["light_range_m", L("catLight"), L("catHelpNumber")], ["night_modes", L("pmNightType"), "ir;color"], ["audio", L("pmAudio"), "none | mic | two_way"],
-    ["ai", L("pmAi"), AI_OPTIONS.join(";")], ["poe_w", L("catPoe"), L("catHelpNumber")], ["outdoor", L("catOutdoor"), "yes | no"],
+    ["series", L("catSeries"), ""], ["functions", L("fnTitle"), L("catHelpFunctions")], ["poe_w", L("catPoe"), L("catHelpNumber")], ["outdoor", L("catOutdoor"), "yes | no"],
     ["dori_detect_m", L("catDoriDetect"), L("catHelpNumber")], ["dori_observe_m", L("catDoriObserve"), L("catHelpNumber")], ["dori_recognize_m", L("catDoriRecognize"), L("catHelpNumber")], ["dori_identify_m", L("catDoriIdentify"), L("catHelpNumber")],
     ["channels", L("catChannels"), L("catHelpNvr")], ["bays", L("catBays"), L("catHelpNvr")], ["max_tb_per_disk", L("catMaxTb"), L("catHelpNvr")], ["throughput_mbps", L("catBw"), L("catHelpNvr")],
     ["ports", L("catPorts"), L("catHelpSwitch")], ["poe_ports", L("catPoePorts"), L("catHelpSwitch")], ["poe_budget_w", L("catPoeBudget"), L("catHelpSwitch")], ["notes", L("pmNotes"), ""],
@@ -68,11 +68,15 @@ export async function buildWorkbook(devices: (CatDevice & { notes?: string | nul
   rows.forEach(([c, m, v]) => help.addRow([c, m, v]));
   help.addRow([]);
   help.addRow(["", L("catHelpUpdate"), ""]);
+  const fw = wb.addWorksheet("Functions");
+  fw.columns = [{ header: "key", key: "k", width: 26 }, { header: L("fnGroup"), key: "g", width: 22 }, { header: L("fnName"), key: "n", width: 44 }, { header: "Dahua", key: "d", width: 40 }, { header: "UNV", key: "u", width: 40 }];
+  fw.getRow(1).font = { bold: true };
+  for (const f of fns) fw.addRow([f.key, L("fnGrp_" + f.grp), f.name, f.dahua ?? "", f.unv ?? ""]);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
 export type ParsedSheet = { rows: { line: number; row: CatRow | null }[]; missing: string[] };
-export async function parseWorkbook(buf: ArrayBuffer): Promise<ParsedSheet> {
+export async function parseWorkbook(buf: ArrayBuffer, fnKeys: string[]): Promise<ParsedSheet> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf);
   const ws = wb.getWorksheet("Devices") ?? wb.worksheets[0];
@@ -86,7 +90,7 @@ export async function parseWorkbook(buf: ArrayBuffer): Promise<ParsedSheet> {
     const row = ws.getRow(r);
     const get = (k: string) => { const i = idx.get(k); return i ? String(row.getCell(i).text ?? "").trim() : ""; };
     if (!COLUMNS.some((c) => get(c))) continue;   // empty line
-    rows.push({ line: r, row: toCatRow(get) });
+    rows.push({ line: r, row: toCatRow(get, fnKeys) });
   }
   return { rows, missing };
 }

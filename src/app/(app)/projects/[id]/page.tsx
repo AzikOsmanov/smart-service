@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getStaff, type SKey } from "@/lib/i18n-staff";
 import { pmCtx } from "@/lib/pm-ctx";
 import { fmtDT } from "@/lib/fmt-time";
-import { AI_OPTIONS, CAT_COLS, DISK_SIZES, FORMS, GOALS, matchPoint, planSystem, type CatDevice, type Point } from "@/lib/projects";
+import { CAT_COLS, DISK_SIZES, FORMS, GOALS, matchPoint, planSystem, type CatDevice, type Point } from "@/lib/projects";
+import { loadFunctions, fnName, type Fn } from "@/lib/functions";
+import FnPicker from "@/components/FnPicker";
 import PdfButton from "@/components/PdfButton";
 
 const numOrNull = (v: FormDataEntryValue | null) => { const x = Number(String(v ?? "").replace(",", ".")); return String(v ?? "").trim() !== "" && Number.isFinite(x) && x >= 0 ? x : null; };
@@ -17,11 +19,12 @@ async function savePoint(fd: FormData) {
   if (!c.canEditProjects) redirect(`/projects/${pid}`);
   const name = String(fd.get("name") ?? "").trim().slice(0, 120);
   if (!name) redirect(`/projects/${pid}`);
+  const fnKeys = (await loadFunctions(c.sb, c.tenantId)).map((f) => f.key);
   const row = {
     name, env: pick(fd.get("env"), ["indoor", "outdoor"] as const, "outdoor"), mount_h_m: numOrNull(fd.get("mount_h_m")), dist_m: numOrNull(fd.get("dist_m")), width_m: numOrNull(fd.get("width_m")),
     goal: pick(fd.get("goal"), GOALS, "recognize"), night_m: numOrNull(fd.get("night_m")), night_type: pick(fd.get("night_type"), ["any", "ir", "color"] as const, "any"),
     min_mpx: numOrNull(fd.get("min_mpx")), audio: pick(fd.get("audio"), ["none", "mic", "two_way"] as const, "none"),
-    ai: fd.getAll("ai").map(String).filter((a) => (AI_OPTIONS as readonly string[]).includes(a)), form: (FORMS as readonly string[]).includes(String(fd.get("form"))) ? String(fd.get("form")) : null,
+    functions: fd.getAll("functions").map(String).filter((a) => fnKeys.includes(a)), form: (FORMS as readonly string[]).includes(String(fd.get("form"))) ? String(fd.get("form")) : null,
     qty: Math.min(500, Math.max(1, Math.round(numOrNull(fd.get("qty")) ?? 1))), notes: String(fd.get("notes") ?? "").trim().slice(0, 1000) || null, updated_at: new Date().toISOString(),
   };
   const id = String(fd.get("id") ?? "");
@@ -66,8 +69,9 @@ async function saveSystem(fd: FormData) {
   if (!c.canEditProjects) redirect(`/projects/${pid}`);
   const days = Math.min(3650, Math.max(1, Math.round(numOrNull(fd.get("rec_days")) ?? 30)));
   const diskTb = DISK_SIZES.includes(Number(fd.get("disk_tb"))) ? Number(fd.get("disk_tb")) : 4;
+  const fnKeys = (await loadFunctions(c.sb, c.tenantId)).map((f) => f.key);
   const upsMin = Math.min(1440, Math.max(0, Math.round(numOrNull(fd.get("ups_minutes")) ?? 30)));
-  await c.sb.from("projects").update({ rec_days: days, disk_tb: diskTb, raid: pick(fd.get("raid"), ["none", "1", "5", "6", "10"] as const, "none"), ups_minutes: upsMin, updated_at: new Date().toISOString() }).eq("id", pid);
+  await c.sb.from("projects").update({ rec_days: days, disk_tb: diskTb, raid: pick(fd.get("raid"), ["none", "1", "5", "6", "10"] as const, "none"), ups_minutes: upsMin, rec_functions: fd.getAll("rec_functions").map(String).filter((a) => fnKeys.includes(a)), updated_at: new Date().toISOString() }).eq("id", pid);
   revalidatePath(`/projects/${pid}`);
   redirect(`/projects/${pid}`);
 }
@@ -86,13 +90,17 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const c = await pmCtx();
   if (!c.canProjects) redirect("/tickets");
-  const { S } = await getStaff();
-  const { data: project } = await c.sb.from("projects").select("id,name,client,address,brand_pref,created_at,created_by,rec_days,disk_tb,raid,ups_minutes").eq("id", id).is("deleted_at", null).maybeSingle();
+  const { S, lang } = await getStaff();
+  const { data: project } = await c.sb.from("projects").select("id,name,client,address,brand_pref,created_at,created_by,rec_days,disk_tb,raid,ups_minutes,rec_functions").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!project) notFound();
   const [{ data: ptsRaw }, { data: devs }] = await Promise.all([
     c.sb.from("project_points").select("*").eq("project_id", id).is("deleted_at", null).order("created_at"),
     c.sb.from("catalog_devices").select(CAT_COLS).is("deleted_at", null),
   ]);
+  const fns = await loadFunctions(c.sb, c.tenantId);
+  const fnBy = new Map<string, Fn>(fns.map((f) => [f.key, f]));
+  const fnLabel = (k: string) => (fnBy.get(k) ? fnName(fnBy.get(k)!, lang) : k);
+  const brandFn = (k: string, brand: string) => { const f = fnBy.get(k); return f ? (brand === "dahua" ? f.dahua_name : f.unv_name) : null; };
   const pts = (ptsRaw ?? []) as (Point & { project_id: string })[];
   const catalog = (devs ?? []) as CatDevice[];
   const cams = catalog.filter((d) => d.kind === "camera");
@@ -114,7 +122,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const goalName = (g: string) => L("pmGoal_" + g);
   const chosenList = pts.flatMap((p) => { const d = p.chosen_device_id ? byId.get(p.chosen_device_id) : null; return d ? [{ device: d, qty: p.qty }] : []; });
   const raidSel = (["none", "1", "5", "6", "10"] as const).includes(project.raid as never) ? (project.raid as "none" | "1" | "5" | "6" | "10") : "none";
-  const plan = planSystem(chosenList, catalog, { days: project.rec_days, diskTb: Number(project.disk_tb), raid: raidSel, upsMin: project.ups_minutes });
+  const plan = planSystem(chosenList, catalog, { days: project.rec_days, diskTb: Number(project.disk_tb), raid: raidSel, upsMin: project.ups_minutes, recFns: (project.rec_functions ?? []) as string[] });
   const nf1 = (n: number, d = 1) => Number(n.toFixed(d)).toLocaleString("en-US", { maximumFractionDigits: d });
   const raidName = raidSel === "none" ? S.calcRaidNone : `RAID ${raidSel}`;
   const nvrOk = !!plan.nvr?.ok;
@@ -155,10 +163,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <label>{S.pmForm}<select name="form" defaultValue={editing?.form ?? "any"}><option value="any">{S.pmFormAny}</option>{FORMS.map((f) => <option key={f} value={f}>{L("pmForm_" + f)}</option>)}</select></label>
               <label>{S.pmQty}<input name="qty" type="number" min={1} max={500} defaultValue={editing?.qty ?? 1} /></label>
             </div>
-            <fieldset style={{ margin: "10px 0" }}><legend>{S.pmAi}</legend>
-              <div className="row" style={{ gap: 14, flexWrap: "wrap" }}>
-                {AI_OPTIONS.map((a) => <label key={a} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" name="ai" value={a} defaultChecked={editing?.ai?.includes(a) ?? false} style={{ width: "auto" }} />{L("pmAi_" + a)}</label>)}
-              </div>
+            <fieldset style={{ margin: "10px 0" }}><legend>{S.fnTitle}</legend>
+              <FnPicker fns={fns} name="functions" selected={editing?.functions ?? []} scopes={["camera", "both"]} lang={lang} L={L} />
             </fieldset>
             <label>{S.pmNotes}<textarea name="notes" rows={2} maxLength={1000} defaultValue={editing?.notes ?? ""} /></label>
             <div className="row" style={{ gap: 8 }}><button>{S.pmSavePoint}</button>{editing && <Link className="btn ghost" href={`/projects/${id}`}>{S.pmCancel}</Link>}</div>
@@ -184,7 +190,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             </div>
             <p style={{ margin: "6px 0" }}><small>
               {p.env === "indoor" ? S.pmIndoor : S.pmOutdoor} · {S.pmHeight}: {fmtN(p.mount_h_m)} · {S.pmDist}: {fmtN(p.dist_m)} · {S.pmWidth}: {fmtN(p.width_m)} · {goalName(p.goal)} · {S.pmNight}: {fmtN(p.night_m)} ({p.night_type === "ir" ? S.pmNightIr : p.night_type === "color" ? S.pmNightColor : S.pmNightAny}) · {S.pmAudio}: {p.audio === "two_way" ? S.pmAudioTwo : p.audio === "mic" ? S.pmAudioMic : S.pmAudioNone}
-              {p.ai.length ? ` · ${p.ai.map((a) => L("pmAi_" + a)).join(", ")}` : ""}{p.notes ? ` · ${p.notes}` : ""}
+              {(p.functions ?? []).length ? ` · ${p.functions.map(fnLabel).join(", ")}` : ""}{p.notes ? ` · ${p.notes}` : ""}
             </small></p>
             {chosen && <div style={{ margin: "6px 0" }}><b>{S.pmChosen}: {chosen.brand === "dahua" ? "Dahua" : "UNV"} {chosen.model}</b>{c.canEditProjects && <form action={chooseDevice} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="project" value={id} /><input type="hidden" name="id" value={p.id} /><input type="hidden" name="device" value="" /><button className="btn ghost">{S.pmClear}</button></form>}</div>}
             {cams.length === 0 ? <p>{S.pmEmptyCat}</p> : (
@@ -194,6 +200,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                   {shown.map((m) => (
                     <tr key={m.device.id}>
                       <td><b>{m.device.brand === "dahua" ? "Dahua" : "UNV"} {m.device.model}</b>{m.device.description && <><br /><small>{m.device.description}</small></>}
+                        {(p.functions ?? []).length > 0 && <><br /><small>{p.functions.map((k) => { const b = brandFn(k, m.device.brand); return `${fnLabel(k)}${b ? ` (${b})` : ""}`; }).join(", ")}</small></>}
                         {!m.ok && <><br /><small className="err">{m.fails.map((f) => L("pmFail_" + f)).join(", ")}</small></>}</td>
                       <td>{m.device.mpx ?? "—"}</td><td>{m.device.lens_mm ?? "—"}</td><td>{m.device.ir_range_m ?? "—"}</td>
                       <td>{m.dori != null ? `${S.pmDori} ${m.dori} m` : m.ppm != null ? `${Math.round(m.ppm)} / ${m.needPpm}` : "—"}</td>
@@ -219,6 +226,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <label>{S.calcRaid}<select name="raid" defaultValue={raidSel}><option value="none">{S.calcRaidNone}</option>{["1", "5", "6", "10"].map((x) => <option key={x} value={x}>RAID {x}</option>)}</select></label>
               <label>{S.pmUpsMin}<input name="ups_minutes" type="number" min={0} max={1440} defaultValue={project.ups_minutes} style={{ width: 90 }} /></label>
               <button className="btn ghost">{S.save}</button>
+              <fieldset style={{ flexBasis: "100%", margin: 0 }}><legend>{S.fnRecTitle}</legend><FnPicker fns={fns} name="rec_functions" selected={(project.rec_functions ?? []) as string[]} scopes={["recorder", "both"]} lang={lang} L={L} /></fieldset>
             </form>
           )}
           <table style={{ marginTop: 10 }}><tbody>
