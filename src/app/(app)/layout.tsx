@@ -83,7 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if ((staff && canProj === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/projects", label: t("projects") });
   if (staff && canCat === true) nav.push({ href: "/catalog", label: t("catalog") });
   if ((staff && canGuide === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/guide", label: t("guide") });
-  if (staff && canAnn === true && isAdmin !== true) nav.push({ href: "/admin/announcements", label: S.annTitle });
+  if (staff && canAnn === true && isAdmin !== true) nav.push({ href: "/admin/announcements", label: t("announcements") });
   nav.push({ href: "/calculator", label: t("calculator") });
   nav.push({ href: "/account", label: t("account") });
   const userName = me ? `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() : sess.session.user.email ?? "";
