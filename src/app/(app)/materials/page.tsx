@@ -29,7 +29,8 @@ export default async function Materials({ searchParams }: { searchParams: Promis
     sb.from("users").select("kind,tenant_id,first_name,last_name,registration").eq("id", sess.session!.user.id).maybeSingle(),
     sb.rpc("has_permission", { p_code: "materials.view" }), sb.rpc("has_permission", { p_code: "materials.edit" }), sb.rpc("has_permission", { p_code: "materials.delete" }),
   ]);
-  if (me?.kind === "staff" ? canView !== true : me?.registration !== "approved") redirect("/tickets");
+  if (!me) redirect("/login");
+  if (me.kind === "staff" ? canView !== true : me.registration !== "approved") redirect("/tickets");
   const term = (q ?? "").trim().replace(/[%,()*]/g, "").slice(0, 80);
   let query = sb.from("materials").select("id,tenant_id,title,description,body,creator_name,video_url,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
   if (term) { const like = `%${term}%`; query = query.or(`title.ilike.${like},description.ilike.${like},creator_name.ilike.${like},body.ilike.${like}`); }
