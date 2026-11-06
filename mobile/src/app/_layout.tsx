@@ -46,6 +46,7 @@ function Nav() {
         <Stack.Screen name="tickets/password-reset" options={{ title: t("prButton") }} />
         <Stack.Screen name="tutorials/index" options={{ title: t("tutorials") }} />
         <Stack.Screen name="tutorials/[id]" options={{ title: "" }} />
+        <Stack.Screen name="dashboard" options={{ title: t("dashboard") }} />
         <Stack.Screen name="materials/index" options={{ title: t("materials") }} />
         <Stack.Screen name="materials/[id]" options={{ title: "" }} />
         <Stack.Screen name="qc/index" options={{ title: t("qcTitle") }} />

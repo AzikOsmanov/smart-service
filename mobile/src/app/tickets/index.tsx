@@ -23,7 +23,7 @@ export default function Tickets() {
   const [models, setModels] = useState<Map<string, string>>(new Map());
   const [custNames, setCustNames] = useState<Map<string, string>>(new Map());
   const [unread, setUnread] = useState(0);
-  const perms = usePerms(["materials.view"]);
+  const perms = usePerms(["materials.view", "dashboard.view"]);
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const [st, setSt] = useState<string>("");
@@ -110,6 +110,7 @@ export default function Tickets() {
             <Btn kind="ghost" title={`✓ ${t("qc")}`} onPress={() => router.push("/qc")} />
             <Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} />
           </Row>
+          {perms?.["dashboard.view"] ? <Btn kind="ghost" title={`📊 ${t("dashboard")}`} onPress={() => router.push("/dashboard")} /> : null}
           {perms?.["materials.view"] ? <Btn kind="ghost" title={`📘 ${t("materials")}`} onPress={() => router.push("/materials")} /> : null}
           <Choice<Filter> value={filter} onChange={setFilter} options={[{ value: "all", label: t("all") }, { value: "mine", label: t("mine") }, { value: "new", label: t("unassigned") }]} />
         </>
