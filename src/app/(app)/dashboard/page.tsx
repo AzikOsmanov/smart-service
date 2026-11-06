@@ -9,28 +9,34 @@ type Stats = {
   by_status: Record<string, number>; by_device_status: Record<string, number>; warranty: { warranty: number; paid: number };
   fees: { currency: string; total: number; count: number }[]; engineers: { name: string; open: number; closed: number; overdue: number }[];
   daily: { day: string; created: number; closed: number }[];
+  svc: { diagnose: number; in_progress: number; done: number; repair_not_possible: number; replaced: number };
 };
+type Row = { id: string; no: number; subject: string; status: string; device_status: string | null; assignee: string | null; customer: string | null; sn: string | null; created_at: string; value: string | null };
 
 const DAY = 86400000, BAKU = 4 * 3600000;   // Azerbaijan has no daylight saving: UTC+4
 const ymd = (ms: number) => new Date(ms + BAKU).toISOString().slice(0, 10);
 const startOf = (d: string) => new Date(`${d}T00:00:00+04:00`).getTime();
 const valid = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(startOf(d));
 
-function Tile({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
-  return <div className="card" style={{ margin: 0, minWidth: 150, flex: "1 1 150px" }}><small>{label}</small><div style={{ fontSize: 28, fontWeight: 700, color: warn ? "#ef4444" : undefined }}>{value}</div></div>;
+function Tile({ label, value, warn, href, active }: { label: string; value: string | number; warn?: boolean; href: string; active?: boolean }) {
+  return (
+    <a href={href} className="card" style={{ margin: 0, minWidth: 150, flex: "1 1 150px", textDecoration: "none", color: "inherit", cursor: "pointer", outline: active ? "2px solid var(--accent, #3b82f6)" : undefined }}>
+      <small>{label}</small><div style={{ fontSize: 28, fontWeight: 700, color: warn ? "#ef4444" : undefined }}>{value}</div>
+    </a>);
 }
-function Bars({ rows, none }: { rows: { label: string; value: number }[]; none: string }) {
+const METRICS = ["open_now", "overdue", "created", "closed", "devices", "diagnose", "in_progress", "done", "repair_not_possible", "replaced", "avg_close", "avg_first", "rating", "warranty", "paid", "fees"];
+function Bars({ rows, none }: { rows: { label: string; value: number; href?: string }[]; none: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   if (!rows.length) return <p><small>{none}</small></p>;
   return <div>{rows.map((r) => (
     <div key={r.label} style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0" }}>
-      <span style={{ width: 160 }}>{r.label}</span>
+      <span style={{ width: 160 }}>{r.href ? <a href={r.href}>{r.label}</a> : r.label}</span>
       <span style={{ flex: 1, background: "var(--line, #8883)", borderRadius: 6, height: 14 }}><span style={{ display: "block", width: `${(r.value / max) * 100}%`, height: 14, borderRadius: 6, background: "var(--accent, #3b82f6)" }} /></span>
       <b style={{ width: 36, textAlign: "right" }}>{r.value}</b>
     </div>))}</div>;
 }
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ p?: string; from?: string; to?: string }> }) {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ p?: string; from?: string; to?: string; m?: string }> }) {
   const sp = await searchParams;
   const sb = await supabaseServer();
   const { S } = await getStaff();
@@ -48,9 +54,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   }
   const { data, error } = await sb.rpc("dashboard_stats", { p_from: new Date(startOf(fromD)).toISOString(), p_to: new Date(startOf(toD) + DAY).toISOString() });
   const d = data as Stats | null;
+  const m = sp.m && METRICS.includes(sp.m) ? sp.m : "";
+  const fromIso = new Date(startOf(fromD)).toISOString(), toIso = new Date(startOf(toD) + DAY).toISOString();
+  const { data: listData } = m ? await sb.rpc("dashboard_tickets", { p_metric: m, p_from: fromIso, p_to: toIso }) : { data: null };
+  const list = (listData ?? []) as Row[];
+  const base = p === "custom" ? `/dashboard?p=custom&from=${fromD}&to=${toD}` : `/dashboard?p=${p}`;
+  const L = (k: string) => `${base}&m=${k}#list`;
   const tab = (k: string, label: string) => <a key={k} className={`btn ${p === k ? "" : "ghost"}`} href={`/dashboard?p=${k}`} style={{ textDecoration: "none" }}>{label}</a>;
   const h = (v: number | null) => (v == null ? "—" : `${v} ${S.dashHours}`);
   const stLabel: Record<string, string> = { new: S.dashStNew, assigned: S.dashStAssigned, in_progress: S.dashStInProgress, waiting_customer: S.dashStWaiting };
+  const metricName = (k: string) => ({ open_now: S.dashOpenNow, overdue: S.dashOverdue, created: S.dashCreated, closed: S.dashClosed, devices: S.dashDevices, diagnose: S.dashDiagnose, in_progress: S.dashInProgress, done: S.dashDone, repair_not_possible: S.dashRnp, replaced: S.dashReplaced, avg_close: S.dashAvgClose, avg_first: S.dashAvgFirst, rating: S.dashSatisfaction, warranty: S.dashWarrantyWord, paid: S.dashPaidWord, fees: S.dashFees } as Record<string, string>)[k] ?? k;
   const devLabel = (k: string) => { const v = (t as (k: string) => string)(`st_${k}`); return v || k; };
   return (
     <div>
@@ -68,25 +81,53 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <>
           {!d.scope_all && <p><small>{S.dashMyOnly}</small></p>}
           <div className="row" style={{ gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-            <Tile label={S.dashOpenNow} value={d.open_now} />
-            <Tile label={S.dashOverdue} value={d.overdue} warn={d.overdue > 0} />
-            <Tile label={S.dashCreated} value={d.created} />
-            <Tile label={S.dashClosed} value={d.closed} />
-            <Tile label={S.dashDevices} value={d.devices_in_service} />
+            <Tile href={L("open_now")} active={m === "open_now"} label={S.dashOpenNow} value={d.open_now} />
+            <Tile href={L("overdue")} active={m === "overdue"} label={S.dashOverdue} value={d.overdue} warn={d.overdue > 0} />
+            <Tile href={L("created")} active={m === "created"} label={S.dashCreated} value={d.created} />
+            <Tile href={L("closed")} active={m === "closed"} label={S.dashClosed} value={d.closed} />
+            <Tile href={L("devices")} active={m === "devices"} label={S.dashDevices} value={d.devices_in_service} />
           </div>
           <div className="row" style={{ gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-            <Tile label={S.dashAvgClose} value={h(d.avg_close_hours)} />
-            <Tile label={S.dashAvgFirst} value={h(d.avg_first_response_hours)} />
-            <Tile label={S.dashSatisfaction} value={d.avg_satisfaction ?? "—"} />
+            <Tile href={L("avg_close")} active={m === "avg_close"} label={S.dashAvgClose} value={h(d.avg_close_hours)} />
+            <Tile href={L("avg_first")} active={m === "avg_first"} label={S.dashAvgFirst} value={h(d.avg_first_response_hours)} />
+            <Tile href={L("rating")} active={m === "rating"} label={S.dashSatisfaction} value={d.avg_satisfaction ?? "—"} />
           </div>
+          <h2 style={{ marginTop: 20 }}>{S.dashStatuses}</h2>
+          <div className="row" style={{ gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <Tile href={L("diagnose")} active={m === "diagnose"} label={S.dashDiagnose} value={d.svc.diagnose} />
+            <Tile href={L("in_progress")} active={m === "in_progress"} label={S.dashInProgress} value={d.svc.in_progress} />
+            <Tile href={L("done")} active={m === "done"} label={S.dashDone} value={d.svc.done} />
+            <Tile href={L("repair_not_possible")} active={m === "repair_not_possible"} label={S.dashRnp} value={d.svc.repair_not_possible} />
+            <Tile href={L("replaced")} active={m === "replaced"} label={S.dashReplaced} value={d.svc.replaced} />
+          </div>
+          {m && (
+            <div className="card" id="list">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <h2 style={{ margin: 0 }}>{S.dashListFor} {metricName(m)}</h2>
+                <a className="btn ghost" href={base} style={{ textDecoration: "none" }}>{S.dashClose}</a>
+              </div>
+              {list.length === 0 ? <p><small>{S.dashNone}</small></p> : (
+                <div style={{ overflowX: "auto" }}>
+                  <table><thead><tr><th>{S.dashColNo}</th><th>{S.dashColSubject}</th><th>{S.dashColCustomer}</th><th>{S.dashColSn}</th><th>{S.dashColStatus}</th>{d.scope_all && <th>{S.dashColEngineer}</th>}{list.some((r) => r.value) && <th>{S.dashColValue}</th>}<th>{S.dashColCreated}</th></tr></thead>
+                    <tbody>{list.map((r) => (
+                      <tr key={r.id}>
+                        <td><a href={`/tickets/${r.id}`}>#{r.no}</a></td><td><a href={`/tickets/${r.id}`}>{r.subject}</a></td><td>{r.customer ?? "—"}</td><td>{r.sn ?? "—"}</td>
+                        <td><span className="badge">{r.device_status ? devLabel(r.device_status) : (stLabel[r.status] ?? r.status)}</span></td>
+                        {d.scope_all && <td>{r.assignee ?? "—"}</td>}{list.some((x) => x.value) && <td><b>{r.value ?? ""}</b></td>}
+                        <td>{new Date(r.created_at).toLocaleString()}</td>
+                      </tr>))}</tbody></table>
+                </div>)}
+              {list.length >= 200 && <small>{S.dashListMax}</small>}
+            </div>
+          )}
           <div className="row" style={{ gap: 12, alignItems: "stretch", flexWrap: "wrap" }}>
             <div className="card" style={{ flex: "1 1 320px", margin: 0 }}><h2>{S.dashByStatus}</h2>
               <Bars none={S.dashNone} rows={Object.entries(d.by_status).map(([k, v]) => ({ label: stLabel[k] ?? k, value: v }))} /></div>
             <div className="card" style={{ flex: "1 1 320px", margin: 0 }}><h2>{S.dashByDevStatus}</h2>
               <Bars none={S.dashNone} rows={Object.entries(d.by_device_status).map(([k, v]) => ({ label: devLabel(k), value: v }))} /></div>
             <div className="card" style={{ flex: "1 1 320px", margin: 0 }}><h2>{S.dashWarranty}</h2>
-              <Bars none={S.dashNone} rows={[{ label: S.dashWarrantyWord, value: d.warranty.warranty }, { label: S.dashPaidWord, value: d.warranty.paid }]} />
-              <h2 style={{ marginTop: 16 }}>{S.dashFees}</h2>
+              <Bars none={S.dashNone} rows={[{ label: S.dashWarrantyWord, value: d.warranty.warranty, href: L("warranty") }, { label: S.dashPaidWord, value: d.warranty.paid, href: L("paid") }]} />
+              <h2 style={{ marginTop: 16 }}><a href={L("fees")} style={{ color: "inherit" }}>{S.dashFees}</a></h2>
               {d.fees.length ? d.fees.map((f) => <div key={f.currency}><b>{Number(f.total).toLocaleString(undefined, { maximumFractionDigits: 2 })} {f.currency}</b> <small>({f.count})</small></div>) : <small>{S.dashNone}</small>}
             </div>
           </div>
