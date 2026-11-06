@@ -3,15 +3,18 @@
 export type Brand = "dahua" | "unv";
 export const BRANDS: { id: Brand; name: string }[] = [{ id: "dahua", name: "Dahua" }, { id: "unv", name: "Uniview (UNV)" }];
 
-// Dahua: typical bitrate per camera, Kbps at 25 fps with H.264 and a normal scene (estimates, not yet matched to Dahua's own tool).
-export const RESOLUTIONS: { id: string; label: string; kbps: number }[] = [
-  { id: "1", label: "1 MP (720p)", kbps: 2000 }, { id: "2", label: "2 MP (1080p)", kbps: 4000 }, { id: "3", label: "3 MP", kbps: 5000 },
-  { id: "4", label: "4 MP", kbps: 6000 }, { id: "5", label: "5 MP", kbps: 8000 }, { id: "6", label: "6 MP", kbps: 10000 }, { id: "8", label: "8 MP (4K)", kbps: 12000 },
+// Dahua: taken from the Dahua storage tool (25 fps, PAL): H.265 and Smart H.265+ with environment High give the same value; Smart H.265+ Low is lower (about a quarter).
+// h265 = H.265 / Smart High, low = Smart H.265+ Low, Kbps per camera. H.264, Smart Medium and other frame rates are not in the screenshots, so they are estimates.
+export const RESOLUTIONS: { id: string; label: string; kbps: number; low: number }[] = [
+  { id: "d720", label: "720P", kbps: 1024, low: 256 }, { id: "d960", label: "960P", kbps: 1024, low: 256 }, { id: "d1080", label: "1080P", kbps: 2048, low: 512 },
+  { id: "d3", label: "3MP", kbps: 2048, low: 512 }, { id: "d4", label: "4MP", kbps: 2560, low: 768 }, { id: "d5", label: "5MP", kbps: 3072, low: 768 },
+  { id: "d6", label: "6MP", kbps: 3072, low: 768 }, { id: "d8", label: "8MP (4K)", kbps: 4096, low: 1024 }, { id: "d9", label: "9MP", kbps: 4096, low: 1024 },
+  { id: "d12", label: "12MP", kbps: 6144, low: 1536 },
 ];
-// Dahua compression: share of the H.264 bitrate still needed. "smart" is H.265+ (Smart Codec).
+export const H264_X = 2;   // estimate: H.264 needs about twice the H.265 bitrate
 export const CODEC_FACTOR = { h264: 1, h265: 0.5, smart: 0.4 } as const;
 export type Codec = keyof typeof CODEC_FACTOR;
-export const SMART_NAME: Record<Brand, string> = { dahua: "H.265+ (Smart Codec)", unv: "Ultra 265" };
+export const SMART_NAME: Record<Brand, string> = { dahua: "Smart H.265+", unv: "Ultra 265" };
 
 // UNV: taken from the UNV storage tool (H.265, 25 fps, U-Code Advanced Mode, environmental complexity Medium), Kbps per camera.
 // The tool uses steps by resolution. U-Code Off doubles the value (seen at 32 MP: 8704 against 4352).
@@ -73,8 +76,12 @@ export function diskCalc(i: DiskIn): DiskOut {
     base = off * { off: { low: 1, med: 1, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode][cx];
     estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "adv" && cx !== "med" && r.id !== "1080");
   } else {
-    base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
-    estimated = true;
+    const r = RESOLUTIONS.find((x) => x.id === i.res) ?? RESOLUTIONS[4];
+    const cx = i.cx ?? "high";
+    if (i.codec === "smart") { base = cx === "low" ? r.low : cx === "high" ? r.kbps : (r.low + r.kbps) / 2; estimated = cx === "med"; }
+    else if (i.codec === "h265") base = r.kbps;
+    else { base = r.kbps * H264_X; estimated = true; }
+    if (i.fps !== 25) estimated = true;
   }
   // The UNV tool gives the same bitrate at 12, 15 and 25 fps, so UNV is not scaled by frame rate; Dahua estimates are scaled.
   const kbpsPerCam = i.bitrate && i.bitrate > 0 ? i.bitrate : base * (i.brand === "unv" ? 1 : i.fps / 25);
