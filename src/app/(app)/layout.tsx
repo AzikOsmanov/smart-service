@@ -7,7 +7,7 @@ import Heartbeat from "@/components/Heartbeat";
 import IdleLogout from "@/components/IdleLogout";
 import { getStaff } from "@/lib/i18n-staff";
 import { cookies } from "next/headers";
-import { logLoginEvent, getLoginPolicy, clientInfo, ipAllowed } from "@/lib/login-security";
+import { logLoginEvent, parseLoginPolicy, clientInfo, ipAllowed } from "@/lib/login-security";
 import NotificationBell from "@/components/NotificationBell";
 import type { Notif } from "@/lib/notif-text";
 
@@ -35,37 +35,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!sess.session) redirect("/login");
   const { t, lang } = await getT();
   const { S } = await getStaff();
-  const [{ data: me }, { data: isAdmin }, { data: brandRow }, { data: canQc }, { data: canClaims }, { data: canDevices }, { data: canTut }, { data: canMat }, { data: canDash }, { data: canProj }, { data: canCat }, { data: canGuide }, { data: canAnn }] = await Promise.all([
-    sb.from("users").select("first_name,last_name,kind,registration").eq("id", sess.session.user.id).maybeSingle(),
-    sb.rpc("is_tenant_admin"),
-    supabaseAdmin().from("settings").select("value").eq("key", "brand_name").maybeSingle(),
-    sb.rpc("has_permission", { p_code: "qc.view" }),
-    sb.rpc("has_permission", { p_code: "devices.claims.view" }),
-    sb.rpc("has_permission", { p_code: "devices.view" }),
-    sb.rpc("has_permission", { p_code: "tutorials.view" }),
-    sb.rpc("has_permission", { p_code: "materials.view" }),
-    sb.rpc("has_permission", { p_code: "dashboard.view" }),
-    sb.rpc("has_permission", { p_code: "projects.view" }),
-    sb.rpc("has_permission", { p_code: "catalog.view" }),
-    sb.rpc("has_permission", { p_code: "guide.view" }),
-    sb.rpc("has_permission", { p_code: "announcements.edit" }),
-  ]);
-  const [{ data: nItems }, { count: nUnread }] = await Promise.all([
+  const [{ data: shell }, { data: nItems }, { count: nUnread }] = await Promise.all([
+    sb.rpc("app_shell"),
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
     sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
+  const sh = (shell ?? {}) as { first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
+  const me = shell ? { first_name: sh.first_name, last_name: sh.last_name, kind: sh.kind, registration: sh.registration } : null;
+  const isAdmin = sh.is_admin === true;
+  const pm = sh.perms ?? {};
+  const canQc = pm["qc.view"], canClaims = pm["devices.claims.view"], canDevices = pm["devices.view"], canTut = pm["tutorials.view"], canMat = pm["materials.view"], canDash = pm["dashboard.view"], canProj = pm["projects.view"], canCat = pm["catalog.view"], canGuide = pm["guide.view"], canAnn = pm["announcements.edit"];
+  const brandRow = { value: sh.brand };
   let idleMinutes = 0;
   // Network allow-list also applies to sessions that are already open (e.g. an employee who leaves the office network).
-  if (me?.kind) {
-    const { data: tn } = await sb.from("users").select("tenant_id").eq("id", sess.session.user.id).maybeSingle();
-    if (tn?.tenant_id) {
-      const policy = await getLoginPolicy(tn.tenant_id);
-      idleMinutes = policy.idle_minutes_web;
-      if (policy.ip_allowlist.length) {
-        const { ip } = await clientInfo();
-        const admin = isAdmin === true && !policy.ip_include_admins;
-        if (!ipAllowed(policy, { ip, staff: me.kind === "staff", admin, client: "web" })) redirect("/auth/blocked");
-      }
+  if (me?.kind && sh.tenant_id) {
+    const policy = parseLoginPolicy(sh.login_security);
+    idleMinutes = policy.idle_minutes_web;
+    if (policy.ip_allowlist.length) {
+      const { ip } = await clientInfo();
+      const admin = isAdmin && !policy.ip_include_admins;
+      if (!ipAllowed(policy, { ip, staff: me.kind === "staff", admin, client: "web" })) redirect("/auth/blocked");
     }
   }
   const brand = typeof brandRow?.value === "string" && brandRow.value ? brandRow.value : "Acom Smart Service";
@@ -79,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (staff && canQc === true) nav.push({ href: "/qc", label: t("qc") });
   if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
   if ((staff && canMat === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/materials", label: t("materials") });
-  if (isAdmin === true) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
+  if (isAdmin) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
   if ((staff && canProj === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/projects", label: t("projects") });
   if (staff && canCat === true) nav.push({ href: "/catalog", label: t("catalog") });
   if ((staff && canGuide === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/guide", label: t("guide") });

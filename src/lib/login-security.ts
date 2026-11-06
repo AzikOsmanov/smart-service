@@ -18,7 +18,10 @@ const idleOf = (x: unknown, d: number) => (typeof x === "number" && Number.isFin
 
 export async function getLoginPolicy(tenantId: string): Promise<LoginPolicy> {
   const { data } = await supabaseAdmin().from("settings").select("value").eq("tenant_id", tenantId).eq("key", "login_security").maybeSingle();
-  const v = (data?.value ?? {}) as Partial<LoginPolicy>;
+  return parseLoginPolicy(data?.value);
+}
+export function parseLoginPolicy(raw: unknown): LoginPolicy {
+  const v = (raw ?? {}) as Partial<LoginPolicy>;
   return {
     max_failed_attempts: Number.isFinite(v.max_failed_attempts) ? Math.max(1, Number(v.max_failed_attempts)) : DEFAULTS.max_failed_attempts,
     lockout_minutes: Number.isFinite(v.lockout_minutes) ? Math.max(1, Number(v.lockout_minutes)) : DEFAULTS.lockout_minutes,
