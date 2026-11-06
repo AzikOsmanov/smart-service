@@ -26,7 +26,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   }, []);
   const value = useMemo<Prefs>(() => ({
     lang, theme, c: PALETTES[theme],
-    t: (k, v) => fmt(TEXTS[lang][k] ?? TEXTS.en[k], v),
+    t: (k, v) => fmt(TEXTS[lang][k] ?? TEXTS.en[k] ?? String(k), v),
     setLang: (l) => { setLangState(l); AsyncStorage.setItem("lang", l).catch(() => {}); },
     setTheme: (x) => { setThemeState(x); AsyncStorage.setItem("theme", x).catch(() => {}); },
   }), [lang, theme]);

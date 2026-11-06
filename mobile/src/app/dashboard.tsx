@@ -55,6 +55,7 @@ export default function Dashboard() {
 
   const hrs = (v: number | null) => (v == null ? "—" : `${v} ${t("dashHours")}`);
   const stLabel: Record<string, string> = { new: t("dashStNew"), assigned: t("dashStAssigned"), in_progress: t("dashStInProgress"), waiting_customer: t("dashStWaiting") };
+  const devLabel: Record<string, string> = { received: t("received"), diagnose: t("diagnose"), ready: t("ready"), repair_not_possible: t("repair_not_possible"), pickup_new_device: t("pickup_new_device"), in_progress: t("dashInProgress"), done: t("dashDone"), replaced: t("dashReplaced") };
   const Tile = ({ label, value, warn, m }: { label: string; value: string | number; warn?: boolean; m: string }) => (
     <Pressable onPress={() => openList(metric === m ? null : m)} style={{ flexBasis: "47%", flexGrow: 1, backgroundColor: c.card, borderColor: metric === m ? c.accent : c.border, borderWidth: metric === m ? 2 : 1, borderRadius: 12, padding: 12 }}>
       <Txt muted small>{label}</Txt>
@@ -126,7 +127,7 @@ export default function Dashboard() {
             </Card>
           )}
           <Card><Txt bold>{t("dashByStatus")}</Txt><Bars rows={Object.entries(d.by_status).map(([k, v]) => [stLabel[k] ?? k, v])} /></Card>
-          <Card><Txt bold>{t("dashByDevStatus")}</Txt><Bars rows={Object.entries(d.by_device_status).map(([k, v]) => [(t as (k: string) => string)(`st_${k}`) || k, v])} /></Card>
+          <Card><Txt bold>{t("dashByDevStatus")}</Txt><Bars rows={Object.entries(d.by_device_status).map(([k, v]) => [devLabel[k] ?? k, v])} /></Card>
           <Card>
             <Txt bold>{t("dashWarranty")}</Txt>
             <Bars rows={[[t("dashWarrantyWord"), d.warranty.warranty], [t("dashPaidWord"), d.warranty.paid]]} />
