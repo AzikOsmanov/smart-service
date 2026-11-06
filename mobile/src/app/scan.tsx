@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import TextRecognition from "@react-native-ml-kit/text-recognition";
 import { router, useLocalSearchParams } from "expo-router";
 import { usePrefs } from "@/lib/prefs";
 import { sb } from "@/lib/supabase";
@@ -40,6 +41,25 @@ async function rank(all: Map<string, Cand>): Promise<Scored[]> {
   }).sort((p, q) => q.score - p.score);
 }
 
+// Printed "SN: ABC123..." text (no barcode on the device, or the only QR is the cloud-bind code of a Wi-Fi camera).
+// Take a photo, read the text on the phone (ML Kit), and keep what follows the SN / S/N / Serial label.
+const LABEL = /(?:\bS\s*\/\s*N\b|\bSN\b|\bSERIAL\s*(?:NO\.?|NUMBER|NUM\.?)?)\s*[:#.\-]?\s*(.*)$/i;
+const tokenOf = (rest: string) => {
+  const m = rest.toUpperCase().replace(/[^A-Z0-9\-\s]/g, " ").trim().split(/\s+/)[0] ?? "";
+  const t = m.replace(/-/g, "");
+  return /\d/.test(t) && t.length >= 6 && t.length <= 32 && !isMac(t) ? t : "";
+};
+function parsePrinted(lines: string[]): Cand[] {
+  const out = new Map<string, Cand>();
+  lines.map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean).forEach((ln, i, arr) => {
+    const m = ln.match(LABEL);
+    if (!m) return;
+    const t = tokenOf(m[1]) || (m[1].trim() === "" ? tokenOf(arr[i + 1] ?? "") : "");   // label alone on its line: value is on the next line
+    if (t) out.set(t, { code: t, linear: true });
+  });
+  return [...out.values()];
+}
+
 export default function Scan() {
   const { t, c } = usePrefs();
   const { target } = useLocalSearchParams<{ target?: string }>();
@@ -47,6 +67,8 @@ export default function Scan() {
   const seen = useRef(new Map<string, Cand>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const done = useRef(false);
+  const cam = useRef<CameraView>(null);
+  const [reading, setReading] = useState(false);
   const [choices, setChoices] = useState<Cand[] | null>(null);
   const [hint, setHint] = useState("");
 
@@ -60,6 +82,23 @@ export default function Scan() {
     else setChoices(res.filter((x) => res[0].score - x.score < 20).slice(0, 4));
   };
 
+  const readText = async () => {
+    if (done.current || reading || !cam.current) return;
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    seen.current.clear(); setChoices(null); setReading(true); setHint(t("scanTextBusy"));
+    try {
+      const pic = await cam.current.takePictureAsync({ quality: 0.8, skipProcessing: false });
+      const res = await TextRecognition.recognize(pic.uri);
+      const lines = (res.blocks ?? []).flatMap((b) => (b.lines ?? []).map((l) => l.text));
+      const found = parsePrinted(lines.length ? lines : String(res.text ?? "").split("\n"));
+      if (found.length === 0) { setHint(t("scanTextNone")); return; }
+      if (found.length === 1) { finish(found[0].code); return; }
+      const ranked = await rank(new Map(found.map((x) => [x.code, x])));
+      setChoices(ranked.slice(0, 4));
+    } catch { setHint(t("scanTextNone")); }
+    finally { setReading(false); }
+  };
+
   if (!perm) return <Screen><Txt muted>…</Txt></Screen>;
   if (!perm.granted) {
     return (
@@ -71,10 +110,10 @@ export default function Scan() {
   }
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <CameraView style={{ flex: 1 }} facing="back"
+      <CameraView ref={cam} style={{ flex: 1 }} facing="back"
         barcodeScannerSettings={{ barcodeTypes: ["qr", "code128", "code39", "code93", "ean13", "ean8", "upc_a", "upc_e", "datamatrix", "pdf417", "itf14", "codabar", "aztec"] }}
         onBarcodeScanned={(r) => {
-          if (done.current || choices) return;
+          if (done.current || choices || reading) return;
           const code = clean(String(r.data ?? ""));
           if (!code) return;
           const type = String((r as any).type ?? "").toLowerCase();
@@ -96,6 +135,7 @@ export default function Scan() {
             </>
           ) : <Txt>{hint || t("scanHint")}</Txt>}
         </View>
+        {!choices && <Btn kind="ghost" title={reading ? t("scanTextBusy") : t("scanText")} onPress={readText} />}
         {choices ? <Btn kind="ghost" title={t("scan")} onPress={() => { seen.current.clear(); setChoices(null); setHint(""); }} /> : null}
         <Btn kind="primary" title={t("cancel")} onPress={() => router.back()} />
       </View>
