@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   const exp = Number(req.cookies.get("ss_exp")?.value ?? 0);
   if (data.user && exp > 0 && Date.now() > exp) {
     await supabase.auth.signOut();
-    const r = NextResponse.redirect(new URL("/login?error=" + encodeURIComponent("Your session has ended. Please sign in again."), req.url));
+    const r = NextResponse.redirect(new URL("/login?e=session", req.url));
     res.cookies.getAll().forEach((c) => r.cookies.set(c));
     r.cookies.delete("ss_exp");
     return r;

@@ -4,6 +4,7 @@ import { Stack, router, useFocusEffect } from "expo-router";
 import { sb } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
+import { usePerms } from "@/lib/perm";
 import { takeScan } from "@/lib/scan-store";
 import { setBadge } from "@/lib/push";
 import { warrantyText } from "@/lib/warranty";
@@ -22,6 +23,7 @@ export default function Tickets() {
   const [models, setModels] = useState<Map<string, string>>(new Map());
   const [custNames, setCustNames] = useState<Map<string, string>>(new Map());
   const [unread, setUnread] = useState(0);
+  const perms = usePerms(["materials.view"]);
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const [st, setSt] = useState<string>("");
@@ -108,6 +110,7 @@ export default function Tickets() {
             <Btn kind="ghost" title={`✓ ${t("qc")}`} onPress={() => router.push("/qc")} />
             <Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} />
           </Row>
+          {perms?.["materials.view"] ? <Btn kind="ghost" title={`📘 ${t("materials")}`} onPress={() => router.push("/materials")} /> : null}
           <Choice<Filter> value={filter} onChange={setFilter} options={[{ value: "all", label: t("all") }, { value: "mine", label: t("mine") }, { value: "new", label: t("unassigned") }]} />
         </>
       ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /><Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} /></>}

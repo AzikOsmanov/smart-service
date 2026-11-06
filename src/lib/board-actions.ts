@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { getStaff } from "@/lib/i18n-staff";
 import { after } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { processOutbox } from "@/lib/outbox";
@@ -14,23 +15,23 @@ const SERVICE: Record<Exclude<BoardTarget, "new">, string> = {
 export async function moveTicketAction(ticketId: string, target: BoardTarget): Promise<{ error?: string }> {
   const sb = await supabaseServer();
   const { data: can } = await sb.rpc("has_permission", { p_code: "tickets.board.edit" });
-  if (can !== true) return { error: "You do not have permission to move tickets on the board." };
-  if (target === "new") return { error: "A ticket cannot be moved back to New." };
+  if (can !== true) return { error: (await getStaff()).S.msgBoardNoPerm };
+  if (target === "new") return { error: (await getStaff()).S.msgBoardNotNew };
   const { data: auth } = await sb.auth.getUser();
   const { data: t } = await sb.from("tickets").select("id,assigned_to").eq("id", ticketId).is("deleted_at", null).maybeSingle();
-  if (!t || !auth.user) return { error: "Ticket not found." };
+  if (!t || !auth.user) return { error: (await getStaff()).S.msgTicketNotFound };
 
   if (!t.assigned_to) {
     const { data: taken, error } = await sb.from("tickets").update({ assigned_to: auth.user.id, status: "assigned" })
       .eq("id", ticketId).is("assigned_to", null).select("id");
     if (error) return { error: error.message };
-    if (!taken || taken.length === 0) return { error: "Someone else already took this ticket. Refresh the board." };
+    if (!taken || taken.length === 0) return { error: (await getStaff()).S.msgBoardTaken };
     after(() => processOutbox());
     if (target === "diagnose") { revalidatePath("/tickets/board"); return {}; }
   }
   const { error } = await sb.rpc("set_device_service_status", { p_ticket: ticketId, p_status: SERVICE[target], p_comment: "Moved on the board" });
   if (error) {
-    return { error: error.message.includes("ticket_frozen") ? "This ticket is closed. Only the administrator can reopen it." : error.message };
+    return { error: error.message.includes("ticket_frozen") ? (await getStaff()).S.msgBoardFrozen : error.message };
   }
   after(() => processOutbox());
   revalidatePath("/tickets/board");

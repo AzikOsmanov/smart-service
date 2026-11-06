@@ -44,7 +44,7 @@ async function setFee(fd: FormData) {
   const id = String(fd.get("id"));
   const raw = String(fd.get("amount") || "").trim().replace(",", ".");
   const amount = raw === "" ? null : Number(raw);
-  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) redirect(`/tickets/${id}?error=${encodeURIComponent("Enter a valid amount.")}`);
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) redirect(`/tickets/${id}?error=${encodeURIComponent((await getStaff()).S.msgValidAmount)}`);
   const { error } = await sb.rpc("set_ticket_fee", { p_ticket: id, p_amount: amount, p_currency: amount === null ? null : String(fd.get("currency") || "") });
   if (error) redirect(`/tickets/${id}?error=${encodeURIComponent(error.message)}`);
   revalidatePath(`/tickets/${id}`);

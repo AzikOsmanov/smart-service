@@ -6,24 +6,25 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getLoginPolicy, logLoginEvent, clientInfo, ipAllowed, isAdminUser, registerDevice, browserLabel } from "@/lib/login-security";
 import HashAuth from "@/components/HashAuth";
 import { getPortal } from "@/lib/i18n-portal";
+import { getStaff } from "@/lib/i18n-staff";
 
 async function signIn(fd: FormData) {
   "use server";
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
-  const fail = (m: string): never => redirect("/login?error=" + encodeURIComponent(m));
+  const fail = (code: string, n?: number): never => redirect("/login?e=" + code + (n ? "&n=" + n : ""));
   const admin = supabaseAdmin();
   const { data: u } = await admin.from("users").select("id,tenant_id,kind,first_name,last_name,is_active,locked_until,failed_login_count").eq("email", email).is("deleted_at", null).maybeSingle();
   const tenantId = u?.tenant_id ?? (await admin.from("tenants").select("id").eq("slug", "default").maybeSingle()).data?.id;
 
   if (u && u.is_active === false) {
     if (tenantId) await logLoginEvent({ tenantId, userId: u.id, email, event: "login_failed", reason: "deactivated" });
-    fail("This account is deactivated. Contact the service center.");
+    fail("deactivated");
   }
   if (u?.locked_until && new Date(u.locked_until) > new Date()) {
     const mins = Math.max(1, Math.ceil((new Date(u.locked_until).getTime() - Date.now()) / 60000));
     await logLoginEvent({ tenantId: u.tenant_id, userId: u.id, email, event: "login_failed", reason: "locked" });
-    fail(`Too many failed attempts. The account is locked for about ${mins} more minute(s), or ask the administrator to unlock it.`);
+    fail("locked", mins);
   }
 
   // Network allow-list: checked before the password, so a blocked address learns nothing.
@@ -34,7 +35,7 @@ async function signIn(fd: FormData) {
       const admin2 = policy.ip_include_admins ? false : await isAdminUser(u.id);
       if (!ipAllowed(policy, { ip, staff: u.kind === "staff", admin: admin2, client: "web" })) {
         await logLoginEvent({ tenantId, userId: u.id, email, event: "login_failed", reason: "ip_not_allowed" });
-        fail("Sign-in is not allowed from this network address. Use the company network or contact the administrator.");
+        fail("ip");
       }
     }
   }
@@ -55,7 +56,7 @@ async function signIn(fd: FormData) {
     } else if (tenantId) {
       await logLoginEvent({ tenantId, email, event: "login_failed", reason: "unknown email" });
     }
-    fail(error.message);
+    fail(/invalid login/i.test(error.message) ? "creds" : /not confirmed/i.test(error.message) ? "unconfirmed" : "raw:" + encodeURIComponent(error.message.slice(0, 160)));
   }
   if (u && tenantId) {
     await admin.from("users").update({ failed_login_count: 0, locked_until: null, last_login_at: new Date().toISOString() }).eq("id", u.id);
@@ -75,8 +76,12 @@ async function signIn(fd: FormData) {
   redirect("/tickets");
 }
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; e?: string; n?: string }> }) {
+  const sp = await searchParams;
+  const { S } = await getStaff();
+  const n = String(Math.min(9999, Math.max(1, Number(sp.n) || 1)));
+  const codes: Record<string, string> = { deactivated: S.loginDeactivated, locked: S.loginLocked.replace("{n}", n), ip: S.loginIpBlocked, blocked: S.accessIpBlocked, session: S.loginSessionEnded, creds: S.loginBadCreds, unconfirmed: S.loginEmailUnconfirmed };
+  const error = sp.e ? (codes[sp.e] ?? (sp.e.startsWith("raw:") ? (() => { try { return decodeURIComponent(sp.e!.slice(4)); } catch { return ""; } })() : "")) : sp.error;
   const { t } = await getT();
   const { L } = await getPortal();
   return (

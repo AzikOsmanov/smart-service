@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
 import TutorialAdd from "@/components/TutorialAdd";
+import TutorialEdit from "@/components/TutorialEdit";
 import ConfirmButton from "@/components/ConfirmButton";
 
 async function remove(fd: FormData) {
@@ -28,7 +29,7 @@ export default async function Tutorials() {
     sb.rpc("has_permission", { p_code: "tutorials.view" }), sb.rpc("has_permission", { p_code: "tutorials.edit" }), sb.rpc("has_permission", { p_code: "tutorials.delete" }),
   ]);
   if (staff && canView !== true) redirect("/tickets");
-  const { data: rows, error } = await sb.from("tutorials").select("id,title,description,audience,source,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+  const { data: rows, error } = await sb.from("tutorials").select("id,title,description,audience,source,url,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
   const aud: Record<string, string> = { all: S.tutAudAll, customers: S.tutAudCustomers, staff: S.tutAudStaff };
   return (
     <div>
@@ -48,6 +49,7 @@ export default async function Tutorials() {
             </div>
             <span className="row">
               <Link className="btn" href={`/tutorials/${r.id}`} style={{ textDecoration: "none" }}>{S.tutWatch}</Link>
+              {staff && canEdit === true && <TutorialEdit t={r} S={S} />}
               {staff && canDelete === true && (
                 <form action={remove}><input type="hidden" name="id" value={r.id} />
                   <ConfirmButton className="btn danger" message={S.tutDeleteQ}>{S.tutDelete}</ConfirmButton></form>)}

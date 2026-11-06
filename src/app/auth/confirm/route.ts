@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getStaff } from "@/lib/i18n-staff";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { supabaseServer } from "@/lib/supabase-server";
 
@@ -8,11 +9,11 @@ export async function GET(req: NextRequest) {
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const to = (msg: string) => NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(msg)}`);
-  if (!token_hash || !type) return to("The confirmation link is not valid.");
+  if (!token_hash || !type) return to((await getStaff()).S.msgConfirmBad);
   const sb = await supabaseServer();
   const { error } = await sb.auth.verifyOtp({ type, token_hash });
-  if (error) return to("The confirmation link is invalid or expired. Please register again or ask the service center.");
+  if (error) return to((await getStaff()).S.msgConfirmExpired);
   if (type === "recovery") return NextResponse.redirect(`${origin}/reset-password`);
   await sb.auth.signOut();
-  return to("Email confirmed. You can sign in now (new customers still need approval by the service center).");
+  return to((await getStaff()).S.msgConfirmed);
 }

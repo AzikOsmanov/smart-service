@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { getStaff } from "@/lib/i18n-staff";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getPortal } from "@/lib/i18n-portal";
@@ -19,13 +20,13 @@ export async function adminSendResetAction(fd: FormData) {
   const back = String(fd.get("back") || "/customers");
   const sb = await supabaseServer();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
-  if (isAdmin !== true) redirect(`${back}?error=${encodeURIComponent("Only the administrator can do this.")}`);
+  if (isAdmin !== true) redirect(`${back}?error=${encodeURIComponent((await getStaff()).S.msgAdminOnly)}`);
   const { data: auth } = await sb.auth.getUser();
   const { data: me } = await sb.from("users").select("tenant_id").eq("id", auth.user!.id).single();
   const { data: target } = await sb.from("users").select("email").eq("id", String(fd.get("id"))).eq("tenant_id", me!.tenant_id).maybeSingle();
-  if (!target?.email) redirect(`${back}?error=${encodeURIComponent("User not found.")}`);
+  if (!target?.email) redirect(`${back}?error=${encodeURIComponent((await getStaff()).S.msgUserNotFound)}`);
   const { error } = await supabaseAdmin().auth.resetPasswordForEmail(target.email);
-  redirect(`${back}?${error ? "error" : "ok"}=${encodeURIComponent(error ? error.message : `Password reset link sent to ${target.email}`)}`);
+  redirect(`${back}?${error ? "error" : "ok"}=${encodeURIComponent(error ? error.message : (await getStaff()).S.msgResetSent.replace("{what}", target.email))}`);
 }
 
 export async function setNewPasswordAction(fd: FormData) {

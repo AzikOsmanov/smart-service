@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getStaff } from "@/lib/i18n-staff";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 function back(fd: FormData, key: "error" | "ok", msg: string): never {
@@ -10,26 +11,19 @@ function back(fd: FormData, key: "error" | "ok", msg: string): never {
   redirect(`${safe}${safe.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(msg)}`);
 }
 
-const FRIENDLY: Record<string, string> = {
-  admin_only: "Only the administrator can do this.",
-  cannot_delete_yourself: "You cannot delete your own account.",
-  cannot_delete_administrator: "The administrator account cannot be deleted.",
-  reason_required: "Please write a reason (at least 5 characters).",
-  delete_not_allowed: "You do not have permission to delete tickets.",
-  user_not_found: "User not found.",
-  ticket_not_found: "Ticket not found.",
-};
-function friendly(m: string) {
-  if (m.startsWith("user_has_records")) return "This user still owns tickets or devices: " + m.replace("user_has_records: ", "") + ". Use \"Delete with tickets and devices\", or deactivate the user instead.";
-  if (m.startsWith("device_has_other_tickets")) return "Device " + m.replace("device_has_other_tickets: ", "") + " has tickets from other customers, so it cannot be deleted. Delete or move those tickets first, or deactivate the user.";
-  return FRIENDLY[m] ?? m;
+type SL = Awaited<ReturnType<typeof getStaff>>["S"];
+function friendly(S: SL, m: string) {
+  if (m.startsWith("user_has_records")) return S.msgUserHasRecords.replace("{what}", m.replace("user_has_records: ", ""));
+  if (m.startsWith("device_has_other_tickets")) return S.msgDeviceOtherTickets.replace("{what}", m.replace("device_has_other_tickets: ", ""));
+  const f: Record<string, string> = { admin_only: S.msgAdminOnly, cannot_delete_yourself: S.msgDelSelf, cannot_delete_administrator: S.msgDelAdmin, reason_required: S.msgReasonReq, delete_not_allowed: S.msgDelNotAllowed, user_not_found: S.msgUserNotFound, ticket_not_found: S.msgTicketNotFound };
+  return f[m] ?? m;
 }
 
 // Soft delete with a reason: the ticket moves to Trash.
 export async function deleteTicketAction(fd: FormData) {
   const sb = await supabaseServer();
   const { error } = await sb.rpc("delete_ticket", { p_ticket: String(fd.get("id")), p_reason: String(fd.get("reason") || "") });
-  if (error) back(fd, "error", friendly(error.message));
+  if (error) back(fd, "error", friendly((await getStaff()).S, error.message));
   revalidatePath("/tickets");
   redirect("/tickets");
 }
@@ -38,20 +32,20 @@ export async function deleteTicketAction(fd: FormData) {
 export async function hardDeleteTicketAction(fd: FormData) {
   const sb = await supabaseServer();
   const { error } = await sb.rpc("hard_delete_ticket", { p_ticket: String(fd.get("id")), p_reason: String(fd.get("reason") || "") });
-  if (error) back(fd, "error", friendly(error.message));
+  if (error) back(fd, "error", friendly((await getStaff()).S, error.message));
   revalidatePath("/tickets");
   revalidatePath("/admin/trash");
-  redirect("/admin/trash?ok=" + encodeURIComponent("Ticket permanently deleted"));
+  redirect("/admin/trash?ok=" + encodeURIComponent((await getStaff()).S.msgTicketDeletedPerm));
 }
 
 export async function restoreTicketAction(fd: FormData) {
   const sb = await supabaseServer();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
-  if (isAdmin !== true) back(fd, "error", friendly("admin_only"));
+  if (isAdmin !== true) back(fd, "error", friendly((await getStaff()).S, "admin_only"));
   const { error } = await supabaseAdmin().from("tickets").update({ deleted_at: null, delete_reason: null, deleted_by: null }).eq("id", String(fd.get("id")));
   if (error) back(fd, "error", error.message);
   revalidatePath("/admin/trash");
-  back(fd, "ok", "Ticket restored");
+  back(fd, "ok", (await getStaff()).S.msgTicketRestored);
 }
 
 // Permanent delete of a user (administrator only, no approval step).
@@ -59,10 +53,10 @@ export async function hardDeleteUserAction(fd: FormData) {
   const sb = await supabaseServer();
   const id = String(fd.get("id"));
   const { error } = await sb.rpc("hard_delete_user", { p_user: id, p_with_records: fd.get("mode") === "all" });
-  if (error) back(fd, "error", friendly(error.message));
+  if (error) back(fd, "error", friendly((await getStaff()).S, error.message));
   const del = await supabaseAdmin().auth.admin.deleteUser(id);
-  if (del.error) back(fd, "error", "User removed from the system, but the sign-in account could not be removed: " + del.error.message);
+  if (del.error) back(fd, "error", (await getStaff()).S.msgUserAuthFail.replace("{what}", del.error.message));
   revalidatePath("/admin/users");
   revalidatePath("/customers");
-  back(fd, "ok", "User permanently deleted");
+  back(fd, "ok", (await getStaff()).S.msgUserDeleted);
 }

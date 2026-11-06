@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
 import MaterialAdd from "@/components/MaterialAdd";
+import MaterialEdit from "@/components/MaterialEdit";
 import ConfirmButton from "@/components/ConfirmButton";
 
 async function remove(fd: FormData) {
@@ -29,11 +30,11 @@ export default async function Materials({ searchParams }: { searchParams: Promis
   ]);
   if (me?.kind !== "staff" || canView !== true) redirect("/tickets");
   const term = (q ?? "").trim().replace(/[%,()*]/g, "").slice(0, 80);
-  let query = sb.from("materials").select("id,title,description,creator_name,video_url,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+  let query = sb.from("materials").select("id,tenant_id,title,description,body,creator_name,video_url,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
   if (term) { const like = `%${term}%`; query = query.or(`title.ilike.${like},description.ilike.${like},creator_name.ilike.${like},body.ilike.${like}`); }
   const { data: rows, error } = await query;
   const ids = (rows ?? []).map((r) => r.id);
-  const { data: files } = ids.length ? await sb.from("material_files").select("material_id").in("material_id", ids) : { data: [] };
+  const { data: files } = ids.length ? await sb.from("material_files").select("id,material_id,path,file_name").in("material_id", ids) : { data: [] };
   const fileCount = new Map<string, number>();
   for (const f of files ?? []) fileCount.set(f.material_id, (fileCount.get(f.material_id) ?? 0) + 1);
   const myName = `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim();
@@ -61,6 +62,7 @@ export default async function Materials({ searchParams }: { searchParams: Promis
             </div>
             <span className="row">
               <Link className="btn" href={`/materials/${r.id}`} style={{ textDecoration: "none" }}>{S.matOpen}</Link>
+              {canEdit === true && <MaterialEdit m={r} files={(files ?? []).filter((f) => f.material_id === r.id)} S={S} />}
               {canDelete === true && (
                 <form action={remove}><input type="hidden" name="id" value={r.id} />
                   <ConfirmButton className="btn danger" message={S.matDeleteQ}>{S.tutDelete}</ConfirmButton></form>)}

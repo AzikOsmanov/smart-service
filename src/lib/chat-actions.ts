@@ -1,18 +1,19 @@
 "use server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getStaff } from "@/lib/i18n-staff";
 
 export type ChatMessage = { id: string; sender_kind: "staff" | "customer"; body: string; is_internal: boolean; created_at: string };
 
 export async function postMessage(ticketId: string, body: string, internal: boolean): Promise<{ error?: string; message?: ChatMessage }> {
   const text = body.trim();
-  if (!text) return { error: "Write a message first." };
-  if (text.length > 4000) return { error: "Message is too long (4000 characters max)." };
+  if (!text) return { error: (await getStaff()).S.msgWriteFirst };
+  if (text.length > 4000) return { error: (await getStaff()).S.msgTooLong };
   const sb = await supabaseServer();
   const { data: sess } = await sb.auth.getSession();
-  if (!sess.session) return { error: "Please sign in again." };
+  if (!sess.session) return { error: (await getStaff()).S.msgSignAgain };
   const uid = sess.session.user.id;
   const { data: me } = await sb.from("users").select("tenant_id,kind").eq("id", uid).single();
-  if (!me) return { error: "Account not found." };
+  if (!me) return { error: (await getStaff()).S.msgAccountNotFound };
   const staff = me.kind === "staff";
   const { data, error } = await sb.from("ticket_messages")
     .insert({ tenant_id: me.tenant_id, ticket_id: ticketId, sender_id: uid, sender_kind: staff ? "staff" : "customer", body: text, is_internal: staff && internal })
