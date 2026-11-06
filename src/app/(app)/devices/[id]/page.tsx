@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtDT, fmtD } from "@/lib/fmt-time";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -51,7 +52,7 @@ export default async function DeviceDetail({ params, searchParams }: { params: P
         <p><Link href="/devices">{S.backDevices}</Link></p>
         <h1>SN {d.serial_number}</h1>
         <p>{S.owner}: {o ? <b>{o.first_name} {o.last_name}</b> : "—"} {o && <small>{o.companies?.name}{o.companies?.city ? ` / ${o.companies.city}` : ""} · {o.email} {o.phone}</small>}</p>
-        <p><small>{S.added} {new Date(d.created_at).toLocaleString()}</small></p>
+        <p><small>{S.added} {fmtDT(d.created_at)}</small></p>
         {error && <p className="err">{error}</p>}
         {ok && <p>{ok}</p>}
       </div>
@@ -70,20 +71,20 @@ export default async function DeviceDetail({ params, searchParams }: { params: P
       <div className="card">
         <h2>{tr("tickets")}</h2>
         <table><tbody>
-          {(tickets ?? []).map((t) => <tr key={t.id}><td><Link href={`/tickets/${t.id}`}>{t.ticket_no}</Link></td><td>{t.subject}</td><td>{t.status}</td><td>{new Date(t.created_at).toLocaleDateString()}</td></tr>)}
+          {(tickets ?? []).map((t) => <tr key={t.id}><td><Link href={`/tickets/${t.id}`}>{t.ticket_no}</Link></td><td>{t.subject}</td><td>{t.status}</td><td>{fmtD(t.created_at)}</td></tr>)}
           {(tickets ?? []).length === 0 && <tr><td>{S.noTicketsDevice}</td></tr>}
         </tbody></table>
       </div>
       <div className="card">
         <h2>{S.qcTitle}</h2>
-        <ul>{(qc ?? []).map((c) => <li key={c.id}><Link href={`/qc/${c.id}`}>{new Date(c.created_at).toLocaleString()}</Link> — {qcLabel[c.status] ?? c.status}</li>)}</ul>
+        <ul>{(qc ?? []).map((c) => <li key={c.id}><Link href={`/qc/${c.id}`}>{fmtDT(c.created_at)}</Link> — {qcLabel[c.status] ?? c.status}</li>)}</ul>
         {(qc ?? []).length === 0 && <p>{S.noQcChecks}</p>}
         <p><Link href={`/qc/new?sn=${encodeURIComponent(d.serial_number)}`}>{S.newQc}</Link> · <Link href={`/qc?sn=${encodeURIComponent(d.serial_number)}`}>{S.allChecks}</Link></p>
       </div>
       <div className="card">
         <h2>{S.ownershipHistory}</h2>
         <table><thead><tr><th>{S.owner}</th><th>{S.fromWord}</th><th>{S.untilWord}</th></tr></thead><tbody>
-          {(hist ?? []).map((h) => <tr key={h.id}><td>{(h.user_id && hu.get(h.user_id)) || "—"}</td><td>{new Date(h.owned_from).toLocaleDateString()}</td><td>{h.owned_until ? new Date(h.owned_until).toLocaleDateString() : S.nowWord}</td></tr>)}
+          {(hist ?? []).map((h) => <tr key={h.id}><td>{(h.user_id && hu.get(h.user_id)) || "—"}</td><td>{fmtD(h.owned_from)}</td><td>{h.owned_until ? fmtD(h.owned_until) : S.nowWord}</td></tr>)}
         </tbody></table>
       </div>
     </div>

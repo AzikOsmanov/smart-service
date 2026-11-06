@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getStaff } from "@/lib/i18n-staff";
@@ -54,7 +55,7 @@ export default async function Integrations({ searchParams }: { searchParams: Pro
   );
   const Status = ({ row, kind }: { row: any; kind: string }) => (
     <>
-      {row?.last_success_at && <p><small>{S.lastSuccess}: {new Date(row.last_success_at).toLocaleString()}</small></p>}
+      {row?.last_success_at && <p><small>{S.lastSuccess}: {fmtDT(row.last_success_at)}</small></p>}
       {row?.last_error && <p className="err"><small>{S.lastError}: {row.last_error}</small></p>}
       {k === kind && error && <p className="err">{error}</p>}
       {k === kind && ok && <p>{ok}</p>}
@@ -192,7 +193,7 @@ export default async function Integrations({ searchParams }: { searchParams: Pro
                 </>
               )}
               {row?.id && <p><small>{S.webhookInHint} <code>{origin}/api/webhooks/ieo/{row.id}</code></small></p>}
-              {row?.last_success_at && <p><small>{S.lastSuccess}: {new Date(row.last_success_at).toLocaleString()}</small></p>}
+              {row?.last_success_at && <p><small>{S.lastSuccess}: {fmtDT(row.last_success_at)}</small></p>}
               {row?.last_error && <p className="err"><small>{S.lastError}: {row.last_error}</small></p>}
               {k === kind && error && <p className="err">{error}</p>}
               {k === kind && ok && <p>{ok}</p>}

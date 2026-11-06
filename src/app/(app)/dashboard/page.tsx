@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
 import { getT } from "@/lib/i18n";
@@ -114,7 +115,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         <td><a href={`/tickets/${r.id}`}>#{r.no}</a></td><td><a href={`/tickets/${r.id}`}>{r.subject}</a></td><td>{r.customer ?? "—"}</td><td>{r.sn ?? "—"}</td>
                         <td><span className="badge">{r.device_status ? devLabel(r.device_status) : (stLabel[r.status] ?? r.status)}</span></td>
                         {d.scope_all && <td>{r.assignee ?? "—"}</td>}{list.some((x) => x.value) && <td><b>{r.value ?? ""}</b></td>}
-                        <td>{new Date(r.created_at).toLocaleString()}</td>
+                        <td>{fmtDT(r.created_at)}</td>
                       </tr>))}</tbody></table>
                 </div>)}
               {list.length >= 200 && <small>{S.dashListMax}</small>}

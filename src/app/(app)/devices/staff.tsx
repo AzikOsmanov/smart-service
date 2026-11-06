@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtD } from "@/lib/fmt-time";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -73,7 +74,7 @@ export default async function StaffDevices({ searchParams }: { searchParams: Pro
               <td>{(d.owner_id && owner.get(d.owner_id)) || "—"}</td>
               <td>{d.warranty_until ?? "—"}</td>
               <td>{d.is_verified ? S.yes : S.no}</td>
-              <td>{new Date(d.created_at).toLocaleDateString()}</td>
+              <td>{fmtD(d.created_at)}</td>
             </tr>
           ))}
           {(devices ?? []).length === 0 && <tr><td colSpan={6}>{S.noDevicesFound}</td></tr>}

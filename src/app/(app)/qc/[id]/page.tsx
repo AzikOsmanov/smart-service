@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtDT } from "@/lib/fmt-time";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -54,7 +55,7 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
         <div className="row">
           <span className="badge">{qcName[c.status] ?? c.status}</span>
           <span>{S.engineer}: <b>{p ? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() : "—"}</b></span>
-          <small>{new Date(c.created_at).toLocaleString()}</small>
+          <small>{fmtDT(c.created_at)}</small>
           {c.ticket_id && <Link href={`/tickets/${c.ticket_id}`}>{S.ticketWord}</Link>}
         </div>
         {error && <p className="err">{error}</p>}
@@ -89,7 +90,7 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
         <h2>{S.historyOfSn}</h2>
         <ul>
           {(history ?? []).map((h) => (
-            <li key={h.id}><Link href={`/qc/${h.id}`}>{new Date(h.created_at).toLocaleString()}</Link> — {qcName[h.status] ?? h.status}</li>
+            <li key={h.id}><Link href={`/qc/${h.id}`}>{fmtDT(h.created_at)}</Link> — {qcName[h.status] ?? h.status}</li>
           ))}
         </ul>
       </div>

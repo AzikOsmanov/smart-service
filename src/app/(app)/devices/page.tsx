@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import { fmtDT } from "@/lib/fmt-time";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
 import BulkAdd from "@/components/BulkAdd";
@@ -38,7 +39,7 @@ async function CustomerDevices({ searchParams }: { searchParams: Promise<{ error
         <div className="card">
           <h2>{L.ownReq}</h2>
           <table><thead><tr><th>{L.colSn}</th><th>{L.colStatus}</th><th>{L.colSent}</th></tr></thead><tbody>
-            {claims.map((c) => <tr key={c.id}><td>{serialById.get(c.device_id) ?? "—"}</td><td>{c.status}</td><td>{new Date(c.created_at).toLocaleString()}</td></tr>)}
+            {claims.map((c) => <tr key={c.id}><td>{serialById.get(c.device_id) ?? "—"}</td><td>{c.status}</td><td>{fmtDT(c.created_at)}</td></tr>)}
           </tbody></table>
         </div>
       )}

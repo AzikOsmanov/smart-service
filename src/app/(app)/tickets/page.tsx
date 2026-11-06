@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import { fmtDT } from "@/lib/fmt-time";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
 import { getStaff } from "@/lib/i18n-staff";
@@ -111,7 +112,7 @@ export default async function Tickets({ searchParams }: { searchParams: Promise<
                 <td>{d?.serial_number ?? "—"}</td><td>{info?.model_name || d?.device_models?.name || "—"}</td><td>{warrantyText(L, info?.warranty_until, info?.warranty_note)}</td>
                 <td><span className="badge">{devStatus(x.customer_device_status)}</span></td>
                 {staff && <td>{x.status}</td>}{staff && <td>{x.priority}</td>}
-                <td>{new Date(x.created_at).toLocaleString()}</td>
+                <td>{fmtDT(x.created_at)}</td>
               </tr>
             );
           })}</tbody></table>

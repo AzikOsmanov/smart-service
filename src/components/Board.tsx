@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState, useTransition } from "react";
+import { fmtD } from "@/lib/fmt-time";
 import { useRouter } from "next/navigation";
 import { moveTicketAction, type BoardTarget } from "@/lib/board-actions";
 import type { StaffLabels } from "@/lib/i18n-staff";
@@ -74,7 +75,7 @@ export default function Board({ cards: initial, cols, canEdit, isAdmin, S }: { c
                     {c.fee && <span className="badge">{c.fee}</span>}
                     {c.assignee && <small>{c.mine ? S.you : c.assignee}</small>}
                   </div>
-                  <small>{new Date(c.created).toLocaleDateString()}</small>
+                  <small>{fmtD(c.created)}</small>
                   {movable(c) && (
                     <select aria-label={S.moveTo} value="" onChange={(e) => { if (e.target.value) move(c.id, e.target.value); }} style={{ marginTop: 6 }}>
                       <option value="">{S.moveTo}</option>

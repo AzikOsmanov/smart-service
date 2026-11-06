@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtDT } from "@/lib/fmt-time";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
@@ -22,7 +23,7 @@ export default async function Material({ params }: { params: Promise<{ id: strin
       <p><Link href="/materials">{S.matBack}</Link></p>
       <div className="card">
         <h1>{m.title}</h1>
-        <p><small>{S.matBy.replace("{name}", m.creator_name)} · {new Date(m.created_at).toLocaleString()}</small></p>
+        <p><small>{S.matBy.replace("{name}", m.creator_name)} · {fmtDT(m.created_at)}</small></p>
         {m.description ? <p><b>{m.description}</b></p> : null}
         {m.body ? <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{m.body}</div> : null}
       </div>

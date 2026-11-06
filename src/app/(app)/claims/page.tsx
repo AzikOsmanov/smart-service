@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
@@ -62,7 +63,7 @@ export default async function Claims({ searchParams }: { searchParams: Promise<{
               <div className="row" style={{ alignItems: "flex-start" }}>
                 <div style={{ minWidth: 220 }}>
                   <p>{S.serialNumber}: <b>{sn.get(c.device_id) ?? "—"}</b></p>
-                  <p><small>{S.sentAt} {new Date(c.created_at).toLocaleString()}</small></p>
+                  <p><small>{S.sentAt} {fmtDT(c.created_at)}</small></p>
                   <p>{S.newOwnerRequester}<br />{person(c.claimant_id)}</p>
                   <p>{S.currentOwner}<br />{person(c.previous_owner_id)}</p>
                 </div>
@@ -84,7 +85,7 @@ export default async function Claims({ searchParams }: { searchParams: Promise<{
         <h2>{S.reviewed}</h2>
         <table><thead><tr><th>{S.serialNumber}</th><th>{S.newOwner}</th><th>{S.result}</th><th>{S.note}</th><th>{S.reviewed}</th></tr></thead><tbody>
           {done.map((c) => (
-            <tr key={c.id}><td>{sn.get(c.device_id) ?? "—"}</td><td>{person(c.claimant_id)}</td><td><span className="badge">{stLabel[c.status] ?? c.status}</span></td><td>{c.review_note ?? ""}</td><td>{c.reviewed_at ? new Date(c.reviewed_at).toLocaleString() : ""}</td></tr>
+            <tr key={c.id}><td>{sn.get(c.device_id) ?? "—"}</td><td>{person(c.claimant_id)}</td><td><span className="badge">{stLabel[c.status] ?? c.status}</span></td><td>{c.review_note ?? ""}</td><td>{c.reviewed_at ? fmtDT(c.reviewed_at) : ""}</td></tr>
           ))}
           {done.length === 0 && <tr><td colSpan={5}>{S.nothingReviewed}</td></tr>}
         </tbody></table>

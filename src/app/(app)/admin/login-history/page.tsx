@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
 
@@ -36,7 +37,7 @@ export default async function LoginHistory({ searchParams }: { searchParams: Pro
         <table><thead><tr><th>{S.timeWord}</th><th>{S.eventWord}</th><th>{S.emailWord}</th><th>{S.ipAddress}</th><th>{S.platformWord}</th><th>{S.browserWord}</th><th>{S.reasonWord}</th></tr></thead><tbody>
           {(rows ?? []).map((r) => (
             <tr key={r.id}>
-              <td>{new Date(r.created_at).toLocaleString()}</td>
+              <td>{fmtDT(r.created_at)}</td>
               <td><span className="badge">{LABEL[r.event] ?? r.event}</span></td>
               <td>{r.email_attempted}</td>
               <td>{r.ip_address ? String(r.ip_address) : "—"}</td>

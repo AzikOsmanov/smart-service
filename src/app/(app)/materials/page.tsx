@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtDT } from "@/lib/fmt-time";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -58,7 +59,7 @@ export default async function Materials({ searchParams }: { searchParams: Promis
               {fileCount.get(r.id) ? <span className="badge" style={{ marginLeft: 8 }}>📎 {fileCount.get(r.id)}</span> : null}
               {r.video_url ? <span className="badge" style={{ marginLeft: 8 }}>▶</span> : null}
               {r.description ? <div><small>{r.description}</small></div> : null}
-              <div><small>{S.matBy.replace("{name}", r.creator_name)} · {new Date(r.created_at).toLocaleString()}</small></div>
+              <div><small>{S.matBy.replace("{name}", r.creator_name)} · {fmtDT(r.created_at)}</small></div>
             </div>
             <span className="row">
               <Link className="btn" href={`/materials/${r.id}`} style={{ textDecoration: "none" }}>{S.matOpen}</Link>

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -47,7 +48,7 @@ export default async function Trash({ searchParams }: { searchParams: Promise<{ 
           {(tickets ?? []).map((t) => (
             <tr key={t.id}>
               <td>{t.ticket_no}</td><td>{t.subject}</td>
-              <td>{t.deleted_at ? new Date(t.deleted_at).toLocaleString() : ""}</td>
+              <td>{t.deleted_at ? fmtDT(t.deleted_at) : ""}</td>
               <td>{t.deleted_by ? name.get(t.deleted_by) ?? "—" : "—"}</td>
               <td>{t.delete_reason ?? "—"}</td>
               <td style={{ whiteSpace: "nowrap" }}>
@@ -71,7 +72,7 @@ export default async function Trash({ searchParams }: { searchParams: Promise<{ 
           {(qcDeleted ?? []).map((c) => (
             <tr key={c.id}>
               <td>{c.serial_number}</td><td>{c.status}</td><td>{(c.comment ?? "").slice(0, 80)}</td>
-              <td>{c.deleted_at ? new Date(c.deleted_at).toLocaleString() : ""}</td>
+              <td>{c.deleted_at ? fmtDT(c.deleted_at) : ""}</td>
               <td><form action={restoreQc}><input type="hidden" name="id" value={c.id} /><button className="btn ghost">{S.restore}</button></form></td>
             </tr>))}
         </tbody></table>

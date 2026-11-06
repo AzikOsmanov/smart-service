@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtDT } from "@/lib/fmt-time";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -45,7 +46,7 @@ export default async function Tutorials() {
               <Link href={`/tutorials/${r.id}`}><b>{r.title}</b></Link>{" "}
               {staff && <span className="badge">{aud[r.audience] ?? r.audience}</span>}
               {r.description ? <div><small>{r.description}</small></div> : null}
-              <div><small>{new Date(r.created_at).toLocaleString()}</small></div>
+              <div><small>{fmtDT(r.created_at)}</small></div>
             </div>
             <span className="row">
               <Link className="btn" href={`/tutorials/${r.id}`} style={{ textDecoration: "none" }}>{S.tutWatch}</Link>

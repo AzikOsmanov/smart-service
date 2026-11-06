@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { fmtDT } from "@/lib/fmt-time";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { postMessage, type ChatMessage } from "@/lib/chat-actions";
 
@@ -48,7 +49,7 @@ export default function TicketChat({ ticketId, initial, isStaff, labels, readOnl
         {messages.length === 0 && <p><small>{labels.empty}</small></p>}
         {messages.map((m) => (
           <div key={m.id} className={"msg" + (mine(m) ? " mine" : "") + (m.is_internal ? " internal" : "")}>
-            <small>{mine(m) ? labels.you : m.sender_kind === "staff" ? labels.staff : labels.customer}{m.is_internal ? ` · ${labels.internal}` : ""} · {new Date(m.created_at).toLocaleString()}</small>
+            <small>{mine(m) ? labels.you : m.sender_kind === "staff" ? labels.staff : labels.customer}{m.is_internal ? ` · ${labels.internal}` : ""} · {fmtDT(m.created_at)}</small>
             <div>{m.body}</div>
           </div>
         ))}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtDT } from "@/lib/fmt-time";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { QC_STATUSES } from "@/lib/qc";
@@ -48,7 +49,7 @@ export default async function QcList({ searchParams }: { searchParams: Promise<{
                 <td><span className="badge">{qcName[r.status] ?? r.status}</span></td>
                 <td>{(r.comment ?? "").slice(0, 80)}</td>
                 <td>{who.get(r.performed_by ?? "") ?? "—"}</td>
-                <td>{new Date(r.created_at).toLocaleString()}</td>
+                <td>{fmtDT(r.created_at)}</td>
               </tr>
             ))}
             {(rows ?? []).length === 0 && <tr><td colSpan={5}>{S.noQcChecks}</td></tr>}

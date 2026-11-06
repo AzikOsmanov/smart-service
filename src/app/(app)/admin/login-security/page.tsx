@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -141,7 +142,7 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
         {(locked ?? []).map((u) => (
           <form key={u.id} action={unlock} className="row">
             <input type="hidden" name="id" value={u.id} />
-            <span><b>{u.first_name} {u.last_name}</b> · {u.email} · {S.untilWord2} {new Date(u.locked_until!).toLocaleString()}</span>
+            <span><b>{u.first_name} {u.last_name}</b> · {u.email} · {S.untilWord2} {fmtDT(u.locked_until!)}</span>
             <button>{S.unlock}</button>
           </form>
         ))}

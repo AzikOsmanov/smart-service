@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fmtDT } from "@/lib/fmt-time";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { notifHref, notifLabels, notifText, type Notif } from "@/lib/notif-text";
@@ -69,7 +70,7 @@ export default function NotificationBell({ userId, lang, initial, initialUnread 
               <li key={n.id}>
                 <button type="button" className={"bell-item" + (n.read_at ? "" : " unread")} onClick={() => openItem(n)}>
                   <span>{notifText(lang, n)}</span>
-                  <small>{new Date(n.created_at).toLocaleString()}</small>
+                  <small>{fmtDT(n.created_at)}</small>
                 </button>
               </li>
             ))}

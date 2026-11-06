@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fmtDT } from "@/lib/fmt-time";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { lookupForTicket, type LookupResult } from "@/lib/onec-tools";
@@ -179,7 +180,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
             <span>{L.colSn}: <b>{devFull?.serial_number ?? dev?.serial_number ?? "—"}</b></span>
             {model && <span>{L.model}: <b>{model}</b></span>}
             {(cInfo?.warranty_until || cInfo?.warranty_note) && <span>{L.warrantyWord}: <b>{warrantyText(L, cInfo.warranty_until, cInfo.warranty_note)}</b></span>}
-            <span><small>{L.created} {new Date(t.created_at).toLocaleString()}</small></span>
+            <span><small>{L.created} {fmtDT(t.created_at)}</small></span>
           </div>
           {warn && <p className="err">{warn}</p>}
         </div>
@@ -193,7 +194,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
           </div>
           <ul>
             {(events ?? []).map((ev) => (
-              <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>
+              <li key={ev.id}>{fmtDT(ev.created_at)} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>
             ))}
           </ul>
         </div>
@@ -277,13 +278,13 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     <div className="card">
       <h2>{S.whatCustomerSees}</h2>
       <p>{S.current}: <b>{t.customer_device_status ? tr(`st_${t.customer_device_status}` as "st_ready") : tr("st_received")}</b></p>
-      <ul>{(events ?? []).map((ev) => <li key={ev.id}>{new Date(ev.created_at).toLocaleString()} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>)}</ul>
+      <ul>{(events ?? []).map((ev) => <li key={ev.id}>{fmtDT(ev.created_at)} — {ev.kind === "created" ? L.ticketCreated : tr(`st_${ev.status}` as "st_ready")}</li>)}</ul>
     </div>
   );
   const qcCard = dev?.serial_number ? (
     <div className="card">
       <h2>{S.qcTitle}</h2>
-      <p>{qc ? <>{S.lastQc}: <span className="badge">{qcLabel[qc.status] ?? qc.status}</span> · {new Date(qc.created_at).toLocaleString()} · <a href={`/qc/${qc.id}`}>{S.open}</a></> : S.noQcYet}</p>
+      <p>{qc ? <>{S.lastQc}: <span className="badge">{qcLabel[qc.status] ?? qc.status}</span> · {fmtDT(qc.created_at)} · <a href={`/qc/${qc.id}`}>{S.open}</a></> : S.noQcYet}</p>
       <p><a href={`/qc/new?sn=${encodeURIComponent(dev.serial_number)}&ticket=${id}`}>{S.newQc}</a> · <a href={`/qc?sn=${encodeURIComponent(dev.serial_number)}`}>{S.qcHistory}</a></p>
     </div>
   ) : null;
