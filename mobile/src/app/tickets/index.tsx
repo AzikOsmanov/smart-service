@@ -114,7 +114,7 @@ export default function Tickets() {
           {perms?.["materials.view"] ? <Btn kind="ghost" title={`📘 ${t("materials")}`} onPress={() => router.push("/materials")} /> : null}
           <Choice<Filter> value={filter} onChange={setFilter} options={[{ value: "all", label: t("all") }, { value: "mine", label: t("mine") }, { value: "new", label: t("unassigned") }]} />
         </>
-      ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /><Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} /><Btn kind="ghost" title={`🧮 ${t("calculator")}`} onPress={() => router.push("/calculator")} /><Btn kind="ghost" title={`🗂 ${t("x_pmTitle")}`} onPress={() => router.push("/projects")} /></>}
+      ) : <><Btn title={`＋ ${t("newTicket")}`} onPress={() => router.push("/tickets/new")} /><Btn kind="ghost" title={`🔑 ${t("prButton")}`} onPress={() => router.push("/tickets/password-reset")} /><Btn kind="ghost" title={`▶ ${t("tutorials")}`} onPress={() => router.push("/tutorials")} /><Btn kind="ghost" title={`🧮 ${t("calculator")}`} onPress={() => router.push("/calculator")} /><Btn kind="ghost" title={`🗂 ${t("x_pmTitle")}`} onPress={() => router.push("/projects")} /><Btn kind="ghost" title={`📘 ${t("materials")}`} onPress={() => router.push("/materials")} /></>}
       <Field value={q} onChangeText={setQ} placeholder={t("search")} autoCapitalize="none" autoCorrect={false} />
       <Row>
         {["", "received", "diagnose", "ready", "pickup_new_device", "repair_not_possible"].map((k) => (

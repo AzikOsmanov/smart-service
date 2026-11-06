@@ -12,7 +12,9 @@ export default async function Material({ params }: { params: Promise<{ id: strin
   const sb = await supabaseServer();
   const { S } = await getStaff();
   const { data: canView } = await sb.rpc("has_permission", { p_code: "materials.view" });
-  if (canView !== true) redirect("/tickets");
+  const { data: sess } = await sb.auth.getSession();
+  const { data: me } = await sb.from("users").select("kind,registration").eq("id", sess.session!.user.id).maybeSingle();
+  if (me?.kind === "staff" ? canView !== true : me?.registration !== "approved") redirect("/tickets");
   const { data: m } = /^[0-9a-f-]{36}$/i.test(id) ? await sb.from("materials").select("id,title,description,body,video_url,creator_name,created_at").eq("id", id).is("deleted_at", null).maybeSingle() : { data: null };
   if (!m) return <div className="card"><p>{S.matNotFound}</p><Link href="/materials">{S.matBack}</Link></div>;
   const { data: files } = await sb.from("material_files").select("id,path,file_name,kind,size_bytes").eq("material_id", m.id).order("created_at");

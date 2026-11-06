@@ -78,7 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (staff && canClaims === true) nav.push({ href: "/claims", label: t("claims") });
   if (staff && canQc === true) nav.push({ href: "/qc", label: t("qc") });
   if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
-  if (staff && canMat === true) nav.push({ href: "/materials", label: t("materials") });
+  if ((staff && canMat === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/materials", label: t("materials") });
   if (isAdmin === true) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
   if ((staff && canProj === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/projects", label: t("projects") });
   if (staff && canCat === true) nav.push({ href: "/catalog", label: t("catalog") });

@@ -815,6 +815,9 @@ const en = {
   catHelpFunctions: "Function keys separated by ; (see the Functions sheet)",
   pmFail_fn: "functions",
   pmNvrFail_fn: "recorder functions missing",
+  annHistory: "Sent announcements",
+  annHistoryNone: "No announcements sent yet.",
+  annRecipients: "Recipients",
 };
 export type SKey = keyof typeof en;
 
@@ -1632,6 +1635,9 @@ const ru: Record<SKey, string> = {
   catHelpFunctions: "Ключи функций через ; (см. лист Functions)",
   pmFail_fn: "функции",
   pmNvrFail_fn: "нет функций регистратора",
+  annHistory: "Отправленные объявления",
+  annHistoryNone: "Объявления ещё не отправлялись.",
+  annRecipients: "Получатели",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -2447,6 +2453,9 @@ const az: Record<SKey, string> = {
   catHelpFunctions: "Funksiya açarları ; ilə (Functions vərəqinə baxın)",
   pmFail_fn: "funksiyalar",
   pmNvrFail_fn: "qeydiyyatçı funksiyaları yoxdur",
+  annHistory: "Göndərilmiş elanlar",
+  annHistoryNone: "Hələ elan göndərilməyib.",
+  annRecipients: "Alıcılar",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 
