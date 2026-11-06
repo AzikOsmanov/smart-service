@@ -65,14 +65,15 @@ const GIB = 1073741824;   // recorders show GB as 1,073,741,824 bytes and Kbps a
 export function diskCalc(i: DiskIn): DiskOut {
   let base: number, estimated = false;
   if (i.brand === "unv") {
-    // Seen in the UNV tool at 1080P: Off = full value; Basic Mode = 0.75 / 0.21875 / 1.0 and Advanced Mode = 0.5 / 0.125 / 0.75 for medium / low / high complexity.
-    // The same steps are applied to every resolution (checked for medium complexity and for H.264 and H.265 at several resolutions).
+    // From the UNV tool. Off = full value. Advanced Mode = 0.5 / 0.125 / 0.75 of it for medium / low / high complexity (H.264 and H.265 at 1080P, medium at many resolutions).
+    // Basic Mode is not a fixed share: read for H.264 1080P (896 / 3072 / 4096) and H.265 4MP (896 / 3328 / 4480). Medium = full value minus 1024 (at least 75%), low = 896,
+    // high = full value plus half of what it is above 4096; other resolutions follow that rule and are marked estimated.
     const r = UNV_RES.find((x) => x.id === i.res) ?? UNV_RES[2];
     const mode = i.ucode ?? "adv", cx = i.cx ?? "med";
     const off = i.codec === "h264" ? r.h264 : r.kbps * 2;
-    const F = { off: { low: 1, med: 1, high: 1 }, basic: { low: 0.21875, med: 0.75, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode];
-    base = off * F[cx];
-    estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "basic" && !(i.codec === "h264" && r.id === "1080")) || (mode !== "off" && cx !== "med" && r.id !== "1080");
+    if (mode === "basic") base = cx === "med" ? Math.max(0.75 * off, off - 1024) : cx === "low" ? Math.min(896, 0.21875 * off) : off + Math.max(0, off - 4096) / 2;
+    else base = off * { off: { low: 1, med: 1, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode][cx];
+    estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "basic" && !((i.codec === "h264" && r.id === "1080") || (i.codec === "h265" && r.id === "4mp"))) || (mode === "adv" && cx !== "med" && r.id !== "1080");
   } else {
     base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
     estimated = true;
