@@ -506,6 +506,11 @@ const en = {
   platformMobile: "Mobile app",
   sessionResumed: "session resumed (saved sign-in)",
   downloadWord: "Download",
+  dashQc: "Quality control (QC)",
+  dashQcAll: "QC checks",
+  dashQcListFor: "QC checks behind:",
+  dashColResult: "Result",
+  dashColBy: "Checked by",
 };
 export type SKey = keyof typeof en;
 
@@ -1014,6 +1019,11 @@ const ru: Record<SKey, string> = {
   platformMobile: "Мобильное приложение",
   sessionResumed: "сеанс продолжен (сохранённый вход)",
   downloadWord: "Скачать",
+  dashQc: "Контроль качества (QC)",
+  dashQcAll: "Проверки QC",
+  dashQcListFor: "Проверки QC для:",
+  dashColResult: "Результат",
+  dashColBy: "Проверил",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -1520,6 +1530,11 @@ const az: Record<SKey, string> = {
   platformMobile: "Mobil tətbiq",
   sessionResumed: "sessiya bərpa olundu (saxlanmış giriş)",
   downloadWord: "Yüklə",
+  dashQc: "Keyfiyyət nəzarəti (QC)",
+  dashQcAll: "QC yoxlamaları",
+  dashQcListFor: "Bunun arxasındakı QC yoxlamaları:",
+  dashColResult: "Nəticə",
+  dashColBy: "Yoxladı",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

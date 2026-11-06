@@ -10,6 +10,7 @@ type Stats = {
   by_status: Record<string, number>; by_device_status: Record<string, number>; warranty: { warranty: number; paid: number };
   fees: { currency: string; total: number; count: number }[]; engineers: { name: string; open: number; closed: number; overdue: number }[];
   daily: { day: string; created: number; closed: number }[];
+  qc?: { total: number; done: number; broken: number; hardware_issue: number };
   svc: { diagnose: number; in_progress: number; done: number; repair_not_possible: number; replaced: number };
 };
 type Row = { id: string; no: number; subject: string; status: string; device_status: string | null; assignee: string | null; customer: string | null; sn: string | null; created_at: string; value: string | null };
@@ -25,7 +26,8 @@ function Tile({ label, value, warn, href, active }: { label: string; value: stri
       <small>{label}</small><div style={{ fontSize: 28, fontWeight: 700, color: warn ? "#ef4444" : undefined }}>{value}</div>
     </a>);
 }
-const METRICS = ["open_now", "overdue", "created", "closed", "devices", "diagnose", "in_progress", "done", "repair_not_possible", "replaced", "avg_close", "avg_first", "rating", "warranty", "paid", "fees"];
+const METRICS = ["open_now", "overdue", "created", "closed", "devices", "diagnose", "in_progress", "done", "repair_not_possible", "replaced", "avg_close", "avg_first", "rating", "warranty", "paid", "fees", "qc_all", "qc_done", "qc_broken", "qc_hardware_issue"];
+type QcRow = { id: string; serial: string | null; status: string; comment: string | null; by: string | null; created_at: string };
 function Bars({ rows, none }: { rows: { label: string; value: number; href?: string }[]; none: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   if (!rows.length) return <p><small>{none}</small></p>;
@@ -57,7 +59,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const d = data as Stats | null;
   const m = sp.m && METRICS.includes(sp.m) ? sp.m : "";
   const fromIso = new Date(startOf(fromD)).toISOString(), toIso = new Date(startOf(toD) + DAY).toISOString();
-  const { data: listData } = m ? await sb.rpc("dashboard_tickets", { p_metric: m, p_from: fromIso, p_to: toIso }) : { data: null };
+  const isQc = m.startsWith("qc_");
+  const { data: qcData } = isQc ? await sb.rpc("dashboard_qc", { p_status: m.slice(3), p_from: new Date(startOf(fromD)).toISOString(), p_to: new Date(startOf(toD) + DAY).toISOString() }) : { data: null };
+  const qcList = (qcData ?? []) as QcRow[];
+  const qcLabel = (k: string) => (k === "done" ? S.qcDone : k === "broken" ? S.qcBroken : k === "hardware_issue" ? S.qcHardware : k);
+  const { data: listData } = m && !isQc ? await sb.rpc("dashboard_tickets", { p_metric: m, p_from: fromIso, p_to: toIso }) : { data: null };
   const list = (listData ?? []) as Row[];
   const base = p === "custom" ? `/dashboard?p=custom&from=${fromD}&to=${toD}` : `/dashboard?p=${p}`;
   const L = (k: string) => `${base}&m=${k}#list`;
@@ -101,7 +107,33 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <Tile href={L("repair_not_possible")} active={m === "repair_not_possible"} label={S.dashRnp} value={d.svc.repair_not_possible} />
             <Tile href={L("replaced")} active={m === "replaced"} label={S.dashReplaced} value={d.svc.replaced} />
           </div>
-          {m && (
+          {d.qc && (<>
+            <h2 style={{ marginTop: 20 }}>{S.dashQc}</h2>
+            <div className="row" style={{ gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+              <Tile href={L("qc_all")} active={m === "qc_all"} label={S.dashQcAll} value={d.qc.total} />
+              <Tile href={L("qc_done")} active={m === "qc_done"} label={S.qcDone} value={d.qc.done} />
+              <Tile href={L("qc_broken")} active={m === "qc_broken"} label={S.qcBroken} value={d.qc.broken} warn={d.qc.broken > 0} />
+              <Tile href={L("qc_hardware_issue")} active={m === "qc_hardware_issue"} label={S.qcHardware} value={d.qc.hardware_issue} warn={d.qc.hardware_issue > 0} />
+            </div>
+          </>)}
+          {isQc && (
+            <div className="card" id="list">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <h2 style={{ margin: 0 }}>{S.dashQcListFor} {m === "qc_all" ? S.dashQcAll : qcLabel(m.slice(3))}</h2>
+                <a className="btn ghost" href={base} style={{ textDecoration: "none" }}>{S.dashClose}</a>
+              </div>
+              {qcList.length === 0 ? <p><small>{S.dashNone}</small></p> : (
+                <div style={{ overflowX: "auto" }}>
+                  <table><thead><tr><th>{S.dashColSn}</th><th>{S.dashColResult}</th><th>{S.dashColBy}</th><th>{S.dashColCreated}</th></tr></thead>
+                    <tbody>{qcList.map((r) => (
+                      <tr key={r.id}>
+                        <td><a href={`/qc/${r.id}`}>{r.serial ?? "—"}</a></td><td><span className="badge">{qcLabel(r.status)}</span></td><td>{r.by ?? "—"}</td><td>{fmtDT(r.created_at)}</td>
+                      </tr>))}</tbody></table>
+                </div>)}
+              {qcList.length >= 200 && <small>{S.dashListMax}</small>}
+            </div>
+          )}
+          {m && !isQc && (
             <div className="card" id="list">
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <h2 style={{ margin: 0 }}>{S.dashListFor} {metricName(m)}</h2>

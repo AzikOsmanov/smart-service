@@ -13,6 +13,7 @@ import { AuthProvider } from "@/lib/auth";
 function openFromPush(data: Record<string, unknown> | undefined) {
   if (!data) return;
   if (typeof data.tutorial_id === "string" && data.tutorial_id) router.push(`/tutorials/${data.tutorial_id}`);
+  else if (typeof data.qc_id === "string" && data.qc_id) router.push(`/qc/${data.qc_id}`);
   else if (typeof data.ticket_id === "string" && data.ticket_id) router.push(`/tickets/${data.ticket_id}`);
   else if (typeof data.link === "string" && /^https?:\/\//.test(data.link)) Linking.openURL(data.link);
   else router.push("/notifications");

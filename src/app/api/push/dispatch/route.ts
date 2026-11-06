@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       to: t.token, sound: "default", channelId: "default", badge: unread ?? undefined,
       title: ann ? (d.tutorial_id ? tutorialTitle(t.lang) : String(d.title ?? "Smart Service")) : "Smart Service",
       body: ann ? String(d.body ?? "") : notifText(t.lang, { kind: n.kind, data: d }),
-      data: { notification_id: n.id, ticket_id: n.ticket_id, link: ann ? d.link ?? null : null, tutorial_id: ann ? d.tutorial_id ?? null : null },
+      data: { notification_id: n.id, ticket_id: n.ticket_id, link: ann ? d.link ?? null : null, tutorial_id: ann ? d.tutorial_id ?? null : null, qc_id: n.kind === "qc_recorded" ? d.qc_id ?? null : null },
     };
   });
   const res = await fetch("https://exp.host/--/api/v2/push/send", {

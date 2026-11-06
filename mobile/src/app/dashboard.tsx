@@ -9,6 +9,7 @@ type Stats = {
   scope_all: boolean; open_now: number; overdue: number; created: number; closed: number;
   avg_close_hours: number | null; avg_first_response_hours: number | null; avg_satisfaction: number | null; devices_in_service: number;
   by_status: Record<string, number>; by_device_status: Record<string, number>; warranty: { warranty: number; paid: number };
+  qc?: { total: number; done: number; broken: number; hardware_issue: number };
   svc: { diagnose: number; in_progress: number; done: number; repair_not_possible: number; replaced: number };
   fees: { currency: string; total: number; count: number }[]; engineers: { name: string; open: number; closed: number; overdue: number }[];
 };
@@ -26,14 +27,21 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [metric, setMetric] = useState<string | null>(null);
   const [list, setList] = useState<TRow[] | null>(null);
+  const [qcList, setQcList] = useState<{ id: string; serial: string | null; status: string; by: string | null; created_at: string }[] | null>(null);
   const range = useCallback(() => {
     const today = ymd(Date.now());
     const from = period === "today" ? today : ymd(Date.now() - (period === "7" ? 6 : 29) * DAY);
     return { p_from: new Date(startOf(from)).toISOString(), p_to: new Date(startOf(today) + DAY).toISOString() };
   }, [period]);
   const openList = useCallback(async (m: string | null) => {
-    setMetric(m); setList(null);
+    setMetric(m); setList(null); setQcList(null);
     if (!m) return;
+    if (m.startsWith("qc_")) {
+      const { data, error } = await sb.rpc("dashboard_qc", { p_status: m.slice(3), ...range() });
+      if (error) setErr(error.message);
+      setQcList((data ?? []) as any[]);
+      return;
+    }
     const { data, error } = await sb.rpc("dashboard_tickets", { p_metric: m, ...range() });
     if (error) setErr(error.message);
     setList((data ?? []) as TRow[]);
@@ -86,7 +94,27 @@ export default function Dashboard() {
             <Tile m="repair_not_possible" label={t("dashRnp")} value={d.svc.repair_not_possible} />
             <Tile m="replaced" label={t("dashReplaced")} value={d.svc.replaced} />
           </View>
-          {metric && (
+          {d.qc && (<>
+            <Txt bold>{t("dashQc")}</Txt>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              <Tile m="qc_all" label={t("dashQcAll")} value={d.qc.total} />
+              <Tile m="qc_done" label={t("qcDone")} value={d.qc.done} />
+              <Tile m="qc_broken" label={t("qcBroken")} value={d.qc.broken} warn={d.qc.broken > 0} />
+              <Tile m="qc_hardware_issue" label={t("qcHardware")} value={d.qc.hardware_issue} warn={d.qc.hardware_issue > 0} />
+            </View>
+          </>)}
+          {metric?.startsWith("qc_") && (
+            <Card>
+              <Row><Txt bold>{metric === "qc_all" ? t("dashQcAll") : metric === "qc_done" ? t("qcDone") : metric === "qc_broken" ? t("qcBroken") : t("qcHardware")}</Txt></Row>
+              {qcList === null ? <Loading /> : qcList.length === 0 ? <Txt muted>{t("dashNone")}</Txt> : qcList.map((r) => (
+                <Pressable key={r.id} onPress={() => router.push(`/qc/${r.id}`)} style={{ borderTopWidth: 1, borderTopColor: c.border, paddingTop: 8, gap: 2 }}>
+                  <Txt bold>{r.serial ?? "—"} · {r.status === "done" ? t("qcDone") : r.status === "broken" ? t("qcBroken") : t("qcHardware")}</Txt>
+                  <Txt muted small>{[r.by, new Date(r.created_at).toLocaleString()].filter(Boolean).join(" · ")}</Txt>
+                </Pressable>))}
+              <Btn kind="ghost" title={t("dashClose")} onPress={() => openList(null)} />
+            </Card>
+          )}
+          {metric && !metric.startsWith("qc_") && (
             <Card>
               <Row><Txt bold>{({ open_now: t("dashOpenNow"), overdue: t("dashOverdue"), created: t("dashCreated"), closed: t("dashClosed"), devices: t("dashDevices"), diagnose: t("dashDiagnose"), in_progress: t("dashInProgress"), done: t("dashDone"), repair_not_possible: t("dashRnp"), replaced: t("dashReplaced"), avg_close: t("dashAvgClose"), avg_first: t("dashAvgFirst"), rating: t("dashSatisfaction"), warranty: t("dashWarrantyWord"), paid: t("dashPaidWord"), fees: t("dashFees") } as Record<string, string>)[metric]}</Txt></Row>
               {list === null ? <Loading /> : list.length === 0 ? <Txt muted>{t("dashNone")}</Txt> : list.map((r) => (

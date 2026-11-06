@@ -23,7 +23,7 @@ export default function Notifications() {
     if (n.kind === "announcement") return [d.title, d.body].filter(Boolean).join(" — ");
     const status = d.status ? t(({ diagnose: "diagnose", ready: "ready", repair_not_possible: "repair_not_possible", pickup_new_device: "pickup_new_device" } as Record<string, Key>)[d.status] ?? "status") : "";
     const key = ("n_" + n.kind) as Key;
-    return t(key, { no: d.ticket_no, subject: d.subject, name: d.name, email: d.email, amount: d.amount, currency: d.currency, status, device: d.device, ip: d.ip }) || n.kind;
+    return t(key, { no: d.ticket_no, subject: d.subject, name: d.name, email: d.email, amount: d.amount, currency: d.currency, status, device: d.device, ip: d.ip, serial: d.serial, qcs: d.qc_status === "done" ? t("qcDone") : d.qc_status === "broken" ? t("qcBroken") : d.qc_status === "hardware_issue" ? t("qcHardware") : "" }) || n.kind;
   };
 
   return (
@@ -33,7 +33,8 @@ export default function Notifications() {
       {list.map((n) => (
         <Pressable key={n.id} onPress={async () => {
           if (!n.read_at) await sb.rpc("notifications_mark_read", { p_ids: [n.id] });
-          if (n.ticket_id) router.push(`/tickets/${n.ticket_id}`);
+          if (n.kind === "qc_recorded" && n.data?.qc_id) router.push(`/qc/${n.data.qc_id}`);
+          else if (n.ticket_id) router.push(`/tickets/${n.ticket_id}`);
           else if (typeof n.data?.link === "string" && /^https?:\/\//.test(n.data.link)) Linking.openURL(n.data.link);
           else load();
         }}>
