@@ -47,7 +47,7 @@ const LABEL = /(?:\bS\s*\/\s*N\b|\bSN\b|\bSERIAL\s*(?:NO\.?|NUMBER|NUM\.?)?)\s*[
 const tokenOf = (rest: string) => {
   const m = rest.toUpperCase().replace(/[^A-Z0-9\-\s]/g, " ").trim().split(/\s+/)[0] ?? "";
   const t = m.replace(/-/g, "");
-  return /\d/.test(t) && t.length >= 6 && t.length <= 32 && !isMac(t) ? t : "";
+  return /\d/.test(t) && t.length >= 6 && t.length <= 32 ? t : "";
 };
 function parsePrinted(lines: string[]): Cand[] {
   const out = new Map<string, Cand>();
