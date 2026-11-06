@@ -1,3 +1,4 @@
+import SettingsNav from "@/components/SettingsNav";
 import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
@@ -24,7 +25,7 @@ export default async function Announcements({ searchParams }: { searchParams: Pr
   if (isAdmin !== true) notFound();
   return (
     <div>
-      <p><a href="/admin/settings">← {S.settingsWord}</a></p>
+      <SettingsNav active="announcements" />
       <h1>{S.annTitle}</h1>
       <p>{S.annIntro}</p>
       <form action={send} className="card" style={{ maxWidth: 680 }}>

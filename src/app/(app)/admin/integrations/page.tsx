@@ -1,3 +1,4 @@
+import SettingsNav from "@/components/SettingsNav";
 import { notFound } from "next/navigation";
 import { fmtDT } from "@/lib/fmt-time";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -64,7 +65,7 @@ export default async function Integrations({ searchParams }: { searchParams: Pro
 
   return (
     <div>
-      <p><a href="/admin/settings">← {S.settingsWord}</a></p>
+      <SettingsNav active="integrations" />
       <h1>{S.integrationsTitle}</h1>
       <p>{S.integrationsIntro}</p>
       {!k && error && <p className="err">{error}</p>}

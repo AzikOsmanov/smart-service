@@ -1,3 +1,4 @@
+import SettingsNav from "@/components/SettingsNav";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -36,7 +37,7 @@ export default async function Online({ searchParams }: { searchParams: Promise<{
   const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000)); return s < 60 ? fmt(S.agoSec, { n: String(s) }) : fmt(S.agoMin, { n: String(Math.round(s / 60)) }); };
   return (
     <div>
-      <p><a href="/admin/settings">← {S.settingsWord}</a> · <a href="/admin/login-history">{S.loginHistory}</a></p>
+      <SettingsNav active="online" />
       <h1>{S.onlineUsers}</h1>
       <div className="card row">
         <a className="btn" href="/admin/online" style={{ textDecoration: "none" }}>{fmt(S.allWithCount, { n: String(staffN + custN) })}</a>

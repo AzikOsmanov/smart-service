@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getT } from "@/lib/i18n";
 import { getStaff } from "@/lib/i18n-staff";
+import SettingsNav from "@/components/SettingsNav";
 
 async function requireAdmin() {
   const sb = await supabaseServer();
@@ -33,14 +34,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
   const brand = typeof data?.value === "string" ? data.value : "Acom Smart Service";
   return (
     <div>
-      <h1>{t("settings")}</h1>
-      <div className="card row">
-        <a className="btn" href="/admin/login-security" style={{ textDecoration: "none" }}>{S.loginSecurity}</a>
-        <a className="btn" href="/admin/integrations" style={{ textDecoration: "none" }}>{S.integrationsTitle}</a>
-        <a className="btn" href="/admin/announcements" style={{ textDecoration: "none" }}>{S.annTitle}</a>
-        <a className="btn" href="/admin/login-history" style={{ textDecoration: "none" }}>{S.loginHistory}</a>
-        <a className="btn" href="/admin/online" style={{ textDecoration: "none" }}>{S.onlineUsers}</a>
-      </div>
+      <SettingsNav active="settings" />
       <form action={saveBrand} className="card" style={{ maxWidth: 520 }}>
         <label>{t("brandName")}<input name="brand" defaultValue={brand} maxLength={60} required /></label>
         {error && <p className="err">{error}</p>}

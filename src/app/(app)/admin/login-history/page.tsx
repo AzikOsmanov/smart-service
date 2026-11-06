@@ -1,3 +1,4 @@
+import SettingsNav from "@/components/SettingsNav";
 import { notFound } from "next/navigation";
 import { fmtDT } from "@/lib/fmt-time";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -25,7 +26,7 @@ export default async function LoginHistory({ searchParams }: { searchParams: Pro
   };
   return (
     <div>
-      <p><a href="/admin/settings">← {S.settingsWord}</a> · <a href="/admin/login-security">{S.loginSecurity}</a> · <a href="/admin/online">{S.onlineUsers}</a></p>
+      <SettingsNav active="login-history" />
       <h1>{S.loginHistory}</h1>
       <form method="get" className="card row">
         <input name="email" placeholder={S.emailWord} defaultValue={email ?? ""} />

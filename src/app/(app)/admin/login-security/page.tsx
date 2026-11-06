@@ -1,3 +1,4 @@
+import SettingsNav from "@/components/SettingsNav";
 import { notFound, redirect } from "next/navigation";
 import { fmtDT } from "@/lib/fmt-time";
 import { revalidatePath } from "next/cache";
@@ -112,7 +113,7 @@ export default async function LoginSecurity({ searchParams }: { searchParams: Pr
   const { data: locked } = await supabaseAdmin().from("users").select("id,first_name,last_name,email,locked_until").eq("tenant_id", tenantId).gt("locked_until", new Date().toISOString()).order("locked_until");
   return (
     <div>
-      <p><a href="/admin/settings">← {S.settingsWord}</a> · <a href="/admin/login-history">{S.loginHistory}</a></p>
+      <SettingsNav active="login-security" />
       <h1>{S.loginSecurity}</h1>
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
