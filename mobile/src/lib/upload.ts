@@ -20,10 +20,30 @@ export async function uploadTo(bucket: string, folder: string, f: Picked): Promi
   } catch (e: any) { return { error: String(e?.message ?? e) }; }
 }
 
+// Photos and videos taken in the app are named after the device: "<serial number>_<date>-<time>[_n].jpg".
+const pad = (n: number) => String(n).padStart(2, "0");
+export function snFileName(sn: string | null | undefined, f: Picked, index: number, total: number): string {
+  const clean = (sn ?? "").toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+  const isMedia = f.mime.startsWith("image/") || f.mime.startsWith("video/");
+  if (!clean || !isMedia) return f.name;
+  const ext = (f.name.split(".").pop() || (f.mime.startsWith("video/") ? "mp4" : "jpg")).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  return `${clean}_${stamp}${total > 1 ? `_${index + 1}` : ""}.${ext}`;
+}
+async function serialOfTicket(ticketId: string): Promise<string | null> {
+  const { data: t } = await sb.from("tickets").select("device_id").eq("id", ticketId).maybeSingle();
+  if (!t?.device_id) return null;
+  const { data: d } = await sb.from("devices").select("serial_number").eq("id", t.device_id).maybeSingle();
+  return d?.serial_number ?? null;
+}
+
 export const TICKET_FILE_MAX = 25 * 1024 * 1024;
 export async function uploadTicketFiles(tenantId: string, ticketId: string, userId: string, files: Picked[]): Promise<string[]> {
   const failed: string[] = [];
-  for (const f of files) {
+  const sn = await serialOfTicket(ticketId);
+  for (const [i, orig] of files.entries()) {
+    const f: Picked = { ...orig, name: snFileName(sn, orig, i, files.length) };
     if (f.size && f.size > TICKET_FILE_MAX) { failed.push(`${f.name} (> 25 MB)`); continue; }
     const up = await uploadTo("ticket-files", `${tenantId}/${ticketId}`, f);
     if (!up.key) { failed.push(f.name); continue; }

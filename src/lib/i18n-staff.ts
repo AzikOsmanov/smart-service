@@ -505,6 +505,7 @@ const en = {
   platformWeb: "Website",
   platformMobile: "Mobile app",
   sessionResumed: "session resumed (saved sign-in)",
+  downloadWord: "Download",
 };
 export type SKey = keyof typeof en;
 
@@ -1012,6 +1013,7 @@ const ru: Record<SKey, string> = {
   platformWeb: "Сайт",
   platformMobile: "Мобильное приложение",
   sessionResumed: "сеанс продолжен (сохранённый вход)",
+  downloadWord: "Скачать",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -1517,6 +1519,7 @@ const az: Record<SKey, string> = {
   platformWeb: "Sayt",
   platformMobile: "Mobil tətbiq",
   sessionResumed: "sessiya bərpa olundu (saxlanmış giriş)",
+  downloadWord: "Yüklə",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

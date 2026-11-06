@@ -5,7 +5,7 @@ import { sb } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { usePrefs } from "@/lib/prefs";
 import { takeScan } from "@/lib/scan-store";
-import { uploadTo, type Picked } from "@/lib/upload";
+import { snFileName, uploadTo, type Picked } from "@/lib/upload";
 import { pickFilesChecked } from "@/components/Files";
 import { Btn, Card, Choice, Err, Field, H2, Row, Screen, Txt } from "@/components/ui";
 import { Pressable } from "react-native";
@@ -47,10 +47,11 @@ export default function NewQc() {
     const { data: id, error } = await sb.rpc("qc_record", { p_serial: serial, p_status: status, p_comment: comment.trim() || null, p_ticket: ticket ?? null });
     if (error || !id) { setErr(error?.message ?? t("error")); setBusy(false); return; }
     const failed: string[] = [];
-    for (const f of files) {
+    for (const [i, orig] of files.entries()) {
+      const f = { ...orig, name: snFileName(serial, orig, i, files.length) };
       const up = await uploadTo("qc-media", `${profile.tenant_id}/${id}`, f);
       if (!up.key) { failed.push(f.name); continue; }
-      const ins = await sb.from("qc_media").insert({ tenant_id: profile.tenant_id, qc_id: id, path: up.key, kind: f.mime.startsWith("video/") ? "video" : "image", mime: f.mime, size_bytes: f.size ?? null, uploaded_by: session.user.id });
+      const ins = await sb.from("qc_media").insert({ tenant_id: profile.tenant_id, qc_id: id, path: up.key, file_name: f.name.slice(0, 200), kind: f.mime.startsWith("video/") ? "video" : "image", mime: f.mime, size_bytes: f.size ?? null, uploaded_by: session.user.id });
       if (ins.error) failed.push(f.name);
     }
     setBusy(false);

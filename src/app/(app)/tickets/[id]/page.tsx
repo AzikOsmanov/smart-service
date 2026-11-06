@@ -12,6 +12,7 @@ import ConfirmButton from "@/components/ConfirmButton";
 import TicketChat from "@/components/TicketChat";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
+import { downloadUrls } from "@/lib/downloads";
 import { getStaff } from "@/lib/i18n-staff";
 import type { ChatMessage } from "@/lib/chat-actions";
 import TicketFiles from "@/components/TicketFiles";
@@ -160,6 +161,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
     const keys = (files ?? []).map((f) => f.storage_key);
     const { data: signed } = keys.length ? await sb.storage.from("ticket-files").createSignedUrls(keys, 3600) : { data: [] };
     const urlOf = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
+    const dlOf = await downloadUrls(sb, "ticket-files", (files ?? []).map((f) => ({ path: f.storage_key, name: f.file_name })));
     const cur = t.customer_device_status as string | null;
     const stepLabel = cur ? tr(`st_${cur}` as "st_ready") : null;
     const model = cInfo?.model_name || (devFull as { device_models?: { name?: string } | null } | null)?.device_models?.name;
@@ -212,9 +214,10 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
             {(files ?? []).map((f) => {
               const u = urlOf.get(f.storage_key);
               if (!u) return null;
-              if (f.kind === "video") return <video key={f.id} src={u} controls style={{ maxWidth: 320, borderRadius: 8 }} />;
-              if (f.kind === "pdf") return <a key={f.id} href={u} target="_blank" rel="noreferrer">📄 {f.file_name}</a>;
-              return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
+              const dl = <div><small>{f.file_name} · <a href={dlOf.get(f.storage_key) ?? u}>⬇ {S.downloadWord}</a></small></div>;
+              if (f.kind === "video") return <div key={f.id}><video src={u} controls style={{ maxWidth: 320, borderRadius: 8 }} />{dl}</div>;
+              if (f.kind === "pdf") return <div key={f.id}><a href={u} target="_blank" rel="noreferrer">📄 {f.file_name}</a>{dl}</div>;
+              return <div key={f.id}><a href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>{dl}</div>;
             })}
           </div>
           {!locked && <TicketFiles L={L} tenantId={me!.tenant_id} ticketId={id} userId={uid} />}
@@ -250,6 +253,7 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
   const fileKeys = (files ?? []).map((f) => f.storage_key);
   const { data: fileUrls } = fileKeys.length ? await sb.storage.from("ticket-files").createSignedUrls(fileKeys, 3600) : { data: [] };
   const urlOf = new Map((fileUrls ?? []).map((x) => [x.path, x.signedUrl]));
+  const dlOf = await downloadUrls(sb, "ticket-files", (files ?? []).map((f) => ({ path: f.storage_key, name: f.file_name })));
   const qc = (qcLatest ?? [])[0] as { id: string; status: string; created_at: string } | undefined;
   const qcLabel: Record<string, string> = { done: S.qcDone, broken: S.qcBroken, hardware_issue: S.qcHardware };
   const filesCard = (
@@ -260,9 +264,10 @@ export default async function TicketPage({ params, searchParams }: { params: Pro
         {(files ?? []).map((f) => {
           const u = urlOf.get(f.storage_key);
           if (!u) return null;
-          if (f.kind === "video") return <video key={f.id} src={u} controls style={{ maxWidth: 320, borderRadius: 8 }} />;
-          if (f.kind === "pdf") return <a key={f.id} href={u} target="_blank" rel="noreferrer">📄 {f.file_name}</a>;
-          return <a key={f.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>;
+          const dl = <div><small>{f.file_name} · <a href={dlOf.get(f.storage_key) ?? u}>⬇ {S.downloadWord}</a></small></div>;
+          if (f.kind === "video") return <div key={f.id}><video src={u} controls style={{ maxWidth: 320, borderRadius: 8 }} />{dl}</div>;
+          if (f.kind === "pdf") return <div key={f.id}><a href={u} target="_blank" rel="noreferrer">📄 {f.file_name}</a>{dl}</div>;
+          return <div key={f.id}><a href={u} target="_blank" rel="noreferrer"><img src={u} alt={f.file_name} style={{ maxWidth: 200, borderRadius: 8 }} /></a>{dl}</div>;
         })}
       </div>
       {me && !locked && <TicketFiles L={L} tenantId={me.tenant_id} ticketId={id} userId={uid} />}

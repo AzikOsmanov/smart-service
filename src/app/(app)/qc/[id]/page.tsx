@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import ConfirmButton from "@/components/ConfirmButton";
 import { QC_STATUSES } from "@/lib/qc";
+import { downloadUrls } from "@/lib/downloads";
 import { getStaff } from "@/lib/i18n-staff";
 
 async function update(fd: FormData) {
@@ -33,7 +34,7 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
   const { data: c } = await sb.from("qc_checks").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!c) notFound();
   const [{ data: media }, { data: canEdit }, { data: canDelete }, { data: p }, { data: history }] = await Promise.all([
-    sb.from("qc_media").select("id,path,kind,mime").eq("qc_id", id).order("created_at"),
+    sb.from("qc_media").select("id,path,kind,mime,file_name").eq("qc_id", id).order("created_at"),
     sb.rpc("has_permission", { p_code: "qc.edit" }),
     sb.rpc("has_permission", { p_code: "qc.delete" }),
     c.performed_by ? sb.from("users").select("first_name,last_name").eq("id", c.performed_by).maybeSingle() : Promise.resolve({ data: null }),
@@ -42,6 +43,8 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
   const paths = (media ?? []).map((m) => m.path);
   const { data: signed } = paths.length ? await sb.storage.from("qc-media").createSignedUrls(paths, 3600) : { data: [] };
   const url = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+  const nameOf = (m: { id: string; path: string; kind: string; file_name: string | null }, i: number) => m.file_name || `${c.serial_number}_${i + 1}.${m.kind === "video" ? "mp4" : "jpg"}`;
+  const dlOf = await downloadUrls(sb, "qc-media", (media ?? []).map((m, i) => ({ path: m.path, name: nameOf(m, i) })));
   const mine = canEdit === true;
   return (
     <div>
@@ -72,12 +75,13 @@ export default async function QcDetail({ params, searchParams }: { params: Promi
         <h2>{S.photosVideos}</h2>
         {(media ?? []).length === 0 && <p>{S.noFiles}</p>}
         <div className="row" style={{ alignItems: "flex-start" }}>
-          {(media ?? []).map((m) => {
+          {(media ?? []).map((m, i) => {
             const u = url.get(m.path);
             if (!u) return null;
+            const dl = <div><small>{nameOf(m, i)} · <a href={dlOf.get(m.path) ?? u}>⬇ {S.downloadWord}</a></small></div>;
             return m.kind === "video"
-              ? <video key={m.id} src={u} controls style={{ maxWidth: 360, borderRadius: 8 }} />
-              : <a key={m.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ maxWidth: 240, borderRadius: 8 }} /></a>;
+              ? <div key={m.id}><video src={u} controls style={{ maxWidth: 360, borderRadius: 8 }} />{dl}</div>
+              : <div key={m.id}><a href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ maxWidth: 240, borderRadius: 8 }} /></a>{dl}</div>;
           })}
         </div>
       </div>
