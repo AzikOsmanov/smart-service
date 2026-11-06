@@ -42,8 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!r.ok) { setSecMsg(r.reason); await sb.auth.signOut(); }
     };
     check();
-    const sub = AppState.addEventListener("change", (st) => { if (st === "active" && Date.now() - lastCheck.current > 10 * 60 * 1000) check(); });
-    return () => sub.remove();
+    // "Online" status: the phone reports presence every minute while the app is open.
+    const ping = () => { if (AppState.currentState === "active") sb.rpc("touch_presence", { p_client: "mobile" }).then(() => {}, () => {}); };
+    ping();
+    const timer = setInterval(ping, 60000);
+    const sub = AppState.addEventListener("change", (st) => { if (st === "active") { ping(); if (Date.now() - lastCheck.current > 10 * 60 * 1000) check(); } });
+    return () => { sub.remove(); clearInterval(timer); };
   }, [uid]);
 
   const reload = useCallback(() => loadProfile(session), [loadProfile, session]);

@@ -33,16 +33,16 @@ export default async function LoginHistory({ searchParams }: { searchParams: Pro
       </form>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
-        <table><thead><tr><th>{S.timeWord}</th><th>{S.eventWord}</th><th>{S.emailWord}</th><th>{S.ipAddress}</th><th>{S.clientWord}</th><th>{S.browserWord}</th><th>{S.reasonWord}</th></tr></thead><tbody>
+        <table><thead><tr><th>{S.timeWord}</th><th>{S.eventWord}</th><th>{S.emailWord}</th><th>{S.ipAddress}</th><th>{S.platformWord}</th><th>{S.browserWord}</th><th>{S.reasonWord}</th></tr></thead><tbody>
           {(rows ?? []).map((r) => (
             <tr key={r.id}>
               <td>{new Date(r.created_at).toLocaleString()}</td>
               <td><span className="badge">{LABEL[r.event] ?? r.event}</span></td>
               <td>{r.email_attempted}</td>
               <td>{r.ip_address ? String(r.ip_address) : "—"}</td>
-              <td>{r.client ?? "web"}</td>
+              <td>{r.client === "mobile" ? S.platformMobile : S.platformWeb}</td>
               <td>{r.device_label ?? short(r.user_agent)}</td>
-              <td>{r.failure_reason ?? ""}</td>
+              <td>{r.failure_reason === "session resumed" ? S.sessionResumed : r.failure_reason ?? ""}</td>
             </tr>
           ))}
           {(rows ?? []).length === 0 && <tr><td colSpan={7}>{S.noEventsYet}</td></tr>}

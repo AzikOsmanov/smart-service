@@ -30,10 +30,18 @@ export async function POST(req: Request) {
     if (first) await logLoginEvent({ tenantId: u.tenant_id, userId: u.id, email: u.email, event: "login_failed", reason: "ip_not_allowed (mobile)" });
     return NextResponse.json({ ok: false, reason: "ip" }, { headers: CORS });
   }
-  if (first) {
-    await db.from("login_events").insert({ tenant_id: u.tenant_id, user_id: u.id, email_attempted: u.email, event: "login_success", client: "mobile", ip_address: ip, user_agent: ua, device_label: label });
-    await db.from("users").update({ last_login_at: new Date().toISOString() }).eq("id", u.id);
+  // A sign-in is recorded when the person just typed their password, and also when a saved session
+  // starts on a phone not seen for 12 hours (e.g. after an app update), so the history never misses a phone.
+  let resumed = false;
+  if (!first && deviceId) {
+    const { data: kd } = await db.from("known_devices").select("last_seen_at").eq("user_id", u.id).eq("device_id", deviceId).maybeSingle();
+    resumed = !kd || Date.now() - new Date(kd.last_seen_at).getTime() > 12 * 3600 * 1000;
   }
+  if (first || resumed) {
+    await db.from("login_events").insert({ tenant_id: u.tenant_id, user_id: u.id, email_attempted: u.email, event: "login_success", client: "mobile", ip_address: ip, user_agent: ua, device_label: label, failure_reason: resumed ? "session resumed" : null });
+    if (first) await db.from("users").update({ last_login_at: new Date().toISOString() }).eq("id", u.id);
+  }
+  await db.from("users").update({ last_seen_at: new Date().toISOString(), last_seen_client: "mobile" }).eq("id", u.id);
   if (deviceId) {
     try { await registerDevice({ tenantId: u.tenant_id, userId: u.id, email: u.email, name: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email, deviceId, client: "mobile", label, ua, ip, policy }); } catch { /* never blocks */ }
   }

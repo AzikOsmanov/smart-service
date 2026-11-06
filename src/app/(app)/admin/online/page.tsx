@@ -18,7 +18,7 @@ export default async function Online({ searchParams }: { searchParams: Promise<{
   const { data: me } = await sb.from("users").select("tenant_id").eq("id", auth.user!.id).single();
   const since = new Date(Date.now() - ONLINE_SECONDS * 1000).toISOString();
   const admin = supabaseAdmin();
-  let q = admin.from("users").select("id,first_name,last_name,email,kind,last_seen_at,companies(name,city)").eq("tenant_id", me!.tenant_id).gt("last_seen_at", since).order("last_seen_at", { ascending: false });
+  let q = admin.from("users").select("id,first_name,last_name,email,kind,last_seen_at,last_seen_client,companies(name,city)").eq("tenant_id", me!.tenant_id).gt("last_seen_at", since).order("last_seen_at", { ascending: false });
   if (kind === "staff" || kind === "customer") q = q.eq("kind", kind);
   const { data: rows, error } = await q;
   const ids = (rows ?? []).map((r) => r.id);
@@ -46,18 +46,19 @@ export default async function Online({ searchParams }: { searchParams: Promise<{
       </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
-        <table><thead><tr><th>{S.name}</th><th>{S.typeWord}</th><th>{S.roleCompany}</th><th>{S.emailWord}</th><th>{S.ipAddress}</th><th>{S.lastActivity}</th></tr></thead><tbody>
+        <table><thead><tr><th>{S.name}</th><th>{S.typeWord}</th><th>{S.roleCompany}</th><th>{S.emailWord}</th><th>{S.platformWord}</th><th>{S.ipAddress}</th><th>{S.lastActivity}</th></tr></thead><tbody>
           {(rows ?? []).map((u: any) => (
             <tr key={u.id}>
               <td><b>{u.first_name} {u.last_name}</b></td>
               <td><span className="badge">{u.kind === "staff" ? S.staffOne : S.customerOne}</span></td>
               <td>{u.kind === "staff" ? roleOf(u.id) || "—" : `${u.companies?.name ?? ""}${u.companies?.city ? " / " + u.companies.city : ""}`}</td>
               <td>{u.email}</td>
+              <td><span className="badge">{u.last_seen_client === "mobile" ? S.platformMobile : S.platformWeb}</span></td>
               <td>{ipOf.get(u.id)?.ip ?? "—"}</td>
               <td>{ago(u.last_seen_at)}</td>
             </tr>
           ))}
-          {(rows ?? []).length === 0 && <tr><td colSpan={6}>{S.nobodyOnline}</td></tr>}
+          {(rows ?? []).length === 0 && <tr><td colSpan={7}>{S.nobodyOnline}</td></tr>}
         </tbody></table>
       </div>
     </div>

@@ -7,5 +7,5 @@ export async function heartbeat() {
   const sb = await supabaseServer();
   const { data } = await sb.auth.getUser();
   if (!data.user) return;
-  await supabaseAdmin().from("users").update({ last_seen_at: new Date().toISOString() }).eq("id", data.user.id);
+  await supabaseAdmin().from("users").update({ last_seen_at: new Date().toISOString(), last_seen_client: "web" }).eq("id", data.user.id);
 }

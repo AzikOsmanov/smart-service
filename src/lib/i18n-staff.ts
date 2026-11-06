@@ -501,6 +501,10 @@ const en = {
   dashColValue: "Value",
   dashColCreated: "Created",
   dashListMax: "Showing the latest 200.",
+  platformWord: "Platform",
+  platformWeb: "Website",
+  platformMobile: "Mobile app",
+  sessionResumed: "session resumed (saved sign-in)",
 };
 export type SKey = keyof typeof en;
 
@@ -1004,6 +1008,10 @@ const ru: Record<SKey, string> = {
   dashColValue: "Значение",
   dashColCreated: "Создана",
   dashListMax: "Показаны последние 200.",
+  platformWord: "Платформа",
+  platformWeb: "Сайт",
+  platformMobile: "Мобильное приложение",
+  sessionResumed: "сеанс продолжен (сохранённый вход)",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -1505,6 +1513,10 @@ const az: Record<SKey, string> = {
   dashColValue: "Dəyər",
   dashColCreated: "Yaradılıb",
   dashListMax: "Son 200 göstərilir.",
+  platformWord: "Platforma",
+  platformWeb: "Sayt",
+  platformMobile: "Mobil tətbiq",
+  sessionResumed: "sessiya bərpa olundu (saxlanmış giriş)",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 
