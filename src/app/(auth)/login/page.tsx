@@ -78,7 +78,7 @@ async function signIn(fd: FormData) {
     const { ip, ua } = await clientInfo();
     try { await registerDevice({ tenantId, userId: u.id, email, name: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || email, deviceId, client: "web", label: browserLabel(ua), ua, ip, policy }); } catch { /* an alert problem must never block sign-in */ }
   }
-  redirect("/tickets");
+  redirect("/dashboard");
 }
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; e?: string; n?: string }> }) {

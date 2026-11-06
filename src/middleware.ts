@@ -45,7 +45,7 @@ export async function middleware(req: NextRequest) {
     res.headers.set("Cache-Control", "no-store");   // signed-in pages are never kept in the browser cache
   }
   if (!data.user && !open) return NextResponse.redirect(new URL("/login", req.url));
-  if (data.user && open) return NextResponse.redirect(new URL("/tickets", req.url));
+  if (data.user && open) return NextResponse.redirect(new URL("/dashboard", req.url));
   return res;
 }
 export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
