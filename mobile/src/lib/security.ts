@@ -25,7 +25,7 @@ export function clearFreshLogin() { fresh = false; loginAt = 0; }
 let idleMinutes = 0;
 export const getIdleMinutes = () => idleMinutes;
 
-export type Check = { ok: true } | { ok: false; reason: "ip" | "expired" };
+export type Check = { ok: true } | { ok: false; reason: "ip" | "expired" | "mfa_setup" };
 
 export async function runSecurityCheck(): Promise<Check> {
   const { data } = await sb.auth.getSession();
@@ -40,7 +40,7 @@ export async function runSecurityCheck(): Promise<Check> {
     });
     if (!r.ok) return { ok: true };   // no connection to the server must not lock people out
     const j = await r.json();
-    if (j.ok === false) return { ok: false, reason: "ip" };
+    if (j.ok === false) return { ok: false, reason: j.reason === "mfa_setup" ? "mfa_setup" : "ip" };
     idleMinutes = Math.max(0, Number(j.idle_minutes ?? 0)) || 0;
     const hours = Number(j.session_hours ?? 0);
     if (hours > 0) {
