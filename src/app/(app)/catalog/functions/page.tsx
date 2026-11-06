@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getStaff } from "@/lib/i18n-staff";
 import { pmCtx } from "@/lib/pm-ctx";
 import { addMissingFunctions, loadFunctions, fnName } from "@/lib/functions";
+import CatalogTabs from "@/components/CatalogTabs";
 import { FN_GROUPS } from "@/lib/function-seed";
 
 const t = (fd: FormData, k: string, n = 200) => String(fd.get(k) ?? "").trim().slice(0, n);
@@ -59,7 +60,7 @@ export default async function Functions({ searchParams }: { searchParams: Promis
   const e = fns.find((f) => f.id === edit) ?? null;
   return (
     <div>
-      <p><Link href="/catalog">← {S.catTitle}</Link></p>
+      <CatalogTabs active="functions" showLibrary S={S as Record<string, string>} />
       <h1>{S.fnLibTitle}</h1>
       {error && <p className="err">{error}</p>}
       {added !== undefined && <p>{S.fnLibAdded.replace("{n}", String(Number(added) || 0))}</p>}

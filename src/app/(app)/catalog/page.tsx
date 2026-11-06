@@ -5,6 +5,7 @@ import { getStaff } from "@/lib/i18n-staff";
 import { pmCtx } from "@/lib/pm-ctx";
 import { FORMS, KINDS } from "@/lib/projects";
 import { loadFunctions, fnName } from "@/lib/functions";
+import CatalogTabs from "@/components/CatalogTabs";
 import FnPicker from "@/components/FnPicker";
 import { parseWorkbook } from "@/lib/catalog-io";
 
@@ -124,8 +125,8 @@ export default async function Catalog({ searchParams }: { searchParams: Promise<
   const nf = (k: string, label: string) => <label>{label}<input name={k} inputMode="decimal" defaultValue={dv(k)} /></label>;
   return (
     <div>
+      <CatalogTabs active="catalog" showLibrary S={S as Record<string, string>} />
       <h1>{S.catTitle}</h1>
-      <p className="row" style={{ gap: 8 }}><Link className="btn ghost" href="/guide">{S.guideTitle}</Link>{c.canEditCatalog && <Link className="btn ghost" href="/catalog/functions">{S.fnLibTitle}</Link>}</p>
       {error && <p className="err">{error}</p>}
       {ok && <p>{S.catImported.replace("{n}", ok)}</p>}
       {xa !== undefined && <p><b>{S.catXlsxResult.replace("{a}", String(Number(xa) || 0)).replace("{u}", String(Number(xu) || 0))}</b>{xb ? ` ${S.catXlsxSkipped.replace("{rows}", xb)}` : ""}</p>}

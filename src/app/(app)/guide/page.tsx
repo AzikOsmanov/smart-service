@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getStaff } from "@/lib/i18n-staff";
 import { supabaseServer } from "@/lib/supabase-server";
 import { loadFunctions, fnName, fnDesc } from "@/lib/functions";
+import CatalogTabs from "@/components/CatalogTabs";
 import { FN_GROUPS } from "@/lib/function-seed";
 
 // Technology guide: every function with the Dahua and UNV names and a short description. Staff with guide.view and approved customers.
@@ -14,6 +15,7 @@ export default async function Guide({ searchParams }: { searchParams: Promise<{ 
   const staff = me?.kind === "staff";
   const ok = staff ? (await sb.rpc("has_permission", { p_code: "guide.view" })).data === true : me?.registration === "approved";
   if (!ok) redirect("/tickets");
+  const canCat = staff && (await sb.rpc("has_permission", { p_code: "catalog.view" })).data === true;
   const { S, lang } = await getStaff();
   const L = (k: string) => (S as Record<string, string>)[k] ?? k;
   const all = await loadFunctions(sb, me!.tenant_id as string);
@@ -21,6 +23,7 @@ export default async function Guide({ searchParams }: { searchParams: Promise<{ 
   const list = term ? all.filter((f) => [f.name_en, f.name_ru, f.name_az, f.dahua_name, f.unv_name, f.desc_en, f.desc_ru, f.desc_az].some((x) => (x ?? "").toLowerCase().includes(term))) : all;
   return (
     <div>
+      {staff && canCat && <CatalogTabs active="guide" showLibrary S={S as Record<string, string>} />}
       <h1>{S.guideTitle}</h1>
       <p><small>{S.guideHint}</small></p>
       <form method="get" className="row" style={{ gap: 8 }}><input name="q" defaultValue={q ?? ""} placeholder={S.guideSearch} /><button>{S.filter}</button></form>
