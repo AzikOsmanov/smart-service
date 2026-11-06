@@ -164,7 +164,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <label>{S.pmQty}<input name="qty" type="number" min={1} max={500} defaultValue={editing?.qty ?? 1} /></label>
             </div>
             <fieldset style={{ margin: "10px 0" }}><legend>{S.fnTitle}</legend>
-              <FnPicker fns={fns} name="functions" selected={editing?.functions ?? []} scopes={["camera", "both"]} lang={lang} L={L} />
+              <FnPicker fns={fns} name="functions" selected={editing?.functions ?? []} scopes={["camera", "both"]} lang={lang} L={L} skip={["family"]} />
             </fieldset>
             <label>{S.pmNotes}<textarea name="notes" rows={2} maxLength={1000} defaultValue={editing?.notes ?? ""} /></label>
             <div className="row" style={{ gap: 8 }}><button>{S.pmSavePoint}</button>{editing && <Link className="btn ghost" href={`/projects/${id}`}>{S.pmCancel}</Link>}</div>
@@ -226,7 +226,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <label>{S.calcRaid}<select name="raid" defaultValue={raidSel}><option value="none">{S.calcRaidNone}</option>{["1", "5", "6", "10"].map((x) => <option key={x} value={x}>RAID {x}</option>)}</select></label>
               <label>{S.pmUpsMin}<input name="ups_minutes" type="number" min={0} max={1440} defaultValue={project.ups_minutes} style={{ width: 90 }} /></label>
               <button className="btn ghost">{S.save}</button>
-              <fieldset style={{ flexBasis: "100%", margin: 0 }}><legend>{S.fnRecTitle}</legend><FnPicker fns={fns} name="rec_functions" selected={(project.rec_functions ?? []) as string[]} scopes={["recorder", "both"]} lang={lang} L={L} /></fieldset>
+              <fieldset style={{ flexBasis: "100%", margin: 0 }}><legend>{S.fnRecTitle}</legend><FnPicker fns={fns} name="rec_functions" selected={(project.rec_functions ?? []) as string[]} scopes={["recorder", "both"]} lang={lang} L={L} skip={["family"]} /></fieldset>
             </form>
           )}
           <table style={{ marginTop: 10 }}><tbody>
