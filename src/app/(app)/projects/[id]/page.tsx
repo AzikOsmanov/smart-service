@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getStaff, type SKey } from "@/lib/i18n-staff";
 import { pmCtx } from "@/lib/pm-ctx";
 import { fmtDT } from "@/lib/fmt-time";
-import { AI_OPTIONS, FORMS, GOALS, matchPoint, type CatDevice, type Point } from "@/lib/projects";
+import { AI_OPTIONS, CAT_COLS, DISK_SIZES, FORMS, GOALS, matchPoint, planSystem, type CatDevice, type Point } from "@/lib/projects";
 import PdfButton from "@/components/PdfButton";
 
 const numOrNull = (v: FormDataEntryValue | null) => { const x = Number(String(v ?? "").replace(",", ".")); return String(v ?? "").trim() !== "" && Number.isFinite(x) && x >= 0 ? x : null; };
@@ -59,6 +59,18 @@ async function setBrand(fd: FormData) {
   revalidatePath(`/projects/${pid}`);
   redirect(`/projects/${pid}`);
 }
+async function saveSystem(fd: FormData) {
+  "use server";
+  const c = await pmCtx();
+  const pid = String(fd.get("project"));
+  if (!c.canEditProjects) redirect(`/projects/${pid}`);
+  const days = Math.min(3650, Math.max(1, Math.round(numOrNull(fd.get("rec_days")) ?? 30)));
+  const diskTb = DISK_SIZES.includes(Number(fd.get("disk_tb"))) ? Number(fd.get("disk_tb")) : 4;
+  const upsMin = Math.min(1440, Math.max(0, Math.round(numOrNull(fd.get("ups_minutes")) ?? 30)));
+  await c.sb.from("projects").update({ rec_days: days, disk_tb: diskTb, raid: pick(fd.get("raid"), ["none", "1", "5", "6", "10"] as const, "none"), ups_minutes: upsMin, updated_at: new Date().toISOString() }).eq("id", pid);
+  revalidatePath(`/projects/${pid}`);
+  redirect(`/projects/${pid}`);
+}
 async function deleteProject(fd: FormData) {
   "use server";
   const c = await pmCtx();
@@ -75,11 +87,11 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const c = await pmCtx();
   if (!c.canProjects) redirect("/tickets");
   const { S } = await getStaff();
-  const { data: project } = await c.sb.from("projects").select("id,name,client,address,brand_pref,created_at,created_by").eq("id", id).is("deleted_at", null).maybeSingle();
+  const { data: project } = await c.sb.from("projects").select("id,name,client,address,brand_pref,created_at,created_by,rec_days,disk_tb,raid,ups_minutes").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!project) notFound();
   const [{ data: ptsRaw }, { data: devs }] = await Promise.all([
     c.sb.from("project_points").select("*").eq("project_id", id).is("deleted_at", null).order("created_at"),
-    c.sb.from("catalog_devices").select("id,brand,kind,model,description,form,mpx,lens_mm,hfov_deg,ir_range_m,night_modes,audio,ai,poe_w,outdoor").is("deleted_at", null),
+    c.sb.from("catalog_devices").select(CAT_COLS).is("deleted_at", null),
   ]);
   const pts = (ptsRaw ?? []) as (Point & { project_id: string })[];
   const catalog = (devs ?? []) as CatDevice[];
@@ -100,6 +112,12 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   }
   const bomRows = Array.from(bom.values()).sort((a, b) => a.device.model.localeCompare(b.device.model));
   const goalName = (g: string) => L("pmGoal_" + g);
+  const chosenList = pts.flatMap((p) => { const d = p.chosen_device_id ? byId.get(p.chosen_device_id) : null; return d ? [{ device: d, qty: p.qty }] : []; });
+  const raidSel = (["none", "1", "5", "6", "10"] as const).includes(project.raid as never) ? (project.raid as "none" | "1" | "5" | "6" | "10") : "none";
+  const plan = planSystem(chosenList, catalog, { days: project.rec_days, diskTb: Number(project.disk_tb), raid: raidSel, upsMin: project.ups_minutes });
+  const nf1 = (n: number, d = 1) => Number(n.toFixed(d)).toLocaleString("en-US", { maximumFractionDigits: d });
+  const raidName = raidSel === "none" ? S.calcRaidNone : `RAID ${raidSel}`;
+  const nvrOk = !!plan.nvr?.ok;
 
   return (
     <div>
@@ -178,7 +196,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                       <td><b>{m.device.brand === "dahua" ? "Dahua" : "UNV"} {m.device.model}</b>{m.device.description && <><br /><small>{m.device.description}</small></>}
                         {!m.ok && <><br /><small className="err">{m.fails.map((f) => L("pmFail_" + f)).join(", ")}</small></>}</td>
                       <td>{m.device.mpx ?? "—"}</td><td>{m.device.lens_mm ?? "—"}</td><td>{m.device.ir_range_m ?? "—"}</td>
-                      <td>{m.ppm != null ? `${Math.round(m.ppm)} / ${m.needPpm}` : "—"}</td>
+                      <td>{m.dori != null ? `${S.pmDori} ${m.dori} m` : m.ppm != null ? `${Math.round(m.ppm)} / ${m.needPpm}` : "—"}</td>
                       <td>{c.canEditProjects && chosen?.id !== m.device.id && <form action={chooseDevice}><input type="hidden" name="project" value={id} /><input type="hidden" name="id" value={p.id} /><input type="hidden" name="device" value={m.device.id} /><button className="btn">{S.pmChoose}</button></form>}</td>
                     </tr>
                   ))}
@@ -189,6 +207,34 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           </div>
         );
       })}
+
+      {chosenList.length > 0 && (
+        <div className="card">
+          <h2>{S.pmSystem}</h2>
+          {c.canEditProjects && (
+            <form action={saveSystem} className="row" style={{ gap: 10, alignItems: "end", flexWrap: "wrap" }}>
+              <input type="hidden" name="project" value={id} />
+              <label>{S.calcDays}<input name="rec_days" type="number" min={1} max={3650} defaultValue={project.rec_days} style={{ width: 90 }} /></label>
+              <label>{S.calcDiskSize}<select name="disk_tb" defaultValue={String(project.disk_tb)}>{DISK_SIZES.map((x) => <option key={x} value={x}>{x} TB</option>)}</select></label>
+              <label>{S.calcRaid}<select name="raid" defaultValue={raidSel}><option value="none">{S.calcRaidNone}</option>{["1", "5", "6", "10"].map((x) => <option key={x} value={x}>RAID {x}</option>)}</select></label>
+              <label>{S.pmUpsMin}<input name="ups_minutes" type="number" min={0} max={1440} defaultValue={project.ups_minutes} style={{ width: 90 }} /></label>
+              <button className="btn ghost">{S.save}</button>
+            </form>
+          )}
+          <table style={{ marginTop: 10 }}><tbody>
+            <tr><td>{S.pmCams}</td><td><b>{plan.cams}</b></td></tr>
+            <tr><td>{S.calcBwTotal}</td><td><b>{nf1(plan.mbps)} Mbps</b></td></tr>
+            <tr><td>{S.calcNeedRec}</td><td><b>{nf1(plan.needTb, 2)} TB</b></td></tr>
+            <tr><td>{S.calcDisksNeed}</td><td><b>{plan.disks ? `${plan.disks} × ${project.disk_tb} TB (${raidName})` : S.calcNoDisks}</b></td></tr>
+            <tr><td>{S.pmNvr}</td><td>{plan.nvr ? <><b>{plan.nvr.device.brand === "dahua" ? "Dahua" : "UNV"} {plan.nvr.device.model}</b>{!nvrOk && <><br /><small className="err">{S.pmNvrNoFit}: {plan.nvr.fails.map((f) => L("pmNvrFail_" + f)).join(", ")}</small></>}</> : <span className="err">{S.pmNvrNone}</span>}</td></tr>
+            {plan.fitDiskTb && <tr><td></td><td><small>{S.pmFitDisk.replace("{tb}", String(plan.fitDiskTb))}</small></td></tr>}
+            <tr><td>{S.pmSwitch}</td><td>{plan.poeCams === 0 ? S.pmSwitchNoPoe : !plan.swNeeded ? S.pmSwitchInNvr : plan.sw ? <b>{plan.sw.brand === "dahua" ? "Dahua" : "UNV"} {plan.sw.model}</b> : <span className="err">{S.pmSwitchNone.replace("{p}", String(plan.poeCams)).replace("{w}", String(Math.ceil(plan.poeBudgetW)))}</span>}
+              {plan.poeCams > 0 && <><br /><small>{S.pmPoeNeed.replace("{p}", String(plan.poeCams)).replace("{w}", String(Math.ceil(plan.poeBudgetW)))}</small></>}</td></tr>
+            <tr><td>{S.pmUps}</td><td>{plan.loadW > 0 ? <>{S.pmUpsText.replace("{w}", String(Math.ceil(plan.loadW))).replace("{rec}", String(Math.ceil(plan.upsW)))}{plan.needAh24 != null && <><br /><small>{S.pmUpsBattery.replace("{m}", String(project.ups_minutes)).replace("{wh}", String(Math.ceil(plan.usableWh))).replace("{ah}", nf1(plan.needAh24))}</small></>}</> : "—"}</td></tr>
+          </tbody></table>
+          <p><small>{S.pmSystemNote}</small></p>
+        </div>
+      )}
 
       <div className="card">
         <h2>{S.pmBom}</h2>

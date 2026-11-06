@@ -52,6 +52,13 @@ export type Raid = "none" | "1" | "5" | "6" | "10";
 const RAID_MIN: Record<Raid, number> = { none: 1, "1": 2, "5": 3, "6": 4, "10": 4 };
 const usableDisks = (r: Raid, n: number) => (r === "none" ? n : r === "1" ? (n % 2 ? 0 : n / 2) : r === "5" ? n - 1 : r === "6" ? n - 2 : n % 2 ? 0 : n / 2);
 
+// Number of disks of diskTb needed for needTb of space with the given RAID (null: more than 64).
+export function disksFor(needTb: number, diskTb: number, raid: Raid): number | null {
+  if (!(diskTb > 0)) return null;
+  for (let n = RAID_MIN[raid]; n <= 64; n++) if (usableDisks(raid, n) * diskTb >= needTb) return n;
+  return null;
+}
+
 export type DiskIn = {
   brand: Brand; cameras: number; res: string; codec: Codec; ucode?: "off" | "adv"; cx?: "low" | "med" | "high"; fps: number; bitrate?: number | null;
   mode: "cont" | "motion"; motionPct: number; days: number; raid: Raid; diskTb: number; haveDisks?: number | null;

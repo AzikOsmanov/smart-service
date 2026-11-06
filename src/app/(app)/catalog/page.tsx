@@ -15,7 +15,8 @@ function rowFrom(get: (k: string) => string, getAll: (k: string) => string[]): R
   if (!brand || !model) return null;
   return {
     brand, kind: oneOf(get("kind").toLowerCase(), KINDS) ?? "camera", model, description: get("description").trim().slice(0, 300) || null, form: oneOf(get("form").toLowerCase(), FORMS),
-    mpx: num(get("mpx")), lens_mm: num(get("lens_mm")), hfov_deg: num(get("hfov_deg")), ir_range_m: num(get("ir_range_m")),
+    mpx: num(get("mpx")), lens_mm: num(get("lens_mm")), hfov_deg: num(get("hfov_deg")), ir_range_m: num(get("ir_range_m")), light_range_m: num(get("light_range_m")),
+    dori_detect_m: num(get("dori_detect_m")), dori_observe_m: num(get("dori_observe_m")), dori_recognize_m: num(get("dori_recognize_m")), dori_identify_m: num(get("dori_identify_m")),
     night_modes: getAll("night_modes").filter((x) => x === "ir" || x === "color"), audio: oneOf(get("audio").toLowerCase(), ["none", "mic", "two_way"] as const) ?? "none",
     ai: getAll("ai").filter((a) => (AI_OPTIONS as readonly string[]).includes(a)), poe_w: num(get("poe_w")), outdoor: ["on", "yes", "true", "1"].includes(get("outdoor").toLowerCase()),
     channels: num(get("channels")), bays: num(get("bays")), max_tb_per_disk: num(get("max_tb_per_disk")), throughput_mbps: num(get("throughput_mbps")), ports: num(get("ports")), poe_ports: num(get("poe_ports")), poe_budget_w: num(get("poe_budget_w")),
@@ -101,7 +102,7 @@ export default async function Catalog({ searchParams }: { searchParams: Promise<
             <label>{S.pmModel}<input name="model" required maxLength={120} defaultValue={dv("model")} /></label>
             <label>{S.catDesc}<input name="description" maxLength={300} defaultValue={dv("description")} /></label>
             <label>{S.pmForm}<select name="form" defaultValue={editing?.form ?? ""}><option value="">—</option>{FORMS.map((f) => <option key={f} value={f}>{L("pmForm_" + f)}</option>)}</select></label>
-            {nf("mpx", "Mpx")}{nf("lens_mm", S.catLens)}{nf("hfov_deg", S.catFov)}{nf("ir_range_m", S.catIr)}{nf("poe_w", S.catPoe)}
+            {nf("mpx", "Mpx")}{nf("lens_mm", S.catLens)}{nf("hfov_deg", S.catFov)}{nf("ir_range_m", S.catIr)}{nf("poe_w", S.catPoe)}{nf("light_range_m", S.catLight)}{nf("dori_detect_m", S.catDoriDetect)}{nf("dori_observe_m", S.catDoriObserve)}{nf("dori_recognize_m", S.catDoriRecognize)}{nf("dori_identify_m", S.catDoriIdentify)}
             <label>{S.pmAudio}<select name="audio" defaultValue={editing?.audio ?? "none"}><option value="none">{S.pmAudioNone}</option><option value="mic">{S.pmAudioMic}</option><option value="two_way">{S.pmAudioTwo}</option></select></label>
             {nf("channels", S.catChannels)}{nf("bays", S.catBays)}{nf("max_tb_per_disk", S.catMaxTb)}{nf("throughput_mbps", S.catBw)}{nf("ports", S.catPorts)}{nf("poe_ports", S.catPoePorts)}{nf("poe_budget_w", S.catPoeBudget)}
           </div>
