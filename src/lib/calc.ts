@@ -3,16 +3,26 @@
 export type Brand = "dahua" | "unv";
 export const BRANDS: { id: Brand; name: string }[] = [{ id: "dahua", name: "Dahua" }, { id: "unv", name: "Uniview (UNV)" }];
 
-// Typical bitrate per camera, Mbps at 25 fps with H.264 and a normal scene.
-export const RESOLUTIONS: { id: string; label: string; mbps: number }[] = [
-  { id: "1", label: "1 MP (720p)", mbps: 2 }, { id: "2", label: "2 MP (1080p)", mbps: 4 }, { id: "3", label: "3 MP", mbps: 5 },
-  { id: "4", label: "4 MP", mbps: 6 }, { id: "5", label: "5 MP", mbps: 8 }, { id: "6", label: "6 MP", mbps: 10 }, { id: "8", label: "8 MP (4K)", mbps: 12 },
+// Dahua: typical bitrate per camera, Kbps at 25 fps with H.264 and a normal scene (estimates, not yet matched to Dahua's own tool).
+export const RESOLUTIONS: { id: string; label: string; kbps: number }[] = [
+  { id: "1", label: "1 MP (720p)", kbps: 2000 }, { id: "2", label: "2 MP (1080p)", kbps: 4000 }, { id: "3", label: "3 MP", kbps: 5000 },
+  { id: "4", label: "4 MP", kbps: 6000 }, { id: "5", label: "5 MP", kbps: 8000 }, { id: "6", label: "6 MP", kbps: 10000 }, { id: "8", label: "8 MP (4K)", kbps: 12000 },
 ];
-// Compression: share of the H.264 bitrate that is still needed. "smart" is H.265+ (Dahua) / Ultra 265 (UNV).
+// Dahua compression: share of the H.264 bitrate still needed. "smart" is H.265+ (Smart Codec).
 export const CODEC_FACTOR = { h264: 1, h265: 0.5, smart: 0.4 } as const;
 export type Codec = keyof typeof CODEC_FACTOR;
 export const SMART_NAME: Record<Brand, string> = { dahua: "H.265+ (Smart Codec)", unv: "Ultra 265" };
 
+// UNV: taken from the UNV storage tool (H.265, 25 fps, U-Code Advanced Mode, environmental complexity Medium), Kbps per camera.
+// The tool uses steps by resolution. U-Code Off doubles the value (seen at 32 MP: 8704 against 4352).
+export const UNV_RES: { id: string; label: string; kbps: number }[] = [
+  { id: "1080", label: "1920*1080 (1080P)", kbps: 1024 }, { id: "3mp", label: "2000*1500 (3MP)", kbps: 1280 },
+  { id: "4mp", label: "3000*1500 (4MP)", kbps: 2176 }, { id: "4mp2", label: "2688*1520 (4MP)", kbps: 2176 }, { id: "5mp", label: "2592*2048 (5MP)", kbps: 2176 },
+  { id: "6mp", label: "3072*2048 (6MP)", kbps: 2560 }, { id: "4k", label: "3840*2160 (4K)", kbps: 2944 }, { id: "8mp", label: "4096*2160 (8MP)", kbps: 2944 },
+  { id: "9mp", label: "3000*3000 (9MP)", kbps: 2944 }, { id: "12mp", label: "4800*2688 (12MP)", kbps: 4352 }, { id: "16mp", label: "4000*4000 (16MP)", kbps: 4352 },
+  { id: "32mp", label: "8640*3840 (32MP)", kbps: 4352 },
+];
+export const UNV_H264_FACTOR = 2;   // estimate: not yet read from the UNV tool
 export type Nvr = { id: string; brand: Brand; model: string; channels: number; bays: number; maxTb: number; mbps: number; raid: boolean };
 // Typical values of common models. Always confirm with the datasheet of the exact version.
 export const NVRS: Nvr[] = [
@@ -34,30 +44,40 @@ const RAID_MIN: Record<Raid, number> = { none: 1, "1": 2, "5": 3, "6": 4, "10": 
 const usableDisks = (r: Raid, n: number) => (r === "none" ? n : r === "1" ? (n % 2 ? 0 : n / 2) : r === "5" ? n - 1 : r === "6" ? n - 2 : n % 2 ? 0 : n / 2);
 
 export type DiskIn = {
-  brand: Brand; cameras: number; res: string; codec: Codec; fps: number; bitrate?: number | null;
+  brand: Brand; cameras: number; res: string; codec: Codec; ucode?: boolean; fps: number; bitrate?: number | null;
   mode: "cont" | "motion"; motionPct: number; days: number; raid: Raid; diskTb: number; haveDisks?: number | null;
   nvr: { channels: number; bays: number; maxTb: number; mbps: number; raid: boolean } | null;
 };
 export type Check = { kind: "channels" | "bays" | "disk" | "bw" | "raid"; a: number; b: number };
 export type DiskOut = {
-  mbpsPerCam: number; gbPerCamDay: number; needTb: number; disks: number | null; usableTb: number; rawTb: number;
-  totalMbps: number; checks: Check[]; haveDays: number | null;
+  kbpsPerCam: number; gibPerCamDay: number; gibPerDayAll: number; needTb: number; needTbReserve: number; disks: number | null; usableTb: number; rawTb: number;
+  totalKbps: number; totalMbps: number; checks: Check[]; haveDays: number | null; haveDaysReserve: number | null; estimated: boolean;
 };
 export const RESERVE = 1.15;
+const GIB = 1073741824;   // recorders show GB as 1,073,741,824 bytes and Kbps as 1024 bits/s; disks are sold in decimal TB
 
 export function diskCalc(i: DiskIn): DiskOut {
-  const base = RESOLUTIONS.find((r) => r.id === i.res)?.mbps ?? 4;
-  const mbpsPerCam = i.bitrate && i.bitrate > 0 ? i.bitrate : base * CODEC_FACTOR[i.codec] * (i.fps / 25);
+  let base: number, estimated = false;
+  if (i.brand === "unv") {
+    const r = UNV_RES.find((x) => x.id === i.res) ?? UNV_RES[2];
+    base = r.kbps * (i.ucode === false ? 2 : 1) * (i.codec === "h264" ? UNV_H264_FACTOR : 1);
+    estimated = i.codec === "h264" || i.res === "4mp2";
+  } else {
+    base = (RESOLUTIONS.find((r) => r.id === i.res)?.kbps ?? 4000) * CODEC_FACTOR[i.codec];
+    estimated = true;
+  }
+  const kbpsPerCam = i.bitrate && i.bitrate > 0 ? i.bitrate : base * (i.fps / 25);
   const share = i.mode === "motion" ? Math.min(100, Math.max(0, i.motionPct)) / 100 : 1;
-  const gbPerCamDay = (mbpsPerCam * 86400 / 8 / 1000) * share;   // decimal GB, like disk makers count
-  const needTb = (gbPerCamDay * i.cameras * i.days * RESERVE) / 1000;
+  const bytesPerCamDay = ((kbpsPerCam * 1024 * 86400) / 8) * share;
+  const bytesAllDay = bytesPerCamDay * i.cameras;
+  const needTb = (bytesAllDay * i.days) / 1e12, needTbReserve = needTb * RESERVE;
   let disks: number | null = null;
-  if (i.diskTb > 0 && needTb > 0) {
-    for (let n = RAID_MIN[i.raid]; n <= 64; n++) { if (usableDisks(i.raid, n) * i.diskTb >= needTb) { disks = n; break; } }
+  if (i.diskTb > 0 && needTbReserve > 0) {
+    for (let n = RAID_MIN[i.raid]; n <= 64; n++) { if (usableDisks(i.raid, n) * i.diskTb >= needTbReserve) { disks = n; break; } }
   }
   const n = disks ?? 0;
   const usableTb = usableDisks(i.raid, n) * i.diskTb;
-  const totalMbps = mbpsPerCam * i.cameras;
+  const totalKbps = kbpsPerCam * i.cameras, totalMbps = totalKbps / 1024;
   const checks: Check[] = [];
   if (i.nvr) {
     if (i.cameras > i.nvr.channels) checks.push({ kind: "channels", a: i.cameras, b: i.nvr.channels });
@@ -66,11 +86,12 @@ export function diskCalc(i: DiskIn): DiskOut {
     if (totalMbps > i.nvr.mbps) checks.push({ kind: "bw", a: Math.round(totalMbps * 10) / 10, b: i.nvr.mbps });
     if (i.raid !== "none" && !i.nvr.raid) checks.push({ kind: "raid", a: 0, b: 0 });
   }
-  let haveDays: number | null = null;
-  if (i.haveDisks && i.haveDisks > 0 && i.diskTb > 0 && gbPerCamDay > 0 && i.cameras > 0) {
-    haveDays = (usableDisks(i.raid, i.haveDisks) * i.diskTb * 1000) / (gbPerCamDay * i.cameras * RESERVE);
+  let haveDays: number | null = null, haveDaysReserve: number | null = null;
+  if (i.haveDisks && i.haveDisks > 0 && i.diskTb > 0 && bytesAllDay > 0) {
+    const bytes = usableDisks(i.raid, i.haveDisks) * i.diskTb * 1e12;
+    haveDays = bytes / bytesAllDay; haveDaysReserve = haveDays / RESERVE;
   }
-  return { mbpsPerCam, gbPerCamDay, needTb, disks, usableTb, rawTb: n * i.diskTb, totalMbps, checks, haveDays };
+  return { kbpsPerCam, gibPerCamDay: bytesPerCamDay / GIB, gibPerDayAll: bytesAllDay / GIB, needTb, needTbReserve, disks, usableTb, rawTb: n * i.diskTb, totalKbps, totalMbps, checks, haveDays, haveDaysReserve, estimated };
 }
 
 export type UpsIn = { loadW: number; volts: number; ah: number; strings: number; effPct: number; dodPct: number; condPct: number; upsW?: number | null; targetMin?: number | null };
