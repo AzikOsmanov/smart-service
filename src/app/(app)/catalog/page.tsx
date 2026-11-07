@@ -58,7 +58,7 @@ async function importXlsx(fd: FormData) {
   if (f.size > 4 * 1024 * 1024) redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxBig));
   let parsed;
   try { parsed = await parseWorkbook(await f.arrayBuffer(), (await loadFunctions(c.sb, c.tenantId)).map((x) => x.key)); } catch { redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxBad)); }
-  if (parsed.missing.length) redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxCols.replace("{c}", parsed.missing.join(", "))));
+  if (parsed.missing.length) redirect("/catalog?error=" + encodeURIComponent((await getStaff()).S.catXlsxCols.replace("{c}", parsed.missing.join(", ")) + (parsed.found.length ? ` [${parsed.found.slice(0, 6).join(", ")}${parsed.found.length > 6 ? ", …" : ""}]` : " [no text found in the first row]")));
   const { data: existing } = await c.sb.from("catalog_devices").select("id,brand,model").is("deleted_at", null);
   const key = (b: unknown, m: unknown) => `${String(b)}|${String(m).trim().toLowerCase()}`;
   const have = new Map((existing ?? []).map((d) => [key(d.brand, d.model), d.id as string]));

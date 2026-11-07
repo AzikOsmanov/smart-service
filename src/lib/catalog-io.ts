@@ -75,22 +75,52 @@ export async function buildWorkbook(devices: (CatDevice & { notes?: string | nul
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-export type ParsedSheet = { rows: { line: number; row: CatRow | null }[]; missing: string[] };
+export type ParsedSheet = { rows: { line: number; row: CatRow | null }[]; missing: string[]; found: string[] };
+
+// Text of any Excel cell value (plain text, number, rich text, formula result, hyperlink).
+function cellText(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "object") {
+    const o = v as { richText?: { text: string }[]; text?: unknown; result?: unknown };
+    if (Array.isArray(o.richText)) return o.richText.map((t) => t.text).join("");
+    if (o.text !== undefined) return cellText(o.text);
+    if (o.result !== undefined) return cellText(o.result);
+    return "";
+  }
+  return String(v);
+}
+
 export async function parseWorkbook(buf: ArrayBuffer, fnKeys: string[]): Promise<ParsedSheet> {
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buf);
+  // A Node Buffer is the most reliable input for the Excel reader on every Node version.
+  await wb.xlsx.load(Buffer.from(buf) as unknown as ArrayBuffer);
   const ws = wb.getWorksheet("Devices") ?? wb.worksheets[0];
-  if (!ws) return { rows: [], missing: ["brand", "model"] };
-  const idx = new Map<string, number>();
-  ws.getRow(1).eachCell((cell, i) => { idx.set(String(cell.text ?? "").trim().toLowerCase(), i); });
+  if (!ws) return { rows: [], missing: ["brand", "model"], found: [] };
+  // The header row is normally row 1; tolerate a few title lines above it.
+  let headRow = 1;
+  let idx = new Map<string, number>();
+  let found: string[] = [];
+  for (let r = 1; r <= Math.min(10, Math.max(ws.rowCount, 1)); r++) {
+    const m = new Map<string, number>();
+    const names: string[] = [];
+    const row = ws.getRow(r);
+    for (let i = 1; i <= Math.max(row.cellCount, 40); i++) {
+      const t = cellText(row.getCell(i).value).replace(/^\uFEFF/, "").trim().toLowerCase();
+      if (t) { m.set(t, i); names.push(t); }
+    }
+    if (r === 1) found = names;
+    if (m.has("brand") && m.has("model")) { idx = m; headRow = r; found = names; break; }
+    if (r === 1) idx = m;
+  }
   const missing = ["brand", "model"].filter((k) => !idx.has(k));
   const rows: ParsedSheet["rows"] = [];
-  const last = Math.min(ws.rowCount, 2001);
-  for (let r = 2; r <= last; r++) {
+  const last = Math.min(ws.rowCount, headRow + 2000);
+  for (let r = headRow + 1; r <= last; r++) {
     const row = ws.getRow(r);
-    const get = (k: string) => { const i = idx.get(k); return i ? String(row.getCell(i).text ?? "").trim() : ""; };
+    const get = (k: string) => { const i = idx.get(k); return i ? cellText(row.getCell(i).value).trim() : ""; };
     if (!COLUMNS.some((c) => get(c))) continue;   // empty line
     rows.push({ line: r, row: toCatRow(get, fnKeys) });
   }
-  return { rows, missing };
+  return { rows, missing, found };
 }
