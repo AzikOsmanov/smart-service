@@ -337,8 +337,8 @@ const en = {
   clearFilters: "Clear",
   anyAssignee: "Everyone",
   resultsCount: "{n} shown",
-  tutTitle: "Tutorial videos",
-  tutAdd: "Add a tutorial",
+  tutTitle: "Videos",
+  tutAdd: "Add a video",
   tutName: "Title",
   tutDesc: "Description (optional)",
   tutAudience: "Who can watch",
@@ -844,6 +844,9 @@ const en = {
   mfaAccountLink: "Two-step login (authenticator app)",
   mfaStatusOn: "on",
   mfaStatusOff: "off",
+  vidTabTutorial: "Tutorial videos",
+  vidTabProduct: "Product videos",
+  vidKind: "Video type",
 };
 export type SKey = keyof typeof en;
 
@@ -1183,7 +1186,7 @@ const ru: Record<SKey, string> = {
   clearFilters: "Сбросить",
   anyAssignee: "Все",
   resultsCount: "Показано: {n}",
-  tutTitle: "Обучающие видео",
+  tutTitle: "Видео",
   tutAdd: "Добавить видео",
   tutName: "Название",
   tutDesc: "Описание (необязательно)",
@@ -1690,6 +1693,9 @@ const ru: Record<SKey, string> = {
   mfaAccountLink: "Двухэтапный вход (приложение-аутентификатор)",
   mfaStatusOn: "включён",
   mfaStatusOff: "выключен",
+  vidTabTutorial: "Обучающие видео",
+  vidTabProduct: "Видео о продуктах",
+  vidKind: "Тип видео",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -2027,7 +2033,7 @@ const az: Record<SKey, string> = {
   clearFilters: "Təmizlə",
   anyAssignee: "Hamısı",
   resultsCount: "Göstərilir: {n}",
-  tutTitle: "Təlim videoları",
+  tutTitle: "Videolar",
   tutAdd: "Video əlavə et",
   tutName: "Başlıq",
   tutDesc: "Təsvir (könüllü)",
@@ -2534,6 +2540,9 @@ const az: Record<SKey, string> = {
   mfaAccountLink: "İkiaddımlı giriş (autentifikator tətbiqi)",
   mfaStatusOn: "aktiv",
   mfaStatusOff: "söndürülüb",
+  vidTabTutorial: "Təlim videoları",
+  vidTabProduct: "Məhsul videoları",
+  vidKind: "Video növü",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

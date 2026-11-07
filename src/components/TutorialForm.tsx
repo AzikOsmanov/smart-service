@@ -7,7 +7,7 @@ import { fmt } from "@/lib/fmt";
 
 const MAX = 50 * 1024 * 1024;
 
-export default function TutorialForm({ tenantId, S, onDone }: { tenantId: string; S: StaffLabels; onDone?: (message: string) => void }) {
+export default function TutorialForm({ tenantId, S, onDone, defaultKind = "tutorial" }: { tenantId: string; S: StaffLabels; onDone?: (message: string) => void; defaultKind?: "tutorial" | "product" }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -37,7 +37,7 @@ export default function TutorialForm({ tenantId, S, onDone }: { tenantId: string
     }
     const { data: row, error } = await sb.from("tutorials").insert({
       tenant_id: tenantId, title: String(fd.get("title") || "").trim(), description: String(fd.get("description") || "").trim() || null,
-      audience: String(fd.get("audience") || "all"), source: f ? "upload" : "link", storage_path: path, url: f ? null : link,
+      audience: String(fd.get("audience") || "all"), kind: fd.get("kind") === "product" ? "product" : "tutorial", source: f ? "upload" : "link", storage_path: path, url: f ? null : link,
       mime: f?.type ?? null, size_bytes: f?.size ?? null, created_by: u.user!.id,
     }).select("id").single();
     if (error || !row) { setErr(error?.message ?? S.failedWord); if (path) await sb.storage.from("tutorials").remove([path]); setBusy(false); return; }
@@ -55,6 +55,11 @@ export default function TutorialForm({ tenantId, S, onDone }: { tenantId: string
     <form onSubmit={submit}>
       <label>{S.tutName}<input name="title" required maxLength={160} /></label>
       <label>{S.tutDesc}<textarea name="description" rows={3} maxLength={1000} /></label>
+      <label>{S.vidKind}
+        <select name="kind" defaultValue={defaultKind}>
+          <option value="tutorial">{S.vidTabTutorial}</option><option value="product">{S.vidTabProduct}</option>
+        </select>
+      </label>
       <label>{S.tutAudience}
         <select name="audience" defaultValue="all">
           <option value="all">{S.tutAudAll}</option><option value="customers">{S.tutAudCustomers}</option><option value="staff">{S.tutAudStaff}</option>

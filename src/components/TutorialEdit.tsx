@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { StaffLabels } from "@/lib/i18n-staff";
 
-type T = { id: string; title: string; description: string | null; audience: string; source: string; url: string | null };
+type T = { id: string; title: string; description: string | null; audience: string; kind?: string; source: string; url: string | null };
 
 // "Edit" button + pop-up to change a tutorial's title, description, audience and (for links) the link.
 export default function TutorialEdit({ t, S }: { t: T; S: StaffLabels }) {
@@ -22,7 +22,7 @@ export default function TutorialEdit({ t, S }: { t: T; S: StaffLabels }) {
     setBusy(true);
     const patch: Record<string, unknown> = {
       title: String(fd.get("title") || "").trim(), description: String(fd.get("description") || "").trim() || null,
-      audience: String(fd.get("audience") || "all"), updated_at: new Date().toISOString(),
+      audience: String(fd.get("audience") || "all"), kind: fd.get("kind") === "product" ? "product" : "tutorial", updated_at: new Date().toISOString(),
     };
     if (t.source === "link") patch.url = link;
     const { error } = await supabaseBrowser().from("tutorials").update(patch).eq("id", t.id);
@@ -43,6 +43,11 @@ export default function TutorialEdit({ t, S }: { t: T; S: StaffLabels }) {
         <form onSubmit={submit}>
           <label>{S.tutName}<input name="title" required maxLength={160} defaultValue={t.title} /></label>
           <label>{S.tutDesc}<textarea name="description" rows={3} maxLength={1000} defaultValue={t.description ?? ""} /></label>
+          <label>{S.vidKind}
+            <select name="kind" defaultValue={t.kind === "product" ? "product" : "tutorial"}>
+              <option value="tutorial">{S.vidTabTutorial}</option><option value="product">{S.vidTabProduct}</option>
+            </select>
+          </label>
           <label>{S.tutAudience}
             <select name="audience" defaultValue={t.audience}>
               <option value="all">{S.tutAudAll}</option><option value="customers">{S.tutAudCustomers}</option><option value="staff">{S.tutAudStaff}</option>

@@ -20,7 +20,9 @@ async function remove(fd: FormData) {
   revalidatePath("/tutorials");
 }
 
-export default async function Tutorials() {
+export default async function Tutorials({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
+  const sp = await searchParams;
+  const kind: "tutorial" | "product" = sp.kind === "product" ? "product" : "tutorial";
   const sb = await supabaseServer();
   const { S } = await getStaff();
   const { data: sess } = await sb.auth.getSession();
@@ -30,13 +32,21 @@ export default async function Tutorials() {
     sb.rpc("has_permission", { p_code: "tutorials.view" }), sb.rpc("has_permission", { p_code: "tutorials.edit" }), sb.rpc("has_permission", { p_code: "tutorials.delete" }),
   ]);
   if (staff && canView !== true) redirect("/tickets");
-  const { data: rows, error } = await sb.from("tutorials").select("id,title,description,audience,source,url,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+  const { data: rows, error } = await sb.from("tutorials").select("id,title,description,audience,kind,source,url,created_at").eq("kind", kind).is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
   const aud: Record<string, string> = { all: S.tutAudAll, customers: S.tutAudCustomers, staff: S.tutAudStaff };
   return (
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ margin: 0 }}>{S.tutTitle}</h1>
-        {staff && canEdit === true && <span><TutorialAdd tenantId={me!.tenant_id} S={S} /></span>}
+        {staff && canEdit === true && <span><TutorialAdd tenantId={me!.tenant_id} S={S} defaultKind={kind} /></span>}
+      </div>
+      <div className="row" style={{ gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
+        {([["tutorial", S.vidTabTutorial], ["product", S.vidTabProduct]] as const).map(([id, label]) => (
+          <Link key={id} href={id === "tutorial" ? "/tutorials" : "/tutorials?kind=product"} aria-current={id === kind ? "page" : undefined}
+            style={{ textDecoration: "none", padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border, #334155)", fontWeight: id === kind ? 700 : 500, background: id === kind ? "var(--accent, #2563eb)" : "transparent", color: id === kind ? "#fff" : "inherit" }}>
+            {label}
+          </Link>
+        ))}
       </div>
       <div className="card">
         {error && <p className="err">{error.message}</p>}
