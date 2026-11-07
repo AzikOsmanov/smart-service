@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle, type RefreshControlProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePrefs } from "@/lib/prefs";
@@ -52,11 +52,21 @@ export function Btn({ title, onPress, kind = "primary", disabled, busy }: { titl
 
 export function Field({ label, ...p }: TextInputProps & { label?: string }) {
   const { c } = usePrefs();
+  const [show, setShow] = useState(false);
+  const secret = p.secureTextEntry === true;   // password fields get an eye button to see what was typed
   return (
     <View style={{ gap: 4 }}>
       {label ? <Text style={{ color: c.muted, fontSize: 13 }}>{label}</Text> : null}
-      <TextInput placeholderTextColor={c.muted} {...p}
-        style={[{ color: c.fg, backgroundColor: c.bg, borderColor: c.border, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 }, p.multiline ? { minHeight: 90, textAlignVertical: "top" } : null, p.style]} />
+      <View>
+        <TextInput placeholderTextColor={c.muted} {...p} secureTextEntry={secret && !show}
+          style={[{ color: c.fg, backgroundColor: c.bg, borderColor: c.border, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 }, p.multiline ? { minHeight: 90, textAlignVertical: "top" } : null, secret ? { paddingRight: 48 } : null, p.style]} />
+        {secret ? (
+          <Pressable onPress={() => setShow((v) => !v)} hitSlop={10} accessibilityLabel={show ? "Hide password" : "Show password"}
+            style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 46, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: 18, opacity: show ? 1 : 0.6 }}>{show ? "🙈" : "👁"}</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
