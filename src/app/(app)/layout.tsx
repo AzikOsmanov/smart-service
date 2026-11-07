@@ -29,7 +29,7 @@ async function signOut() {
   redirect("/login");
 }
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   const sb = await supabaseServer();
   const { data: sess } = await sb.auth.getSession();
   if (!sess.session) redirect("/login");
@@ -84,6 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Heartbeat />
       {idleMinutes > 0 && <IdleLogout minutes={idleMinutes} labels={{ title: S.idleWarnTitle, body: S.idleWarnBody, stay: S.idleStay }} />}
       <main className="page">{children}</main>
+      {modal}
     </>
   );
 }

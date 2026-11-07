@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -65,7 +66,7 @@ export default async function Customers({ searchParams }: { searchParams: Promis
                 {u.registration === "rejected" && (
                   <form action={review} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} />
                     <button name="decision" value="approve">{S.approveNow}</button></form>)}
-                {isAdmin === true && <a className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>{S.edit}</a>}
+                {isAdmin === true && <Link className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>{S.edit}</Link>}
                 {isAdmin === true && (
                   <form action={adminSendResetAction} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/customers" /><button>{S.sendPwReset}</button></form>)}
                 {isAdmin === true && (
