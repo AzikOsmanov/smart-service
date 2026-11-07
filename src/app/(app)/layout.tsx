@@ -51,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (me?.kind && sh.tenant_id) {
     const policy = parseLoginPolicy(sh.login_security);
     idleMinutes = policy.idle_minutes_web;
-    if (me.kind === "staff" && policy.require_2fa_staff && !sh.mfa_enrolled) redirect("/mfa/setup?required=1");
+    if (isAdmin && policy.require_2fa_staff && !sh.mfa_enrolled) redirect("/mfa/setup?required=1");
     if (policy.ip_allowlist.length) {
       const { ip } = await clientInfo();
       const admin = isAdmin && !policy.ip_include_admins;

@@ -17,8 +17,8 @@ async function turnOff(fd: FormData) {
   "use server";
   const sb = await supabaseServer();
   const { data: shell } = await sb.rpc("app_shell");
-  const sh = (shell ?? {}) as { kind?: string; login_security?: unknown };
-  if (sh.kind === "staff" && parseLoginPolicy(sh.login_security).require_2fa_staff) redirect("/mfa/setup");   // required: cannot be turned off
+  const sh = (shell ?? {}) as { is_admin?: boolean; login_security?: unknown };
+  if (sh.is_admin === true && parseLoginPolicy(sh.login_security).require_2fa_staff) redirect("/mfa/setup");   // required: cannot be turned off
   await sb.auth.mfa.unenroll({ factorId: String(fd.get("factorId") ?? "") });
   redirect("/mfa/setup?off=1");
 }
@@ -30,8 +30,8 @@ export default async function Setup({ searchParams }: { searchParams: Promise<{ 
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) redirect("/login");
   const { data: shell } = await sb.rpc("app_shell");
-  const sh = (shell ?? {}) as { kind?: string; login_security?: unknown };
-  const required = sh.kind === "staff" && parseLoginPolicy(sh.login_security).require_2fa_staff;
+  const sh = (shell ?? {}) as { is_admin?: boolean; login_security?: unknown };
+  const required = sh.is_admin === true && parseLoginPolicy(sh.login_security).require_2fa_staff;
   const { data: f } = await sb.auth.mfa.listFactors();
   const verified = f?.totp?.[0];
 

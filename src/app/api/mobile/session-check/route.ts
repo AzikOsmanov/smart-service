@@ -24,8 +24,8 @@ export async function POST(req: Request) {
   const { data: u } = await db.from("users").select("id,tenant_id,kind,email,first_name,last_name").eq("id", au.user.id).maybeSingle();
   if (!u) return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: CORS });
   const policy = await getLoginPolicy(u.tenant_id);
-  // Staff must have two-step login set up (the phone only asks for the code; setting it up is done on the website).
-  if (u.kind === "staff" && policy.require_2fa_staff && !(au.user.factors ?? []).some((f) => f.status === "verified")) {
+  // Administrators must have two-step login set up (the phone only asks for the code; setting it up is done on the website).
+  if (policy.require_2fa_staff && !(au.user.factors ?? []).some((f) => f.status === "verified") && await isAdminUser(u.id)) {
     return NextResponse.json({ ok: false, reason: "mfa_setup" }, { headers: CORS });
   }
   const { ip, ua } = await clientInfo();
