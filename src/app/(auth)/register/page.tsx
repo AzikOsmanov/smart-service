@@ -1,3 +1,4 @@
+import PasswordInput from "@/components/PasswordInput";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
@@ -37,7 +38,7 @@ export default async function Register({ searchParams }: { searchParams: Promise
       <label>{t("companyName")}<input name="company_name" required /></label>
       <label>{t("city")}<input name="city" required /></label>
       <label>{t("email")}<input name="email" type="email" required /></label>
-      <label>{t("password")}<input name="password" type="password" minLength={8} required /></label>
+      <label>{t("password")}<PasswordInput name="password" autoComplete="new-password" minLength={8} required /></label>
       {error && <p className="err">{error}</p>}
       <button>{t("createAccount")}</button>
       <p><a href="/login">{t("backToSignIn")}</a></p>

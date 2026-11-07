@@ -7,6 +7,7 @@ import { getT } from "@/lib/i18n";
 import { getStaff } from "@/lib/i18n-staff";
 import { fmt } from "@/lib/fmt";
 import ConfirmButton from "@/components/ConfirmButton";
+import PopupButton from "@/components/PopupButton";
 import { hardDeleteUserAction } from "@/lib/delete-actions";
 import { adminSendResetAction } from "@/lib/reset-actions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -76,7 +77,21 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
   const staff = (staffRows ?? []).map((u) => ({ ...u, roleNames: (urRows ?? []).filter((x) => x.user_id === u.id).map((x) => roleName.get(x.role_id)).filter(Boolean).join(", ") }));
   return (
     <div>
-      <h1>{t("staffUsers")}</h1>
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>{t("staffUsers")}</h1>
+        <span><PopupButton label={S.addStaffUser} title={S.addStaffUser}>
+          <form action={createStaff}>
+            <label>{S.firstName}<input name="first_name" required /></label>
+            <label>{S.lastName}<input name="last_name" required /></label>
+            <label>{S.phone}<input name="phone" /></label>
+            <label>{t("email")}<input name="email" type="email" required /></label>
+            <label>{S.roleWord}<select name="role">{(roles ?? []).filter((r) => !r.is_admin).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+            <label>{S.tempPassword}<input name="password" type="text" minLength={10} required /></label>
+            <p>{S.tempPwHint}</p>
+            <button>{S.createUser}</button>
+          </form>
+        </PopupButton></span>
+      </div>
       {error && <p className="err">{error}</p>}
       {ok && <p>{ok}</p>}
       {staffErr && <p className="err">{staffErr.message}</p>}
@@ -98,17 +113,6 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
                   </form>)}</td>
             </tr>))}</tbody></table>
       </div>
-      <form action={createStaff} className="card">
-        <h2>{S.addStaffUser}</h2>
-        <label>{S.firstName}<input name="first_name" required /></label>
-        <label>{S.lastName}<input name="last_name" required /></label>
-        <label>{S.phone}<input name="phone" /></label>
-        <label>{t("email")}<input name="email" type="email" required /></label>
-        <label>{S.roleWord}<select name="role">{(roles ?? []).filter((r) => !r.is_admin).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-        <label>{S.tempPassword}<input name="password" type="text" minLength={10} required /></label>
-        <p>{S.tempPwHint}</p>
-        <button>{S.createUser}</button>
-      </form>
     </div>
   );
 }

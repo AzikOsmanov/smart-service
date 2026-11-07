@@ -7,10 +7,11 @@ export default function EditDialog({ backHref, children }: { backHref: string; c
   const ref = useRef<HTMLDialogElement>(null);
   const router = useRouter();
   useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
+  function close() { ref.current?.close(); router.push(backHref); router.refresh(); }
   return (
     <dialog ref={ref} className="modal" onCancel={(e) => e.preventDefault()}>
       <div className="row" style={{ justifyContent: "flex-end" }}>
-        <button type="button" className="btn ghost" aria-label="Close" onClick={() => { router.push(backHref); router.refresh(); }}>✕</button>
+        <button type="button" className="btn ghost" aria-label="Close" onClick={close}>✕</button>
       </div>
       {children}
     </dialog>

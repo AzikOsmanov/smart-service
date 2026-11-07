@@ -1,3 +1,4 @@
+import PasswordInput from "@/components/PasswordInput";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabase-server";
@@ -94,7 +95,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       <h1>{t("signIn")}</h1>
       <HashAuth L={L} />
       <label>{t("email")}<input name="email" type="email" required /></label>
-      <label>{t("password")}<input name="password" type="password" required /></label>
+      <label>{t("password")}<PasswordInput name="password" autoComplete="current-password" required /></label>
       {error && <p className="err">{error}</p>}
       <button>{t("signIn")}</button>
       <p><a href="/forgot">{L.forgotLink}</a></p>
