@@ -11,7 +11,7 @@ export default function MaterialAdd({ tenantId, creator, S }: { tenantId: string
     <>
       <button onClick={() => { setDone(""); ref.current?.showModal(); }}>＋ {S.matAdd}</button>
       {done && <span style={{ marginLeft: 12 }}>{done}</span>}
-      <dialog ref={ref} className="modal" onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+      <dialog ref={ref} className="modal" onCancel={(e) => e.preventDefault()}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2 style={{ margin: 0 }}>{S.matNewTitle}</h2>
           <button type="button" className="btn ghost" onClick={() => ref.current?.close()} aria-label="Close">✕</button>

@@ -35,7 +35,7 @@ export default function TutorialEdit({ t, S }: { t: T; S: StaffLabels }) {
   return (
     <>
       <button type="button" className="btn" onClick={() => { setErr(""); ref.current?.showModal(); }}>{S.tutEdit}</button>
-      <dialog ref={ref} className="modal" onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+      <dialog ref={ref} className="modal" onCancel={(e) => e.preventDefault()}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2 style={{ margin: 0 }}>{S.tutEditTitle}</h2>
           <button type="button" className="btn ghost" onClick={() => ref.current?.close()} aria-label="Close">✕</button>

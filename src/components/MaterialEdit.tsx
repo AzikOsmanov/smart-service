@@ -71,7 +71,7 @@ export default function MaterialEdit({ m, files, S }: { m: M; files: F[]; S: Sta
   return (
     <>
       <button type="button" className="btn" onClick={() => { setErr(""); setRemoved([]); ref.current?.showModal(); }}>{S.matEdit}</button>
-      <dialog ref={ref} className="modal" onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }}>
+      <dialog ref={ref} className="modal" onCancel={(e) => e.preventDefault()}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2 style={{ margin: 0 }}>{S.matEditTitle}</h2>
           <button type="button" className="btn ghost" onClick={() => ref.current?.close()} aria-label="Close">✕</button>
