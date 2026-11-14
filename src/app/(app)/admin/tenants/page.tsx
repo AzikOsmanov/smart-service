@@ -10,6 +10,8 @@ import { getStaff } from "@/lib/i18n-staff";
 import PopupButton from "@/components/PopupButton";
 import PasswordInput from "@/components/PasswordInput";
 import { provisionTenant } from "@/lib/tenant-admin";
+import ConfirmButton from "@/components/ConfirmButton";
+import { CURRENCIES, GRACE_DAYS, TRIAL_DAYS, approveTenant, asCurrency, expiryOf, rejectTenant, type Currency, type Lic } from "@/lib/license";
 
 // Platform owner only: companies (tenants) of this system.
 async function requireOwner() {
@@ -35,6 +37,7 @@ async function createTenant(fd: FormData) {
   if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(slug)) back("error", S.tnErrSlug);
   const res = await provisionTenant(supabaseAdmin(), { name, slug, email, password, first, last });
   if (!res.ok) back("error", res.error === "slug_taken" ? S.tnErrSlugTaken : res.message ?? S.tnErrFields);
+  else await approveTenant(supabaseAdmin(), res.tenantId, asCurrency(fd.get("currency")), false);   // created by the owner = approved
   const h = await headers();
   const link = `https://${h.get("x-forwarded-host") ?? h.get("host")}/register?t=${slug}`;
   revalidatePath("/admin/tenants");
@@ -66,6 +69,91 @@ async function saveApk(fd: FormData) {
   redirect("/admin/tenants?ok=" + encodeURIComponent(S.apkSaved));
 }
 
+async function approveAction(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireOwner();
+  const id = String(fd.get("id"));
+  const admin = supabaseAdmin();
+  const { data: l } = await admin.from("tenant_licenses").select("state").eq("tenant_id", id).maybeSingle();
+  if (l?.state !== "pending") redirect("/admin/tenants");
+  await approveTenant(admin, id, asCurrency(fd.get("currency")));
+  const { data: t } = await admin.from("tenants").select("name").eq("id", id).maybeSingle();
+  revalidatePath("/admin/tenants");
+  redirect("/admin/tenants?ok=" + encodeURIComponent(fmt(S.tnApproved, { name: t?.name ?? "", date: new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString().slice(0, 10) })));
+}
+
+async function rejectAction(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  const { tenantId } = await requireOwner();
+  const id = String(fd.get("id"));
+  if (id === tenantId) redirect("/admin/tenants");
+  const admin = supabaseAdmin();
+  const { data: l } = await admin.from("tenant_licenses").select("state,exempt").eq("tenant_id", id).maybeSingle();
+  if (l?.state !== "pending" || l.exempt) redirect("/admin/tenants");
+  const r = await rejectTenant(admin, id);
+  revalidatePath("/admin/tenants");
+  redirect("/admin/tenants?" + (r.ok ? "ok=" + encodeURIComponent(S.tnRejected) : "error=" + encodeURIComponent(r.message)));
+}
+
+const num = (v: FormDataEntryValue | null, max = 100000) => Math.min(max, Math.max(0, Math.floor(Number(v) || 0)));
+
+async function saveLicense(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireOwner();
+  const id = String(fd.get("id"));
+  const admin = supabaseAdmin();
+  const { data: l } = await admin.from("tenant_licenses").select("*").eq("tenant_id", id).maybeSingle();
+  if (!l || l.exempt || l.state === "pending") redirect("/admin/tenants");
+  const lic = l as Lic;
+  const now = Date.now();
+  const upd: Record<string, unknown> = { currency: asCurrency(fd.get("currency")), staff_seats: num(fd.get("staff_seats")), customer_seats: num(fd.get("customer_seats")), notes: String(fd.get("notes") ?? "").slice(0, 500) || null, updated_at: new Date(now).toISOString() };
+  upd.reg_fee_paid_at = fd.get("reg_paid") === "on" ? (lic.reg_fee_paid_at ?? new Date(now).toISOString()) : null;
+  const ext = num(fd.get("extend_days"), 365), months = num(fd.get("add_months"), 60);
+  if (ext > 0 && lic.state === "trial") {
+    const base = Math.max(now, lic.trial_ends_at ? new Date(lic.trial_ends_at).getTime() : now);
+    upd.trial_ends_at = new Date(base + ext * 86400000).toISOString();
+    upd.notified = {};
+  }
+  if (months > 0) {
+    const cur = lic.state === "active" && lic.paid_until ? new Date(lic.paid_until).getTime() : 0;
+    const d = new Date(Math.max(now, cur));
+    d.setUTCMonth(d.getUTCMonth() + months);
+    upd.paid_until = d.toISOString();
+    upd.state = "active";
+    upd.notified = {};
+  }
+  await admin.from("tenant_licenses").update(upd).eq("tenant_id", id);
+  revalidatePath("/admin/tenants");
+  redirect("/admin/tenants?ok=" + encodeURIComponent(S.licSaved));
+}
+
+async function savePrices(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireOwner();
+  const rows: { currency: string; kind: string; amount: number }[] = [];
+  for (const c of CURRENCIES) for (const k of ["reg_fee", "staff_seat", "customer_seat"]) rows.push({ currency: c, kind: k, amount: Math.round(Math.max(0, Number(String(fd.get(`${c}_${k}`) ?? "0").replace(",", ".")) || 0) * 100) / 100 });
+  await supabaseAdmin().from("license_prices").upsert(rows, { onConflict: "currency,kind" });
+  revalidatePath("/admin/tenants");
+  redirect("/admin/tenants?ok=" + encodeURIComponent(S.licSaved));
+}
+
+async function saveContact(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  const { tenantId } = await requireOwner();
+  const admin = supabaseAdmin();
+  const { data: def } = await admin.from("tenants").select("id").eq("slug", "default").maybeSingle();
+  const tid = def?.id ?? tenantId;
+  const v = String(fd.get("contact") ?? "").trim().slice(0, 600);
+  if (v) await admin.from("settings").upsert({ tenant_id: tid, key: "vendor_contact", value: v }, { onConflict: "tenant_id,key" });
+  else await admin.from("settings").delete().eq("tenant_id", tid).eq("key", "vendor_contact");
+  redirect("/admin/tenants?ok=" + encodeURIComponent(S.licSaved));
+}
+
 export default async function Tenants({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error, ok } = await searchParams;
   const { tenantId } = await requireOwner();
@@ -73,13 +161,41 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
   const { S } = await getStaff();
   const admin = supabaseAdmin();
   const { data: rows } = await admin.from("tenants").select("id,name,slug,status,is_demo,created_at").is("deleted_at", null).order("created_at");
-  const counts = new Map<string, number>();
+  const { data: lics } = await admin.from("tenant_licenses").select("*");
+  const licOf = new Map((lics ?? []).map((l) => [l.tenant_id as string, l as Lic]));
+  const { data: priceRows } = await admin.from("license_prices").select("currency,kind,amount");
+  const price = (c: string, k: string) => Number((priceRows ?? []).find((r) => r.currency === c && r.kind === k)?.amount ?? 0);
+  const counts = new Map<string, number>(), staffUsed = new Map<string, number>(), custUsed = new Map<string, number>(), adminMail = new Map<string, string>();
   await Promise.all((rows ?? []).map(async (r) => {
     const { count } = await admin.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", r.id).is("deleted_at", null);
     counts.set(r.id, count ?? 0);
+    const st = await admin.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", r.id).eq("kind", "staff").eq("is_active", true).is("deleted_at", null);
+    staffUsed.set(r.id, st.count ?? 0);
+    const cu = await admin.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", r.id).eq("kind", "customer").eq("registration", "approved").eq("is_active", true).is("deleted_at", null);
+    custUsed.set(r.id, cu.count ?? 0);
+    if (licOf.get(r.id)?.state === "pending") {
+      const { data: u } = await admin.from("users").select("email,first_name,last_name").eq("tenant_id", r.id).eq("kind", "staff").order("created_at").limit(1).maybeSingle();
+      if (u) adminMail.set(r.id, `${u.first_name ?? ""} ${u.last_name ?? ""} · ${u.email}`.trim());
+    }
   }));
+  const day = (v: Date | string | null) => (v ? new Date(v).toISOString().slice(0, 10) : "—");
+  const licLabel = (l: Lic | undefined) => {
+    if (!l) return "—";
+    if (l.exempt) return S.licStExempt;
+    if (l.state === "pending") return S.licStPending;
+    const e = expiryOf(l);
+    if (!e || e.getTime() <= Date.now()) return fmt(S.licStFrozen, { date: day(e ? new Date(e.getTime() + GRACE_DAYS * 86400000) : null) });
+    if (l.state === "trial") return fmt(S.licStTrial, { n: String(Math.ceil((e.getTime() - Date.now()) / 86400000)) });
+    return fmt(S.licStActive, { date: day(e) });
+  };
+  const due = (l: Lic) => {
+    const amt = (l.reg_fee_paid_at ? 0 : price(l.currency, "reg_fee")) + l.staff_seats * price(l.currency, "staff_seat") + l.customer_seats * price(l.currency, "customer_seat");
+    return `${amt.toFixed(2)} ${l.currency}`;
+  };
+  const pending = (rows ?? []).filter((r) => licOf.get(r.id)?.state === "pending");
   const { data: def } = await admin.from("tenants").select("id").eq("slug", "default").maybeSingle();
   const { data: apk } = def ? await admin.from("settings").select("value").eq("tenant_id", def.id).eq("key", "apk_url").maybeSingle() : { data: null };
+  const { data: contactRow } = def ? await admin.from("settings").select("value").eq("tenant_id", def.id).eq("key", "vendor_contact").maybeSingle() : { data: null };
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   return (
@@ -94,6 +210,7 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
             <label>{S.tnLast}<input name="last_name" required /></label>
             <label>{S.tnAdminEmail}<input name="email" type="email" required /></label>
             <label>{S.tnPassword}<PasswordInput name="password" autoComplete="new-password" minLength={8} required /></label>
+            <label>{S.tnCurrency}<select name="currency">{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
             <button>{S.tnCreate}</button>
           </form>
         </PopupButton></span>
@@ -101,16 +218,77 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
       <p>{S.tnIntro}</p>
       {error && <p className="err">{error}</p>}
       {ok && <p style={{ wordBreak: "break-all" }}>{ok}</p>}
+      {pending.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0 }}>{S.tnPending} ({pending.length})</h2>
+          <table><tbody>{pending.map((r) => (
+            <tr key={r.id}>
+              <td><strong>{r.name}</strong><br /><small>{adminMail.get(r.id) ?? ""}</small></td>
+              <td>{fmtDT(r.created_at)}</td>
+              <td>
+                <form action={approveAction} className="row">
+                  <input type="hidden" name="id" value={r.id} />
+                  <select name="currency" aria-label={S.tnCurrency}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                  <button>{S.tnApprove}</button>
+                  <ConfirmButton formAction={rejectAction} message={S.tnRejectConfirm}>{S.tnReject}</ConfirmButton>
+                </form>
+              </td>
+            </tr>))}</tbody></table>
+        </div>
+      )}
       <div className="card">
-        <table><thead><tr><th>{S.tnName}</th><th>{S.tnSlug.split(" (")[0]}</th><th>{S.tnUsers}</th><th>{S.tnStatus}</th><th>{S.tnRegLink}</th><th>{t("created")}</th><th></th></tr></thead>
-          <tbody>{(rows ?? []).map((r) => (
+        <table><thead><tr><th>{S.tnName}</th><th>{S.tnSlug.split(" (")[0]}</th><th>{S.tnUsers}</th><th>{S.tnStatus}</th><th>{S.tnLicense}</th><th>{S.licSeatsCol}</th><th>{S.licDue}</th><th>{S.tnRegLink}</th><th>{t("created")}</th><th></th></tr></thead>
+          <tbody>{(rows ?? []).filter((r) => licOf.get(r.id)?.state !== "pending").map((r) => {
+            const l = licOf.get(r.id);
+            return (
             <tr key={r.id}>
               <td>{r.name}{r.is_demo ? ` · ${S.tnDemoTag}` : ""}</td><td>{r.slug}</td><td>{counts.get(r.id) ?? 0}</td>
               <td>{r.status === "active" ? S.tnActive : S.tnSuspended}</td>
+              <td>{licLabel(l)}</td>
+              <td>{l && !l.exempt ? `${staffUsed.get(r.id) ?? 0}/${l.staff_seats} · ${custUsed.get(r.id) ?? 0}/${l.customer_seats}` : "—"}</td>
+              <td>{l && !l.exempt ? due(l) : "—"}</td>
               <td>{r.is_demo ? "—" : <small>{`https://${host}/register${r.slug === "default" ? "" : `?t=${r.slug}`}`}</small>}</td>
               <td>{fmtDT(r.created_at)}</td>
-              <td>{r.id !== tenantId && <form action={setStatus}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="status" value={r.status === "active" ? "suspended" : "active"} /><button>{r.status === "active" ? S.tnSuspend : S.tnActivate}</button></form>}</td>
-            </tr>))}</tbody></table>
+              <td>
+                <div className="row">
+                  {l && !l.exempt && <PopupButton label={S.tnLicense} title={`${S.tnLicense} · ${r.name}`}>
+                    <form action={saveLicense}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <label>{S.tnCurrency}<select name="currency" defaultValue={l.currency}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+                      <label>{S.licStaffSeats}<input name="staff_seats" type="number" min={0} defaultValue={l.staff_seats} /></label>
+                      <label>{S.licCustSeats}<input name="customer_seats" type="number" min={0} defaultValue={l.customer_seats} /></label>
+                      <label><input type="checkbox" name="reg_paid" defaultChecked={!!l.reg_fee_paid_at} /> {S.licRegPaid}</label>
+                      <label>{S.licAddMonths}<input name="add_months" type="number" min={0} max={60} defaultValue={0} /></label>
+                      {l.state === "trial" && <label>{S.licExtendTrial}<input name="extend_days" type="number" min={0} max={365} defaultValue={0} /></label>}
+                      <label>{S.licNotes}<input name="notes" defaultValue={l.notes ?? ""} maxLength={500} /></label>
+                      <button>{S.licSave}</button>
+                    </form>
+                  </PopupButton>}
+                  {r.id !== tenantId && <form action={setStatus}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="status" value={r.status === "active" ? "suspended" : "active"} /><button>{r.status === "active" ? S.tnSuspend : S.tnActivate}</button></form>}
+                </div>
+              </td>
+            </tr>);
+          })}</tbody></table>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2 style={{ marginTop: 0 }}>{S.licPrices}</h2>
+        <p>{S.licPricesHelp}</p>
+        <form action={savePrices}>
+          <table><thead><tr><th>{S.tnCurrency}</th><th>{S.licRegFee}</th><th>{S.licStaffPrice}</th><th>{S.licCustPrice}</th></tr></thead>
+            <tbody>{CURRENCIES.map((c: Currency) => (
+              <tr key={c}><td>{c}</td>
+                {["reg_fee", "staff_seat", "customer_seat"].map((k) => <td key={k}><input name={`${c}_${k}`} type="number" min={0} step="0.01" defaultValue={price(c, k)} style={{ width: 120 }} /></td>)}
+              </tr>))}</tbody></table>
+          <button style={{ marginTop: 8 }}>{S.licPricesSave}</button>
+        </form>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2 style={{ marginTop: 0 }}>{S.licContactTitle}</h2>
+        <p>{S.licContactHelp}</p>
+        <form action={saveContact}>
+          <textarea name="contact" rows={3} defaultValue={typeof contactRow?.value === "string" ? contactRow.value : ""} maxLength={600} style={{ width: "100%" }} />
+          <button style={{ marginTop: 8 }}>{S.licContactSave}</button>
+        </form>
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h2 style={{ marginTop: 0 }}>{S.apkTitle}</h2>

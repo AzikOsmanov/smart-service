@@ -10,6 +10,8 @@ import { cookies } from "next/headers";
 import { logLoginEvent, parseLoginPolicy, clientInfo, ipAllowed } from "@/lib/login-security";
 import NotificationBell from "@/components/NotificationBell";
 import type { Notif } from "@/lib/notif-text";
+import { vendorContact } from "@/lib/license";
+import { fmt } from "@/lib/fmt";
 
 async function signOut() {
   "use server";
@@ -40,7 +42,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
     sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
-  const sh = (shell ?? {}) as { mfa_enrolled?: boolean; first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; is_owner?: boolean; is_demo?: boolean; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
+  const sh = (shell ?? {}) as { mfa_enrolled?: boolean; first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; is_owner?: boolean; is_demo?: boolean; license?: { state: string; expires_at: string | null; delete_at: string | null } | null; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
   const me = shell ? { first_name: sh.first_name, last_name: sh.last_name, kind: sh.kind, registration: sh.registration } : null;
   const isAdmin = sh.is_admin === true;
   const pm = sh.perms ?? {};
@@ -58,6 +60,27 @@ export default async function AppLayout({ children, modal }: { children: React.R
       if (!ipAllowed(policy, { ip, staff: me.kind === "staff", admin, client: "web" })) redirect("/auth/blocked");
     }
   }
+  // License: a company that waits for approval or whose license ended sees only a notice (the database refuses its data anyway).
+  const lic = sh.license ?? null;
+  const day = (v: string | null | undefined) => (v ? new Date(v).toISOString().slice(0, 10) : "");
+  if (me?.kind && lic && (lic.state === "pending" || lic.state === "frozen")) {
+    const contact = await vendorContact(supabaseAdmin());
+    return (
+      <>
+        <TopBar brand="Smart Service" lang={lang} nav={[]} userName={sess.session.user.email ?? ""} signOut={signOut} signOutLabel={t("signOut")}
+          labels={{ system: t("system"), light: t("light"), dark: t("dark"), theme: t("theme"), language: t("language") }} />
+        <main className="page">
+          <div className="card" style={{ maxWidth: 560, margin: "40px auto" }}>
+            <h1>{lic.state === "pending" ? S.licPendingTitle : S.licFrozenTitle}</h1>
+            <p>{lic.state === "pending" ? S.licPendingBody : S.licFrozenBody}</p>
+            {lic.state === "frozen" && lic.delete_at && <p><strong>{fmt(S.licDeleteOn, { date: day(lic.delete_at) })}</strong></p>}
+            {contact && <p style={{ whiteSpace: "pre-wrap" }}><strong>{S.licContactLabel}:</strong> {contact}</p>}
+          </div>
+        </main>
+      </>
+    );
+  }
+  const licDays = lic?.expires_at ? Math.max(0, Math.ceil((new Date(lic.expires_at).getTime() - Date.now()) / 86400000)) : 0;
   const brand = typeof brandRow?.value === "string" && brandRow.value ? brandRow.value : "Acom Smart Service";
   const staff = me?.kind === "staff";
   const nav = [{ href: "/tickets", label: t("tickets") }];
@@ -85,6 +108,8 @@ export default async function AppLayout({ children, modal }: { children: React.R
       <Heartbeat />
       {idleMinutes > 0 && <IdleLogout minutes={idleMinutes} labels={{ title: S.idleWarnTitle, body: S.idleWarnBody, stay: S.idleStay }} />}
       {sh.is_demo === true && <div style={{ background: "#b45309", color: "#fff", textAlign: "center", padding: "6px 12px", fontSize: 14 }}>{S.demoBanner}</div>}
+      {isAdmin && lic?.state === "trial" && <div style={{ background: "#1d4ed8", color: "#fff", textAlign: "center", padding: "6px 12px", fontSize: 14 }}>{fmt(S.licTrialBanner, { n: String(licDays), date: day(lic.expires_at) })}</div>}
+      {isAdmin && lic?.state === "active" && licDays <= 7 && <div style={{ background: "#b45309", color: "#fff", textAlign: "center", padding: "6px 12px", fontSize: 14 }}>{fmt(S.licEndsBanner, { date: day(lic.expires_at) })}</div>}
       <main className="page">{children}</main>
       {modal}
     </>

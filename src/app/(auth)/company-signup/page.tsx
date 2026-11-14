@@ -5,6 +5,8 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { getLang } from "@/lib/i18n";
 import { getStaff } from "@/lib/i18n-staff";
 import { RESERVED_SLUGS, provisionTenant, slugFromName } from "@/lib/tenant-admin";
+import { mailPeople, ownerPeople, vendorContact } from "@/lib/license";
+import { fmt } from "@/lib/fmt";
 
 // Public: a company registers its own service center. It becomes a separate company (tenant) with its own administrator.
 async function signUpCompany(fd: FormData) {
@@ -27,16 +29,25 @@ async function signUpCompany(fd: FormData) {
   let res = await provisionTenant(admin, { name, slug, lang, email, password, first, last, phone });
   for (let i = 0; i < 4 && !res.ok && res.error === "slug_taken"; i++) res = await provisionTenant(admin, { name, slug: `${slug.slice(0, 26)}-${Math.random().toString(36).slice(2, 6)}`, lang, email, password, first, last, phone });
   if (!res.ok) return fail(res.error === "email_taken" ? S.suErrEmail : S.suErrFailed);
+  // The company waits for the owner's approval; nobody is signed in until then.
   const sb = await supabaseServer();
-  await sb.auth.signOut();   // whoever was signed in on this browser (e.g. the platform owner) is replaced by the new company's administrator
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) redirect("/login");
-  redirect("/dashboard");   // an administrator is asked to set up two-step login first
+  await sb.auth.signOut();
+  const contact = await vendorContact(admin);
+  await mailPeople(await ownerPeople(admin), "newcompany", { name, date: "", del: "", contact: "", email });
+  await mailPeople([{ email, lang }], "received", { name, date: "", del: "", contact });
+  redirect(`/company-signup?done=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`);
 }
 
-export default async function CompanySignup({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function CompanySignup({ searchParams }: { searchParams: Promise<{ error?: string; done?: string; email?: string }> }) {
+  const { error, done, email } = await searchParams;
   const { S } = await getStaff();
+  if (done) return (
+    <div className="card">
+      <h1>{S.suPendingTitle}</h1>
+      <p>{fmt(S.suPendingBody, { name: done, email: email ?? "" })}</p>
+      <p><a href="/login">{S.suBack}</a></p>
+    </div>
+  );
   return (
     <form action={signUpCompany} className="card">
       <h1>{S.suTitle}</h1>
