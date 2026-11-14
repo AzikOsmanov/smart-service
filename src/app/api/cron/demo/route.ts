@@ -12,8 +12,8 @@ export async function GET(req: Request) {
   const tid = await demoTenantId(admin);
   if (!tid) return NextResponse.json({ ok: false, reason: "no demo company" });
   try {
+    await seedDemo(admin, tid);   // wipes the working data first (visitors' devices and tickets too)
     const removed = await removeVisitors(admin, tid, 0);
-    await seedDemo(admin, tid);
     return NextResponse.json({ ok: true, removed });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });

@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // The demo company: a separate tenant ("demo") with sample data. Visitors get a throw-away staff account; everything is reset daily.
 type Admin = SupabaseClient;
 export const VISITOR_PREFIX = "demo-v-";
+const VISITOR_COMPANY = "Demo visitor company";
 const rnd = (n = 12) => randomBytes(n).toString("hex");
 const must = <T,>(r: { data: T | null; error: { message: string } | null }, what: string): NonNullable<T> => {
   if (r.error || r.data == null) throw new Error(`${what}: ${r.error?.message ?? "no data"}`);
@@ -98,6 +99,41 @@ export async function createVisitor(admin: Admin, tenantId: string): Promise<{ e
   return { email, password };
 }
 
+// A throw-away customer (own company, 2 devices, 2 tickets) for one visitor of the customer portal demo.
+export async function createCustomerVisitor(admin: Admin, tenantId: string): Promise<{ email: string; password: string }> {
+  const email = `${VISITOR_PREFIX}${rnd(6)}@example.com`, password = rnd(16);
+  const suffix = rnd(3);
+  const company = (must(await admin.from("companies").insert({ tenant_id: tenantId, name: `${VISITOR_COMPANY} ${suffix}`, type: "installer", city: "Baku", status: "approved" }).select("id").single(), "company") as { id: string }).id;
+  const c = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (c.error || !c.data.user) { await admin.from("companies").delete().eq("id", company); throw new Error(c.error?.message ?? "create failed"); }
+  const id = c.data.user.id;
+  try {
+    const ins = await admin.from("users").insert({ id, tenant_id: tenantId, kind: "customer", email, first_name: "Demo", last_name: "Customer", company_id: company, customer_type: "installer", registration: "approved", is_active: true, email_verified_at: new Date().toISOString() });
+    if (ins.error) throw new Error(ins.error.message);
+    const ur = await admin.from("user_roles").insert({ user_id: id, role_id: await roleId(admin, tenantId, "customer") });
+    if (ur.error) throw new Error(ur.error.message);
+    const models = (must(await admin.from("device_models").select("id").eq("tenant_id", tenantId).is("deleted_at", null).order("created_at").limit(3), "models") as { id: string }[]);
+    const eng = (await admin.from("users").select("id").eq("email", "demo-engineer@example.com").maybeSingle()).data?.id as string | undefined;
+    const day = 86400000, now = Date.now();
+    const dev = (i: number, m: number, days: number) => ({ tenant_id: tenantId, serial_number: `DEMO${2000 + i}${rnd(3).toUpperCase()}`, model_id: models[m % models.length].id, owner_id: id, company_id: company, added_by: id, is_verified: true, warranty_until: new Date(now + days * day).toISOString().slice(0, 10) });
+    const devices = must(await admin.from("devices").insert([dev(1, 0, 300), dev(2, 2, -30)]).select("id"), "devices") as { id: string }[];
+    const mk = async (d: number, subject: string, description: string, status: string, ago: number, reply: boolean) => {
+      const created = new Date(now - ago * day - 3600000).toISOString();
+      const tk = must(await admin.from("tickets").insert({ tenant_id: tenantId, customer_id: id, company_id: company, device_id: devices[d].id, assigned_to: status === "new" ? null : eng ?? null, subject, description, status, priority: "normal", customer_device_status: "diagnose", created_at: created }).select("id").single(), "ticket") as { id: string };
+      const msgs: Record<string, unknown>[] = [{ tenant_id: tenantId, ticket_id: tk.id, sender_id: id, sender_kind: "customer", body: description, created_at: created }];
+      if (reply && eng) msgs.push({ tenant_id: tenantId, ticket_id: tk.id, sender_id: eng, sender_kind: "staff", body: "Thank you. We received your device and are checking it. We will update this ticket.", created_at: new Date(now - ago * day + 3600000).toISOString() });
+      const m = await admin.from("ticket_messages").insert(msgs);
+      if (m.error) throw new Error(m.error.message);
+    };
+    await mk(0, "Camera image is blurry at night", "The picture becomes very blurry after dark.", "new", 0, false);
+    await mk(1, "Recorder does not see the hard disk", "NVR shows no HDD after a power cut.", "in_progress", 2, true);
+  } catch (e) {
+    await admin.from("users").delete().eq("id", id); await admin.auth.admin.deleteUser(id);
+    throw e;
+  }
+  return { email, password };
+}
+
 export async function removeVisitors(admin: Admin, tenantId: string, olderThanMs: number): Promise<number> {
   const before = new Date(Date.now() - olderThanMs).toISOString();
   const { data } = await admin.from("users").select("id").eq("tenant_id", tenantId).like("email", `${VISITOR_PREFIX}%`).lt("created_at", before).limit(500);
@@ -108,5 +144,6 @@ export async function removeVisitors(admin: Admin, tenantId: string, olderThanMs
     await admin.auth.admin.deleteUser(u.id as string);
     n++;
   }
+  await admin.from("companies").delete().eq("tenant_id", tenantId).like("name", `${VISITOR_COMPANY}%`);   // customer visitors' companies (their devices and tickets were wiped by the reset)
   return n;
 }

@@ -4,10 +4,10 @@ import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
-import { VISITOR_PREFIX, createVisitor, demoTenantId, seedDemo } from "@/lib/demo";
+import { VISITOR_PREFIX, createCustomerVisitor, createVisitor, demoTenantId, seedDemo } from "@/lib/demo";
 
 // "Try the demo" on the login page: a fresh staff account in the demo company, signed in at once.
-export async function startDemo() {
+async function run(kind: "staff" | "customer") {
   const { S } = await getStaff();
   const fail = (m: string) => redirect("/login?error=" + encodeURIComponent(m));
   const admin = supabaseAdmin();
@@ -19,7 +19,7 @@ export async function startDemo() {
   try {
     const { count: tickets } = await admin.from("tickets").select("id", { count: "exact", head: true }).eq("tenant_id", tid);
     if (!tickets) await seedDemo(admin, tid);
-    creds = await createVisitor(admin, tid);
+    creds = kind === "staff" ? await createVisitor(admin, tid) : await createCustomerVisitor(admin, tid);
   } catch { creds = null; }
   if (!creds) return fail(S.demoErr);
   const sb = await supabaseServer();
@@ -29,3 +29,6 @@ export async function startDemo() {
   jar.delete("ss_exp"); jar.delete("ss_idle"); jar.delete("ss_act");
   redirect("/dashboard");
 }
+
+export async function startDemo() { await run("staff"); }
+export async function startDemoCustomer() { await run("customer"); }

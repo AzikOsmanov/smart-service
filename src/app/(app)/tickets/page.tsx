@@ -45,7 +45,7 @@ export default async function Tickets({ searchParams }: { searchParams: Promise<
     who === "mine" ? tq.eq("assigned_to", uid) : who === "new" ? tq.is("assigned_to", null) : tq,
   ]);
   if (me && me.kind === "customer" && me.registration !== "approved") {
-    return <div className="card"><h1>{t("waitingTitle")}</h1><p>{me.registration}</p></div>;
+    return <div className="card"><h1>{t("waitingTitle")}</h1><p>{me.registration === "rejected" ? S.regRejected : S.waitingBody}</p></div>;
   }
   const staff = me?.kind === "staff";
   const rows = tickets ?? [];

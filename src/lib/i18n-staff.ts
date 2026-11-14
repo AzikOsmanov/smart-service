@@ -875,7 +875,7 @@ const en = {
   apkSaved: "Link saved.",
   apkErr: "Enter a valid https link.",
   demoTry: "Try the demo",
-  demoNote: "Explore a ready demo company. No registration. Data is reset every day.",
+  demoNote: "Explore a ready demo company as staff or as a customer. No registration. Data is reset every day.",
   demoBanner: "Demo company: sample data, reset every day. Your changes are not kept.",
   demoBusy: "The demo is busy right now. Try again in a few minutes.",
   demoErr: "Could not start the demo.",
@@ -884,6 +884,9 @@ const en = {
   dlNone: "The download link is not set yet.",
   dlHelp: "Open the file on your Android phone. If asked, allow installing apps from this source, then sign in with your account.",
   dlLogin: "Download the Android app",
+  demoTryStaff: "Try the demo as staff",
+  demoTryCustomer: "Try the demo as a customer",
+  waitingBody: "Your registration was received. An administrator will review it soon. You will get access after approval.",
 };
 export type SKey = keyof typeof en;
 
@@ -1761,7 +1764,7 @@ const ru: Record<SKey, string> = {
   apkSaved: "Ссылка сохранена.",
   apkErr: "Введите корректную https-ссылку.",
   demoTry: "Попробовать демо",
-  demoNote: "Готовая демо-компания без регистрации. Данные сбрасываются каждый день.",
+  demoNote: "Готовая демо-компания: как сотрудник или как клиент. Без регистрации. Данные сбрасываются каждый день.",
   demoBanner: "Демо-компания: учебные данные, сбрасываются каждый день. Ваши изменения не сохраняются.",
   demoBusy: "Демо сейчас занято. Попробуйте через несколько минут.",
   demoErr: "Не удалось запустить демо.",
@@ -1770,6 +1773,9 @@ const ru: Record<SKey, string> = {
   dlNone: "Ссылка для скачивания пока не задана.",
   dlHelp: "Откройте файл на телефоне Android. Если спросит, разрешите установку из этого источника, затем войдите в свой аккаунт.",
   dlLogin: "Скачать приложение для Android",
+  demoTryStaff: "Демо для сотрудника",
+  demoTryCustomer: "Демо для клиента",
+  waitingBody: "Ваша регистрация получена. Администратор скоро её рассмотрит. Доступ откроется после подтверждения.",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -2645,7 +2651,7 @@ const az: Record<SKey, string> = {
   apkSaved: "Link saxlanıldı.",
   apkErr: "Düzgün https linki daxil edin.",
   demoTry: "Demonu sınayın",
-  demoNote: "Hazır demo şirkət, qeydiyyatsız. Məlumatlar hər gün sıfırlanır.",
+  demoNote: "Hazır demo şirkət: əməkdaş və ya müştəri kimi. Qeydiyyatsız. Məlumatlar hər gün sıfırlanır.",
   demoBanner: "Demo şirkət: nümunə məlumatlar, hər gün sıfırlanır. Dəyişiklikləriniz saxlanmır.",
   demoBusy: "Demo hazırda məşğuldur. Bir neçə dəqiqədən sonra yenidən cəhd edin.",
   demoErr: "Demonu başlatmaq olmadı.",
@@ -2654,6 +2660,9 @@ const az: Record<SKey, string> = {
   dlNone: "Yükləmə linki hələ təyin edilməyib.",
   dlHelp: "Faylı Android telefonunuzda açın. Soruşsa, bu mənbədən quraşdırmağa icazə verin, sonra hesabınıza daxil olun.",
   dlLogin: "Android tətbiqini yüklə",
+  demoTryStaff: "Əməkdaş kimi demo",
+  demoTryCustomer: "Müştəri kimi demo",
+  waitingBody: "Qeydiyyatınız qəbul edildi. Administrator tezliklə baxacaq. Təsdiqdən sonra giriş açılacaq.",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 
