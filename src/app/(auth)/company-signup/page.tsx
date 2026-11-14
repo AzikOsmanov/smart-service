@@ -28,6 +28,7 @@ async function signUpCompany(fd: FormData) {
   for (let i = 0; i < 4 && !res.ok && res.error === "slug_taken"; i++) res = await provisionTenant(admin, { name, slug: `${slug.slice(0, 26)}-${Math.random().toString(36).slice(2, 6)}`, lang, email, password, first, last, phone });
   if (!res.ok) return fail(res.error === "email_taken" ? S.suErrEmail : S.suErrFailed);
   const sb = await supabaseServer();
+  await sb.auth.signOut();   // whoever was signed in on this browser (e.g. the platform owner) is replaced by the new company's administrator
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) redirect("/login");
   redirect("/dashboard");   // an administrator is asked to set up two-step login first

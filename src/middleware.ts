@@ -17,8 +17,8 @@ export async function middleware(req: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
   const path = req.nextUrl.pathname;
-  const open = path.startsWith("/login") || path.startsWith("/register") || path.startsWith("/forgot") || path.startsWith("/company-signup");
-  const pub = path === "/download";   // public page: the mobile app download
+  const open = path.startsWith("/login") || path.startsWith("/register") || path.startsWith("/forgot");
+  const pub = path === "/download" || path === "/company-signup";   // public pages (also open for signed-in people): the mobile app download and the company sign-up
   if (path.startsWith("/auth/") || path.startsWith("/api/cron/") || path.startsWith("/api/webhooks/") || path.startsWith("/api/mobile/") || path.startsWith("/api/push/")) return res;   // these check their own secret/signature
   // Session length: a sign-in older than the limit set by the administrator ends here.
   const exp = Number(req.cookies.get("ss_exp")?.value ?? 0);
