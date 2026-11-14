@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getT } from "@/lib/i18n";
 import { getPortal } from "@/lib/i18n-portal";
+import { getStaff } from "@/lib/i18n-staff";
 
 async function signUp(fd: FormData) {
   "use server";
@@ -28,10 +29,13 @@ async function signUp(fd: FormData) {
 export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string; t?: string }> }) {
   const { error, t: tenantSlug } = await searchParams;
   const { t } = await getT();
+  const { S } = await getStaff();
   return (
     <form action={signUp} className="card">
       <input type="hidden" name="tenant" value={tenantSlug ?? ""} />
       <h1>{t("register")}</h1>
+      <p style={{ margin: "0 0 8px" }}><small>{S.suCustNote}</small></p>
+      <div className="card" style={{ marginBottom: 12 }}><small>{S.suRegLine}</small><br /><a href="/company-signup"><strong>{S.suLink}</strong></a></div>
       <label>{t("iAm")}<select name="account_type"><option value="reseller">{t("reseller")}</option><option value="installer">{t("installer")}</option><option value="company">{t("company")}</option></select></label>
       <label>{t("firstName")}<input name="first_name" required /></label>
       <label>{t("lastName")}<input name="last_name" required /></label>

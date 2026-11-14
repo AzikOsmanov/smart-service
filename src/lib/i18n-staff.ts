@@ -895,6 +895,8 @@ const en = {
   suErrEmail: "This email already has an account. Sign in instead.",
   suErrFailed: "Could not create the company. Please try again.",
   suBack: "Back to sign in",
+  suRegLine: "Do you run a service center and want your own system, with your own administrator, staff and customers?",
+  suCustNote: "This form creates a customer account.",
 };
 export type SKey = keyof typeof en;
 
@@ -1792,6 +1794,8 @@ const ru: Record<SKey, string> = {
   suErrEmail: "На этот email уже есть аккаунт. Войдите.",
   suErrFailed: "Не удалось создать компанию. Попробуйте ещё раз.",
   suBack: "Назад ко входу",
+  suRegLine: "Вы управляете сервисным центром и хотите свою систему со своим администратором, сотрудниками и клиентами?",
+  suCustNote: "Эта форма создаёт аккаунт клиента.",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -2687,6 +2691,8 @@ const az: Record<SKey, string> = {
   suErrEmail: "Bu e-poçt üçün artıq hesab var. Daxil olun.",
   suErrFailed: "Şirkəti yaratmaq olmadı. Yenidən cəhd edin.",
   suBack: "Girişə qayıt",
+  suRegLine: "Servis mərkəzi idarə edirsiniz və öz administratorunuz, işçiləriniz və müştərilərinizlə öz sisteminizi istəyirsiniz?",
+  suCustNote: "Bu forma müştəri hesabı yaradır.",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 
