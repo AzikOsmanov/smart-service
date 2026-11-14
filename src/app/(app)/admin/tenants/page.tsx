@@ -10,6 +10,7 @@ import { getStaff } from "@/lib/i18n-staff";
 import PopupButton from "@/components/PopupButton";
 import PasswordInput from "@/components/PasswordInput";
 import { provisionTenant } from "@/lib/tenant-admin";
+import { sendMailChecked } from "@/lib/mailer";
 import ConfirmButton from "@/components/ConfirmButton";
 import { CURRENCIES, GRACE_DAYS, TRIAL_DAYS, approveTenant, asCurrency, expiryOf, rejectTenant, type Currency, type Lic } from "@/lib/license";
 
@@ -95,6 +96,16 @@ async function rejectAction(fd: FormData) {
   const r = await rejectTenant(admin, id);
   revalidatePath("/admin/tenants");
   redirect("/admin/tenants?" + (r.ok ? "ok=" + encodeURIComponent(S.tnRejected) : "error=" + encodeURIComponent(r.message)));
+}
+
+async function testMail() {
+  "use server";
+  await requireOwner();
+  const sb = await supabaseServer();
+  const { data: auth } = await sb.auth.getUser();
+  const to = auth.user?.email ?? "";
+  const r = await sendMailChecked(to, "Smart Service: test email", "This is a test email from Smart Service. If you can read it, license warnings and approval emails will reach people.");
+  redirect("/admin/tenants?" + (r.ok ? "ok=" + encodeURIComponent(`Test email sent to ${to}.`) : "error=" + encodeURIComponent(`Test email failed: ${r.error}`)));
 }
 
 const num = (v: FormDataEntryValue | null, max = 100000) => Math.min(max, Math.max(0, Math.floor(Number(v) || 0)));
@@ -281,6 +292,9 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
               </tr>))}</tbody></table>
           <button style={{ marginTop: 8 }}>{S.licPricesSave}</button>
         </form>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <form action={testMail}><button>Send test email to me</button></form>
       </div>
       <div className="card" style={{ marginTop: 16 }}>
         <h2 style={{ marginTop: 0 }}>{S.licContactTitle}</h2>
