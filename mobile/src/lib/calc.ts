@@ -3,13 +3,21 @@
 export type Brand = "dahua" | "unv";
 export const BRANDS: { id: Brand; name: string }[] = [{ id: "dahua", name: "Dahua" }, { id: "unv", name: "Uniview (UNV)" }];
 
-// Dahua: taken from the Dahua storage tool (25 fps, PAL): H.265 and Smart H.265+ with environment High give the same value; Smart H.265+ Low is lower (about a quarter).
-// h265 = H.265 / Smart High, low = Smart H.265+ Low, Kbps per camera. H.264, Smart Medium and other frame rates are not in the screenshots, so they are estimates.
-export const RESOLUTIONS: { id: string; label: string; kbps: number; low: number }[] = [
-  { id: "d720", label: "720P", kbps: 1024, low: 256 }, { id: "d960", label: "960P", kbps: 1024, low: 256 }, { id: "d1080", label: "1080P", kbps: 2048, low: 512 },
-  { id: "d3", label: "3MP", kbps: 2048, low: 512 }, { id: "d4", label: "4MP", kbps: 2560, low: 768 }, { id: "d5", label: "5MP", kbps: 3072, low: 768 },
-  { id: "d6", label: "6MP", kbps: 3072, low: 768 }, { id: "d8", label: "8MP (4K)", kbps: 4096, low: 1024 }, { id: "d9", label: "9MP", kbps: 4096, low: 1024 },
-  { id: "d12", label: "12MP", kbps: 6144, low: 1536 },
+// Dahua: taken from the Dahua NVR (H.265, 25 fps, "Best Bit Rate" in the channel edit window), Kbps per camera.
+// off = U-Code Off; low / med / high = U-Code Advanced Mode with environmental complexity Low / Medium / High.
+export const RESOLUTIONS: { id: string; label: string; off: number; low: number; med: number; high: number }[] = [
+  { id: "d720", label: "1280*720 (720P)", off: 1024, low: 128, med: 512, high: 768 },
+  { id: "d1080", label: "1920*1080 (1080P)", off: 2048, low: 256, med: 1024, high: 1536 },
+  { id: "d3", label: "2304*1296 (3MP)", off: 2560, low: 256, med: 1280, high: 1920 },
+  { id: "d4", label: "3000*1500 (4MP)", off: 4352, low: 512, med: 2176, high: 3328 },
+  { id: "d5", label: "2592*2048 (5MP)", off: 4352, low: 512, med: 2176, high: 3328 },
+  { id: "d6", label: "3072*2048 (6MP)", off: 5120, low: 512, med: 2560, high: 3840 },
+  { id: "d4k", label: "3840*2160 (4K)", off: 5760, low: 640, med: 2944, high: 4480 },
+  { id: "d8", label: "4096*2160 (8MP)", off: 5760, low: 640, med: 2944, high: 4480 },
+  { id: "d9", label: "3000*3000 (9MP)", off: 5760, low: 640, med: 2944, high: 4480 },
+  { id: "d12", label: "4800*2688 (12MP)", off: 8704, low: 896, med: 4352, high: 6528 },
+  { id: "d16", label: "4000*4000 (16MP)", off: 8704, low: 896, med: 4352, high: 6528 },
+  { id: "d32", label: "8640*3840 (32MP)", off: 8704, low: 896, med: 4352, high: 6528 },
 ];
 export const H264_X = 2;   // estimate: H.264 needs about twice the H.265 bitrate
 export const CODEC_FACTOR = { h264: 1, h265: 0.5, smart: 0.4 } as const;
@@ -83,12 +91,11 @@ export function diskCalc(i: DiskIn): DiskOut {
     base = off * { off: { low: 1, med: 1, high: 1 }, adv: { low: 0.125, med: 0.5, high: 0.75 } }[mode][cx];
     estimated = (i.codec === "h264" ? !r.ok264 : r.id === "4mp3") || (mode === "adv" && cx !== "med" && r.id !== "1080");
   } else {
-    const r = RESOLUTIONS.find((x) => x.id === i.res) ?? RESOLUTIONS[4];
-    const cx = i.cx ?? "high";
-    if (i.codec === "smart") { base = cx === "low" ? r.low : cx === "high" ? r.kbps : (r.low + r.kbps) / 2; estimated = cx === "med"; }
-    else if (i.codec === "h265") base = r.kbps;
-    else { base = r.kbps * H264_X; estimated = true; }
-    if (i.fps !== 25) estimated = true;
+    const r = RESOLUTIONS.find((x) => x.id === i.res) ?? RESOLUTIONS[3];
+    const mode = i.ucode ?? "adv", cx = i.cx ?? "med";
+    const h265 = mode === "off" ? r.off : r[cx];
+    base = i.codec === "h264" ? r.off * H264_X : h265;   // H.264 is not in the vendor data: estimate (twice the H.265 value without U-Code)
+    estimated = i.codec === "h264" || i.fps !== 25;
   }
   // The UNV tool gives the same bitrate at 12, 15 and 25 fps, so UNV is not scaled by frame rate; Dahua estimates are scaled.
   const kbpsPerCam = i.bitrate && i.bitrate > 0 ? i.bitrate : base * (i.brand === "unv" ? 1 : i.fps / 25);

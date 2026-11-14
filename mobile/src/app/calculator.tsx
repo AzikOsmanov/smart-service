@@ -93,7 +93,7 @@ function Disk({ L, show }: { L: L; show: (r: Rep) => void }) {
   const [cameras, setCameras] = useState("8");
   const [res, setRes] = useState("d4");
   const [ucode, setUcode] = useState<"off" | "adv">("adv");
-  const [cx, setCx] = useState<"low" | "med" | "high">("high");
+  const [cx, setCx] = useState<"low" | "med" | "high">("med");
   const [codec, setCodec] = useState<Codec>("h265");
   const [fps, setFps] = useState("25");
   const [bitrate, setBitrate] = useState("");
@@ -118,10 +118,10 @@ function Disk({ L, show }: { L: L; show: (r: Rep) => void }) {
     const raidName = raid === "none" ? L.calcRaidNone : `RAID ${raid}`;
     const codecName = codec === "h264" ? "H.264" : codec === "h265" ? "H.265" : SMART_NAME[brand];
     const modelName = nvrId === "custom" ? L.calcNvrCustom : NVRS.find((x) => x.id === nvrId)?.model ?? L.calcNvrAny;
-    const showCx = (brand === "unv" && ucode !== "off") || (brand === "dahua" && codec === "smart");
+    const showCx = ucode !== "off";
     const inputs: [string, string][] = [
       [L.calcBrand, BRANDS.find((b) => b.id === brand)!.name], [L.calcCameras, String(num(cameras))], [L.calcRes, resList.find((x) => x.id === res)?.label ?? res], [L.calcCodec, codecName],
-      ...(brand === "unv" ? [[L.calcUcode, ucode === "adv" ? L.calcUcodeAdv : L.calcUcodeOff] as [string, string]] : []),
+      [L.calcUcode, ucode === "adv" ? L.calcUcodeAdv : L.calcUcodeOff] as [string, string],
       ...(showCx ? [[L.calcComplexity, cxName(cx)] as [string, string]] : []),
       ...(brand === "unv" ? [] : [[L.calcFps, String(num(fps, 25))] as [string, string]]), ...(bitrate ? [[L.calcBitrate, `${bitrate} Kbps`] as [string, string]] : []),
       [L.calcMode, mode === "cont" ? L.calcModeCont : `${L.calcModeMotion} (${num(motion)}%)`], [L.calcDays, String(num(days))],
@@ -143,15 +143,15 @@ function Disk({ L, show }: { L: L; show: (r: Rep) => void }) {
       note: `${L.calcEstimate} ${L.calcUnitsNote} ${brand === "unv" ? L.calcUnvNote : L.calcDahuaNote}${r.estimated ? ` (${L.calcEstimated})` : ""}` });
   }
 
-  const codecs = [{ value: "h264", label: "H.264" }, { value: "h265", label: "H.265" }, ...(brand === "dahua" ? [{ value: "smart", label: SMART_NAME[brand] }] : [])];
+  const codecs = [{ value: "h264", label: "H.264" }, { value: "h265", label: "H.265" }];
   return (
     <Card>
-      <Pick label={L.calcBrand} value={brand} options={BRANDS.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => { const b = v as Brand; setBrand(b); setNvrId("any"); setRes(b === "unv" ? "4mp" : "d4"); if (b === "unv" && codec === "smart") setCodec("h265"); setCx(b === "unv" ? "med" : "high"); }} />
+      <Pick label={L.calcBrand} value={brand} options={BRANDS.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => { const b = v as Brand; setBrand(b); setNvrId("any"); setRes(b === "unv" ? "4mp" : "d4"); setCx("med"); }} />
       <Field label={L.calcCameras} keyboardType="numeric" value={cameras} onChangeText={setCameras} />
       <Pick label={L.calcRes} value={res} options={resList.map((x) => ({ value: x.id, label: x.label }))} onChange={setRes} />
       <Pick label={L.calcCodec} value={codec} options={codecs} onChange={(v) => setCodec(v as Codec)} />
-      {brand === "unv" && <Pick label={L.calcUcode} value={ucode} options={[{ value: "adv", label: L.calcUcodeAdv }, { value: "off", label: L.calcUcodeOff }]} onChange={(v) => setUcode(v as "off" | "adv")} />}
-      {((brand === "unv" && ucode !== "off") || (brand === "dahua" && codec === "smart")) && <Pick label={L.calcComplexity} value={cx} options={[{ value: "low", label: L.calcCxLow }, { value: "med", label: L.calcCxMed }, { value: "high", label: L.calcCxHigh }]} onChange={(v) => setCx(v as "low" | "med" | "high")} />}
+      <Pick label={L.calcUcode} value={ucode} options={[{ value: "adv", label: L.calcUcodeAdv }, { value: "off", label: L.calcUcodeOff }]} onChange={(v) => setUcode(v as "off" | "adv")} />
+      {ucode !== "off" && <Pick label={L.calcComplexity} value={cx} options={[{ value: "low", label: L.calcCxLow }, { value: "med", label: L.calcCxMed }, { value: "high", label: L.calcCxHigh }]} onChange={(v) => setCx(v as "low" | "med" | "high")} />}
       {brand !== "unv" && <Field label={L.calcFps} keyboardType="numeric" value={fps} onChangeText={setFps} />}
       <Field label={L.calcBitrate} keyboardType="numeric" value={bitrate} onChangeText={setBitrate} />
       <Pick label={L.calcMode} value={mode} options={[{ value: "cont", label: L.calcModeCont }, { value: "motion", label: L.calcModeMotion }]} onChange={(v) => setMode(v as "cont" | "motion")} />
