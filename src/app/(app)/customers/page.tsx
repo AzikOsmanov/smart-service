@@ -9,13 +9,15 @@ import ConfirmButton from "@/components/ConfirmButton";
 import { adminSendResetAction } from "@/lib/reset-actions";
 import { hardDeleteUserAction } from "@/lib/delete-actions";
 
-async function review(fd: FormData) {
-  "use server";
+// Which button was pressed is decided by the button's own action (not by a submitted value), so approve can never turn into reject.
+async function reviewAs(fd: FormData, approve: boolean) {
   const sb = await supabaseServer();
-  const { error } = await sb.rpc("review_registration", { p_user: String(fd.get("id")), p_approve: fd.get("decision") === "approve", p_note: String(fd.get("note") || "") });
+  const { error } = await sb.rpc("review_registration", { p_user: String(fd.get("id")), p_approve: approve, p_note: String(fd.get("note") || "") });
   if (error) redirect("/customers?error=" + encodeURIComponent(error.message === "reason_required" ? "Please type a reason (at least 3 characters) to reject." : error.message));
   revalidatePath("/customers");
 }
+async function approveReg(fd: FormData) { "use server"; await reviewAs(fd, true); }
+async function rejectReg(fd: FormData) { "use server"; await reviewAs(fd, false); }
 
 export default async function Customers({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; q?: string; reg?: string }> }) {
   const { error: msgErr, ok, q, reg } = await searchParams;
@@ -59,13 +61,13 @@ export default async function Customers({ searchParams }: { searchParams: Promis
               <td>{u.email}<br />{u.phone}</td>
               <td>{regLabel[u.registration] ?? u.registration}{u.registration === "rejected" && u.registration_note ? <><br /><small>{u.registration_note}</small></> : null}</td>
               <td>{u.registration === "pending" && (
-                <form action={review}><input type="hidden" name="id" value={u.id} />
+                <form className="row" style={{ gap: 8, alignItems: "center" }}><input type="hidden" name="id" value={u.id} />
+                  <button formAction={approveReg}>{t("approve")}</button>
                   <input name="note" placeholder={S.reasonRejectPh} />
-                  <button name="decision" value="approve">{t("approve")}</button>{" "}
-                  <ConfirmButton className="btn danger" name="decision" value="reject" message={fmt(S.rejectQ, { email: u.email })}>{t("reject")}</ConfirmButton></form>)}
+                  <ConfirmButton className="btn danger" formAction={rejectReg} message={fmt(S.rejectQ, { email: u.email })}>{t("reject")}</ConfirmButton></form>)}
                 {u.registration === "rejected" && (
-                  <form action={review} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} />
-                    <button name="decision" value="approve">{S.approveNow}</button></form>)}
+                  <form action={approveReg} style={{ display: "inline" }}><input type="hidden" name="id" value={u.id} />
+                    <button>{S.approveNow}</button></form>)}
                 {isAdmin === true && <Link className="btn" href={`/admin/edit/${u.id}`} style={{ marginLeft: 8, textDecoration: "none" }}>{S.edit}</Link>}
                 {isAdmin === true && (
                   <form action={adminSendResetAction} style={{ display: "inline", marginLeft: 8 }}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="back" value="/customers" /><button>{S.sendPwReset}</button></form>)}

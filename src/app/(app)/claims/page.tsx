@@ -5,11 +5,10 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { getStaff } from "@/lib/i18n-staff";
 import { fmt } from "@/lib/fmt";
 
-async function review(fd: FormData) {
-  "use server";
+// Which button was pressed is decided by the button's own action (not by a submitted value), so approve can never turn into reject.
+async function reviewAs(fd: FormData, approve: boolean) {
   const { S } = await getStaff();
   const sb = await supabaseServer();
-  const approve = fd.get("decision") === "approve";
   const note = String(fd.get("note") || "").trim();
   if (!approve && note.length < 3) redirect("/claims?error=" + encodeURIComponent(S.errClaimReason));
   const { error } = await sb.rpc("review_device_claim", { p_claim: String(fd.get("id")), p_approve: approve, p_note: note || null });
@@ -17,6 +16,8 @@ async function review(fd: FormData) {
   revalidatePath("/claims");
   redirect("/claims?ok=" + encodeURIComponent(approve ? S.okClaimApproved : S.okClaimRejected));
 }
+async function approveClaim(fd: FormData) { "use server"; await reviewAs(fd, true); }
+async function rejectClaim(fd: FormData) { "use server"; await reviewAs(fd, false); }
 
 export default async function Claims({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error: msgErr, ok } = await searchParams;
@@ -70,11 +71,11 @@ export default async function Claims({ searchParams }: { searchParams: Promise<{
                 <div>{url ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="SN label" style={{ maxWidth: 320, borderRadius: 8 }} /></a> : <p>{S.noLabelPhoto}</p>}</div>
               </div>
               {canEdit === true && (
-                <form action={review} className="row">
+                <form className="row">
                   <input type="hidden" name="id" value={c.id} />
                   <input name="note" placeholder={S.noteRejectPh} style={{ flex: 1 }} />
-                  <button name="decision" value="approve">{S.approveTransfer}</button>
-                  <button className="btn danger" name="decision" value="reject">{S.reject}</button>
+                  <button formAction={approveClaim}>{S.approveTransfer}</button>
+                  <button className="btn danger" formAction={rejectClaim}>{S.reject}</button>
                 </form>
               )}
             </div>
