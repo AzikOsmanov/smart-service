@@ -1,3 +1,4 @@
+import { startDemo } from "@/lib/demo-actions";
 import PasswordInput from "@/components/PasswordInput";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -100,6 +101,10 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       <button>{t("signIn")}</button>
       <p><a href="/forgot">{L.forgotLink}</a></p>
       <p>{t("noAccount")} <a href="/register">{t("register")}</a></p>
+      <hr style={{ border: 0, borderTop: "1px solid var(--border, #8884)", margin: "14px 0" }} />
+      <p style={{ margin: "0 0 8px" }}><small>{S.demoNote}</small></p>
+      <button type="submit" formAction={startDemo} formNoValidate className="btn">{S.demoTry}</button>
+      <p style={{ marginBottom: 0 }}><a href="/download">{S.dlLogin}</a></p>
     </form>
   );
 }

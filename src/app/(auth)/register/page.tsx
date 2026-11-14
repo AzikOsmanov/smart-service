@@ -12,7 +12,7 @@ async function signUp(fd: FormData) {
     email: String(fd.get("email")),
     password: String(fd.get("password")),
     options: { data: {
-      tenant_slug: "default",
+      tenant_slug: String(fd.get("tenant") || "default").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 31) || "default",
       account_type: String(fd.get("account_type")),
       first_name: String(fd.get("first_name")),
       last_name: String(fd.get("last_name")),
@@ -25,11 +25,12 @@ async function signUp(fd: FormData) {
   redirect("/login?error=" + encodeURIComponent(L.registeredMsg));
 }
 
-export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string; t?: string }> }) {
+  const { error, t: tenantSlug } = await searchParams;
   const { t } = await getT();
   return (
     <form action={signUp} className="card">
+      <input type="hidden" name="tenant" value={tenantSlug ?? ""} />
       <h1>{t("register")}</h1>
       <label>{t("iAm")}<select name="account_type"><option value="reseller">{t("reseller")}</option><option value="installer">{t("installer")}</option><option value="company">{t("company")}</option></select></label>
       <label>{t("firstName")}<input name="first_name" required /></label>

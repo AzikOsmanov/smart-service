@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/outbox",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/demo",
+      "schedule": "30 2 * * *"
     }
   ],
   "regions": [

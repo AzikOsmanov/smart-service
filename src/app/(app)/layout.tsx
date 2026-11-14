@@ -40,7 +40,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
     sb.from("notifications").select("id,kind,ticket_id,data,created_at,read_at").order("created_at", { ascending: false }).limit(20),
     sb.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);
-  const sh = (shell ?? {}) as { mfa_enrolled?: boolean; first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
+  const sh = (shell ?? {}) as { mfa_enrolled?: boolean; first_name?: string; last_name?: string; kind?: string; registration?: string; tenant_id?: string; is_admin?: boolean; is_owner?: boolean; is_demo?: boolean; perms?: Record<string, boolean>; brand?: unknown; login_security?: unknown };
   const me = shell ? { first_name: sh.first_name, last_name: sh.last_name, kind: sh.kind, registration: sh.registration } : null;
   const isAdmin = sh.is_admin === true;
   const pm = sh.perms ?? {};
@@ -69,6 +69,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
   if (staff && canQc === true) nav.push({ href: "/qc", label: t("qc") });
   if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
   if ((staff && canMat === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/materials", label: t("materials") });
+  if (sh.is_owner === true) nav.push({ href: "/admin/tenants", label: t("tenants") });
   if (isAdmin) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
   if ((staff && canProj === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/projects", label: t("projects") });
   if (staff && canCat === true) nav.push({ href: "/catalog", label: t("catalog") });
@@ -83,6 +84,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
         labels={{ system: t("system"), light: t("light"), dark: t("dark"), theme: t("theme"), language: t("language") }} />
       <Heartbeat />
       {idleMinutes > 0 && <IdleLogout minutes={idleMinutes} labels={{ title: S.idleWarnTitle, body: S.idleWarnBody, stay: S.idleStay }} />}
+      {sh.is_demo === true && <div style={{ background: "#b45309", color: "#fff", textAlign: "center", padding: "6px 12px", fontSize: 14 }}>{S.demoBanner}</div>}
       <main className="page">{children}</main>
       {modal}
     </>
