@@ -156,7 +156,14 @@ async function saveLicense(fd: FormData) {
     upd.trial_ends_at = new Date(base + ext * 86400000).toISOString();
     upd.notified = {};
   }
-  if (months > 0) {
+  const pu = String(fd.get("paid_until") ?? "");
+  const curDay = lic.state === "active" && lic.paid_until ? new Date(lic.paid_until).toISOString().slice(0, 10) : "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(pu) && pu !== curDay) {
+    // an exact end date typed by the owner wins over "add months"
+    upd.paid_until = `${pu}T23:59:59Z`;
+    upd.state = "active";
+    upd.notified = {};
+  } else if (months > 0) {
     const cur = lic.state === "active" && lic.paid_until ? new Date(lic.paid_until).getTime() : 0;
     const d = new Date(Math.max(now, cur));
     d.setUTCMonth(d.getUTCMonth() + months);
@@ -297,6 +304,7 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
                       <label>{S.licStaffSeats}<input name="staff_seats" type="number" min={0} defaultValue={l.staff_seats} /></label>
                       <label>{S.licCustSeats}<input name="customer_seats" type="number" min={0} defaultValue={l.customer_seats} /></label>
                       <label><input type="checkbox" name="reg_paid" defaultChecked={!!l.reg_fee_paid_at} /> {S.licRegPaid}</label>
+                      <label>{S.licPaidUntil}<input name="paid_until" type="date" defaultValue={l.state === "active" && l.paid_until ? new Date(l.paid_until).toISOString().slice(0, 10) : ""} /></label>
                       <label>{S.licAddMonths}<input name="add_months" type="number" min={0} max={60} defaultValue={0} /></label>
                       {l.state === "trial" && <label>{S.licExtendTrial}<input name="extend_days" type="number" min={0} max={365} defaultValue={0} /></label>}
                       <label>{S.licNotes}<input name="notes" defaultValue={l.notes ?? ""} maxLength={500} /></label>

@@ -954,6 +954,7 @@ const en = {
   msgSendBtn: "Send",
   msgSent: "Sent to {n} administrator(s) of {name}.",
   msgNone: "Nothing was sent: this company has no active administrator with an email, or email sending failed.",
+  licPaidUntil: "Paid until (exact date, overrides the months below)",
 };
 export type SKey = keyof typeof en;
 
@@ -1910,6 +1911,7 @@ const ru: Record<SKey, string> = {
   msgSendBtn: "Отправить",
   msgSent: "Отправлено администраторам ({n}) компании {name}.",
   msgNone: "Ничего не отправлено: у компании нет активного администратора с email, или отправка не удалась.",
+  licPaidUntil: "Оплачено до (точная дата, заменяет месяцы ниже)",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -2864,6 +2866,7 @@ const az: Record<SKey, string> = {
   msgSendBtn: "Göndər",
   msgSent: "{name} şirkətinin {n} administratoruna göndərildi.",
   msgNone: "Heç nə göndərilmədi: şirkətin emaili olan aktiv administratoru yoxdur və ya göndərmə uğursuz oldu.",
+  licPaidUntil: "Ödənilib (dəqiq tarix, aşağıdakı ayları əvəz edir)",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 
