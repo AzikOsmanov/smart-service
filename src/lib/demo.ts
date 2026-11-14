@@ -6,9 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 type Admin = SupabaseClient;
 export const VISITOR_PREFIX = "demo-v-";
 const rnd = (n = 12) => randomBytes(n).toString("hex");
-const must = <T,>(r: { data: T | null; error: { message: string } | null }, what: string): T => {
+const must = <T,>(r: { data: T | null; error: { message: string } | null }, what: string): NonNullable<T> => {
   if (r.error || r.data == null) throw new Error(`${what}: ${r.error?.message ?? "no data"}`);
-  return r.data;
+  return r.data as NonNullable<T>;
 };
 
 export async function demoTenantId(admin: Admin): Promise<string | null> {
