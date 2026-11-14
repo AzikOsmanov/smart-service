@@ -17,7 +17,7 @@ export async function demoTenantId(admin: Admin): Promise<string | null> {
 }
 
 async function roleId(admin: Admin, tenantId: string, code: string): Promise<string> {
-  return must(await admin.from("roles").select("id").eq("tenant_id", tenantId).eq("code", code).is("deleted_at", null).maybeSingle(), `role ${code}`).id as string;
+  return (must(await admin.from("roles").select("id").eq("tenant_id", tenantId).eq("code", code).is("deleted_at", null).maybeSingle(), `role ${code}`) as { id: string }).id;
 }
 
 // A person of the demo company that stays between resets (sample customers and an engineer).
@@ -44,7 +44,7 @@ export async function seedDemo(admin: Admin, tenantId: string): Promise<void> {
   for (const [name, type, city] of want) {
     const { data: ex } = await admin.from("companies").select("id").eq("tenant_id", tenantId).eq("name", name).is("deleted_at", null).maybeSingle();
     if (ex) { companies.push(ex.id as string); continue; }
-    companies.push(must(await admin.from("companies").insert({ tenant_id: tenantId, name, type, city, status: "approved" }).select("id").single(), "company").id as string);
+    companies.push((must(await admin.from("companies").insert({ tenant_id: tenantId, name, type, city, status: "approved" }).select("id").single(), "company") as { id: string }).id);
   }
   const custs = [
     await ensureUser(admin, tenantId, { email: "demo-customer1@example.com", first: "Elvin", last: "Mammadov", kind: "customer", role: "customer", companyId: companies[0], type: "installer" }),
