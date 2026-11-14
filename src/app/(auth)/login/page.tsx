@@ -104,7 +104,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       <hr style={{ border: 0, borderTop: "1px solid var(--border, #8884)", margin: "14px 0" }} />
       <p style={{ margin: "0 0 8px" }}><small>{S.demoNote}</small></p>
       <div className="row"><button type="submit" formAction={startDemo} formNoValidate className="btn">{S.demoTryStaff}</button><button type="submit" formAction={startDemoCustomer} formNoValidate className="btn">{S.demoTryCustomer}</button></div>
-      <p style={{ marginBottom: 0 }}><a href="/download">{S.dlLogin}</a></p>
+      <p style={{ marginBottom: 0 }}><a href="/company-signup">{S.suLink}</a><br /><a href="/download">{S.dlLogin}</a></p>
     </form>
   );
 }

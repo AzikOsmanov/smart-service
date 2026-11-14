@@ -9,6 +9,7 @@ import { getT } from "@/lib/i18n";
 import { getStaff } from "@/lib/i18n-staff";
 import PopupButton from "@/components/PopupButton";
 import PasswordInput from "@/components/PasswordInput";
+import { provisionTenant } from "@/lib/tenant-admin";
 
 // Platform owner only: companies (tenants) of this system.
 async function requireOwner() {
@@ -18,15 +19,6 @@ async function requireOwner() {
   const { data: auth } = await sb.auth.getUser();
   const { data: me } = await sb.from("users").select("tenant_id").eq("id", auth.user!.id).single();
   return { tenantId: me!.tenant_id as string };
-}
-
-async function dropEmptyTenant(admin: ReturnType<typeof supabaseAdmin>, id: string) {
-  const { data: roles } = await admin.from("roles").select("id").eq("tenant_id", id);
-  const ids = (roles ?? []).map((r) => r.id);
-  if (ids.length) await admin.from("role_permissions").delete().in("role_id", ids);
-  await admin.from("roles").delete().eq("tenant_id", id);
-  await admin.from("settings").delete().eq("tenant_id", id);
-  await admin.from("tenants").delete().eq("id", id);
 }
 
 async function createTenant(fd: FormData) {
@@ -41,31 +33,8 @@ async function createTenant(fd: FormData) {
   const back = (k: "error" | "ok", m: string) => redirect(`/admin/tenants?${k}=` + encodeURIComponent(m));
   if (!name || !email || !first || !last || password.length < 8) back("error", S.tnErrFields);
   if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(slug)) back("error", S.tnErrSlug);
-  const admin = supabaseAdmin();
-  if ((await admin.from("tenants").select("id").eq("slug", slug).maybeSingle()).data) back("error", S.tnErrSlugTaken);
-  const made = await admin.rpc("create_tenant", { p_name: name, p_slug: slug, p_lang: "en" });
-  if (made.error || !made.data) back("error", made.error?.message ?? S.tnErrFields);
-  const tenantId = made.data as string;
-  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (created.error || !created.data.user) {
-    await dropEmptyTenant(admin, tenantId);
-    back("error", created.error?.message ?? S.tnErrFields);
-  }
-  const uid = created.data!.user!.id;
-  const { data: role } = await admin.from("roles").select("id").eq("tenant_id", tenantId).eq("is_admin", true).maybeSingle();
-  let failure: string | null = null;
-  if (!role) failure = "no administrator role";
-  else {
-    const ins = await admin.from("users").insert({ id: uid, tenant_id: tenantId, kind: "staff", email, first_name: first, last_name: last, registration: "approved", is_active: true, email_verified_at: new Date().toISOString() });
-    if (ins.error) failure = ins.error.message;
-    else { const r = await admin.from("user_roles").insert({ user_id: uid, role_id: role.id }); if (r.error) failure = r.error.message; }
-  }
-  if (failure) {
-    await admin.from("users").delete().eq("id", uid);
-    await admin.auth.admin.deleteUser(uid);
-    await dropEmptyTenant(admin, tenantId);
-    back("error", failure);
-  }
+  const res = await provisionTenant(supabaseAdmin(), { name, slug, email, password, first, last });
+  if (!res.ok) back("error", res.error === "slug_taken" ? S.tnErrSlugTaken : res.message ?? S.tnErrFields);
   const h = await headers();
   const link = `https://${h.get("x-forwarded-host") ?? h.get("host")}/register?t=${slug}`;
   revalidatePath("/admin/tenants");

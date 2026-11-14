@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -27,11 +28,15 @@ async function saveBrand(fd: FormData) {
 
 export default async function Settings({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const { error, ok } = await searchParams;
-  await requireAdmin();
+  const { tenantId } = await requireAdmin();
   const { t } = await getT();
   const { S } = await getStaff();
-  const { data } = await supabaseAdmin().from("settings").select("value").eq("key", "brand_name").maybeSingle();
+  const admin = supabaseAdmin();
+  const { data } = await admin.from("settings").select("value").eq("tenant_id", tenantId).eq("key", "brand_name").maybeSingle();
   const brand = typeof data?.value === "string" ? data.value : "Acom Smart Service";
+  const { data: tn } = await admin.from("tenants").select("slug").eq("id", tenantId).maybeSingle();
+  const h = await headers();
+  const regLink = `https://${h.get("x-forwarded-host") ?? h.get("host")}/register${tn?.slug && tn.slug !== "default" ? `?t=${tn.slug}` : ""}`;
   return (
     <div>
       <SettingsNav active="settings" />
@@ -41,6 +46,10 @@ export default async function Settings({ searchParams }: { searchParams: Promise
         {ok && <p>✓</p>}
         <button>{t("save")}</button>
       </form>
+      <div className="card" style={{ maxWidth: 520, marginTop: 16 }}>
+        <label>{S.tnRegLink}</label>
+        <p style={{ wordBreak: "break-all", margin: "6px 0 0" }}><a href={regLink}>{regLink}</a></p>
+      </div>
     </div>
   );
 }

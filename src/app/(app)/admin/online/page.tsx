@@ -24,7 +24,7 @@ export default async function Online({ searchParams }: { searchParams: Promise<{
   const { data: rows, error } = await q;
   const ids = (rows ?? []).map((r) => r.id);
   const [{ data: roles }, { data: urs }, { data: events }] = await Promise.all([
-    admin.from("roles").select("id,name"),
+    admin.from("roles").select("id,name").eq("tenant_id", me!.tenant_id),
     ids.length ? admin.from("user_roles").select("user_id,role_id").in("user_id", ids) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("login_events").select("user_id,ip_address,created_at").eq("event", "login_success").in("user_id", ids).order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
   ]);

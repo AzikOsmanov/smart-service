@@ -887,6 +887,14 @@ const en = {
   demoTryStaff: "Try the demo as staff",
   demoTryCustomer: "Try the demo as a customer",
   waitingBody: "Your registration was received. An administrator will review it soon. You will get access after approval.",
+  suTitle: "Register your service center",
+  suIntro: "Create your own company in the system. You become its administrator, with your own staff, customers, devices and tickets, completely separate from every other company.",
+  suCreate: "Create my company",
+  suLink: "Register your service center",
+  suErrLimit: "Too many new companies right now. Please try again later.",
+  suErrEmail: "This email already has an account. Sign in instead.",
+  suErrFailed: "Could not create the company. Please try again.",
+  suBack: "Back to sign in",
 };
 export type SKey = keyof typeof en;
 
@@ -1776,6 +1784,14 @@ const ru: Record<SKey, string> = {
   demoTryStaff: "Демо для сотрудника",
   demoTryCustomer: "Демо для клиента",
   waitingBody: "Ваша регистрация получена. Администратор скоро её рассмотрит. Доступ откроется после подтверждения.",
+  suTitle: "Зарегистрируйте свой сервисный центр",
+  suIntro: "Создайте свою компанию в системе. Вы станете её администратором: свои сотрудники, клиенты, устройства и заявки, полностью отдельно от других компаний.",
+  suCreate: "Создать мою компанию",
+  suLink: "Зарегистрировать сервисный центр",
+  suErrLimit: "Сейчас слишком много новых компаний. Попробуйте позже.",
+  suErrEmail: "На этот email уже есть аккаунт. Войдите.",
+  suErrFailed: "Не удалось создать компанию. Попробуйте ещё раз.",
+  suBack: "Назад ко входу",
 };
 const az: Record<SKey, string> = {
   list: "Siyahı", board: "Lövhə", colNew: "Yeni", searchBoard: "Axtar: nömrə, mövzu, SN, model, müştəri", myTickets: "Mənim sorğularım", viewOnly: "Yalnız baxış",
@@ -2663,6 +2679,14 @@ const az: Record<SKey, string> = {
   demoTryStaff: "Əməkdaş kimi demo",
   demoTryCustomer: "Müştəri kimi demo",
   waitingBody: "Qeydiyyatınız qəbul edildi. Administrator tezliklə baxacaq. Təsdiqdən sonra giriş açılacaq.",
+  suTitle: "Servis mərkəzinizi qeydiyyatdan keçirin",
+  suIntro: "Sistemdə öz şirkətinizi yaradın. Siz onun administratoru olursunuz: öz işçiləriniz, müştəriləriniz, cihazlarınız və sorğularınız, digər şirkətlərdən tam ayrı.",
+  suCreate: "Şirkətimi yarat",
+  suLink: "Servis mərkəzini qeydiyyatdan keçir",
+  suErrLimit: "Hazırda çoxlu yeni şirkət var. Sonra yenidən cəhd edin.",
+  suErrEmail: "Bu e-poçt üçün artıq hesab var. Daxil olun.",
+  suErrFailed: "Şirkəti yaratmaq olmadı. Yenidən cəhd edin.",
+  suBack: "Girişə qayıt",
 };
 const all: Record<Lang, Record<SKey, string>> = { en, ru, az };
 

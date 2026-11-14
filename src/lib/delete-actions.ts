@@ -42,7 +42,9 @@ export async function restoreTicketAction(fd: FormData) {
   const sb = await supabaseServer();
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
   if (isAdmin !== true) back(fd, "error", friendly((await getStaff()).S, "admin_only"));
-  const { error } = await supabaseAdmin().from("tickets").update({ deleted_at: null, delete_reason: null, deleted_by: null }).eq("id", String(fd.get("id")));
+  const { data: au } = await sb.auth.getUser();
+  const { data: me } = await sb.from("users").select("tenant_id").eq("id", au.user!.id).single();
+  const { error } = await supabaseAdmin().from("tickets").update({ deleted_at: null, delete_reason: null, deleted_by: null }).eq("id", String(fd.get("id"))).eq("tenant_id", me!.tenant_id);
   if (error) back(fd, "error", error.message);
   revalidatePath("/admin/trash");
   back(fd, "ok", (await getStaff()).S.msgTicketRestored);

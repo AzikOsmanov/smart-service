@@ -17,9 +17,9 @@ async function restoreQc(fd: FormData) {
   const { data: auth } = await sb.auth.getUser();
   const admin = supabaseAdmin();
   const id = String(fd.get("id"));
-  const { error } = await admin.from("qc_checks").update({ deleted_at: null }).eq("id", id);
-  if (error) redirect("/admin/trash?error=" + encodeURIComponent(error.message));
   const { data: me } = await sb.from("users").select("tenant_id").eq("id", auth.user!.id).single();
+  const { error } = await admin.from("qc_checks").update({ deleted_at: null }).eq("id", id).eq("tenant_id", me!.tenant_id);
+  if (error) redirect("/admin/trash?error=" + encodeURIComponent(error.message));
   await admin.from("audit_logs").insert({ tenant_id: me!.tenant_id, actor_id: auth.user!.id, action: "qc.restore", entity_type: "qc_check", entity_id: id, old_values: null, new_values: null });
   revalidatePath("/admin/trash");
   redirect("/admin/trash?ok=" + encodeURIComponent(S.okQcRestored));
@@ -32,8 +32,11 @@ export default async function Trash({ searchParams }: { searchParams: Promise<{ 
   const { data: isAdmin } = await sb.rpc("is_tenant_admin");
   if (isAdmin !== true) notFound();
   const admin = supabaseAdmin();
-  const { data: tickets } = await admin.from("tickets").select("id,ticket_no,subject,deleted_at,delete_reason,deleted_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
-  const { data: qcDeleted } = await admin.from("qc_checks").select("id,serial_number,status,comment,deleted_at,performed_by").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  const { data: sess } = await sb.auth.getUser();
+  const { data: meT } = await sb.from("users").select("tenant_id").eq("id", sess.user!.id).single();
+  const tenantId = meT!.tenant_id as string;
+  const { data: tickets } = await admin.from("tickets").select("id,ticket_no,subject,deleted_at,delete_reason,deleted_by").eq("tenant_id", tenantId).not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  const { data: qcDeleted } = await admin.from("qc_checks").select("id,serial_number,status,comment,deleted_at,performed_by").eq("tenant_id", tenantId).not("deleted_at", "is", null).order("deleted_at", { ascending: false });
   const ids = Array.from(new Set((tickets ?? []).map((t) => t.deleted_by).filter(Boolean))) as string[];
   const { data: who } = ids.length ? await admin.from("users").select("id,first_name,last_name,email").in("id", ids) : { data: [] as any[] };
   const name = new Map((who ?? []).map((u: any) => [u.id, `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email]));
