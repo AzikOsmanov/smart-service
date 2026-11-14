@@ -10,9 +10,9 @@ import { getStaff } from "@/lib/i18n-staff";
 import PopupButton from "@/components/PopupButton";
 import PasswordInput from "@/components/PasswordInput";
 import { provisionTenant } from "@/lib/tenant-admin";
-import { sendMailChecked } from "@/lib/mailer";
+import { sendMail, sendMailChecked } from "@/lib/mailer";
 import ConfirmButton from "@/components/ConfirmButton";
-import { CURRENCIES, GRACE_DAYS, TRIAL_DAYS, approveTenant, asCurrency, expiryOf, rejectTenant, type Currency, type Lic } from "@/lib/license";
+import { CURRENCIES, GRACE_DAYS, TRIAL_DAYS, approveTenant, companyAdmins, mailPeople, vendorContact, type Kind, asCurrency, expiryOf, rejectTenant, type Currency, type Lic } from "@/lib/license";
 
 // Platform owner only: companies (tenants) of this system.
 async function requireOwner() {
@@ -96,6 +96,34 @@ async function rejectAction(fd: FormData) {
   const r = await rejectTenant(admin, id);
   revalidatePath("/admin/tenants");
   redirect("/admin/tenants?" + (r.ok ? "ok=" + encodeURIComponent(S.tnRejected) : "error=" + encodeURIComponent(r.message)));
+}
+
+async function messageCompany(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireOwner();
+  const id = String(fd.get("id"));
+  const tpl = String(fd.get("template") ?? "custom");
+  const admin = supabaseAdmin();
+  const { data: t } = await admin.from("tenants").select("name").eq("id", id).maybeSingle();
+  if (!t) redirect("/admin/tenants");
+  const people = await companyAdmins(admin, id);
+  const contact = await vendorContact(admin);
+  let n = 0;
+  if (tpl === "custom") {
+    const subject = String(fd.get("subject") ?? "").trim().slice(0, 150), body = String(fd.get("body") ?? "").trim().slice(0, 3000);
+    if (!subject || !body) redirect("/admin/tenants?error=" + encodeURIComponent(S.tnErrFields));
+    for (const p of people) if (await sendMail(p.email, subject, contact ? `${body}\n\n${contact}` : body)) n++;
+  } else {
+    const kinds: Kind[] = ["payend", "t5", "t1", "f0", "d5", "d1"];
+    if (!kinds.includes(tpl as Kind)) redirect("/admin/tenants");
+    const { data: l } = await admin.from("tenant_licenses").select("*").eq("tenant_id", id).maybeSingle();
+    const e = l ? expiryOf(l as Lic) : null;
+    const date = e ? e.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const del = new Date((e ? e.getTime() : Date.now()) + GRACE_DAYS * 86400000).toISOString().slice(0, 10);
+    n = await mailPeople(people, tpl as Kind, { name: t.name, date, del, contact });
+  }
+  redirect("/admin/tenants?" + (n > 0 ? "ok=" + encodeURIComponent(fmt(S.msgSent, { n: String(n), name: t.name })) : "error=" + encodeURIComponent(S.msgNone)));
 }
 
 async function testMail() {
@@ -275,6 +303,24 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
                       <button>{S.licSave}</button>
                     </form>
                   </PopupButton>}
+                  <PopupButton label={S.msgSend} title={`${S.msgSend} · ${r.name}`}>
+                    <form action={messageCompany}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <label>{S.msgTemplate}<select name="template" defaultValue="custom">
+                        <option value="custom">{S.msgTplCustom}</option>
+                        <option value="payend">{S.msgTplPayEnd}</option>
+                        <option value="t5">{S.msgTplT5}</option>
+                        <option value="t1">{S.msgTplT1}</option>
+                        <option value="f0">{S.msgTplF0}</option>
+                        <option value="d5">{S.msgTplD5}</option>
+                        <option value="d1">{S.msgTplD1}</option>
+                      </select></label>
+                      <label>{S.msgSubject}<input name="subject" maxLength={150} /></label>
+                      <label>{S.msgBody}<textarea name="body" rows={4} maxLength={3000} /></label>
+                      <small>{S.msgHelp}</small>
+                      <button>{S.msgSendBtn}</button>
+                    </form>
+                  </PopupButton>
                   {r.id !== tenantId && <form action={setStatus}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="status" value={r.status === "active" ? "suspended" : "active"} /><button>{r.status === "active" ? S.tnSuspend : S.tnActivate}</button></form>}
                 </div>
               </td>

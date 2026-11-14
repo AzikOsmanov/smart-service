@@ -52,7 +52,7 @@ export async function vendorContact(admin: Admin): Promise<string> {
 }
 
 // ---- texts ---------------------------------------------------------------------------------------------------------
-export type Kind = "t5" | "t1" | "f0" | "d5" | "d1" | "approved" | "rejected" | "received" | "newcompany";
+export type Kind = "t5" | "t1" | "f0" | "d5" | "d1" | "payend" | "approved" | "rejected" | "received" | "newcompany";
 type V = { name: string; date: string; del: string; contact: string; email?: string };
 type Tx = (v: V) => [string, string];
 const tail = (c: string) => (c ? `\n\n${c}` : "");
@@ -64,6 +64,7 @@ const TEXT: Record<"en" | "ru" | "az", Record<Kind, Tx>> = {
     f0: (v) => [`${v.name} is frozen: license not paid`, `The license of ${v.name} ended on ${v.date}, so access is frozen. Pay the license and everything comes back exactly as it was. If it is not paid by ${v.del}, ALL data of the company will be deleted permanently.${tail(v.contact)}`],
     d5: (v) => [`${v.name}: data will be deleted in 5 days`, `The license of ${v.name} is still not paid. On ${v.del} all data of the company (users, tickets, devices, files) will be deleted permanently.${tail(v.contact)}`],
     d1: (v) => [`${v.name}: data will be deleted tomorrow`, `Last warning: tomorrow (${v.del}) all data of ${v.name} will be deleted permanently unless the license is paid today.${tail(v.contact)}`],
+    payend: (v) => [`Payment period of ${v.name} has ended`, `The paid period of ${v.name} ended on ${v.date}. Please pay for the next period to keep working. If it is not paid, access is frozen and all data of the company is deleted permanently on ${v.del}.${tail(v.contact)}`],
     approved: (v) => [`${v.name} is approved`, `Your service center ${v.name} is approved. You can sign in now. The free trial lasts 15 days, until ${v.date}.${tail(v.contact)}`],
     rejected: (v) => [`Registration of ${v.name} was declined`, `Your registration of ${v.name} was not approved.${tail(v.contact)}`],
     received: (v) => [`We received your registration of ${v.name}`, `Thank you. Your service center ${v.name} is waiting for approval. We will email you as soon as it is approved.${tail(v.contact)}`],
@@ -75,6 +76,7 @@ const TEXT: Record<"en" | "ru" | "az", Record<Kind, Tx>> = {
     f0: (v) => [`${v.name} заморожена: лицензия не оплачена`, `Лицензия ${v.name} закончилась ${v.date}, доступ заморожен. После оплаты всё вернётся как было. Если лицензия не будет оплачена до ${v.del}, ВСЕ данные компании будут удалены без возможности восстановления.${tail(v.contact)}`],
     d5: (v) => [`${v.name}: данные будут удалены через 5 дней`, `Лицензия ${v.name} всё ещё не оплачена. ${v.del} все данные компании (пользователи, заявки, устройства, файлы) будут удалены безвозвратно.${tail(v.contact)}`],
     d1: (v) => [`${v.name}: данные будут удалены завтра`, `Последнее предупреждение: завтра (${v.del}) все данные ${v.name} будут удалены безвозвратно, если лицензия не будет оплачена сегодня.${tail(v.contact)}`],
+    payend: (v) => [`Оплаченный период ${v.name} закончился`, `Оплаченный период ${v.name} закончился ${v.date}. Оплатите следующий период, чтобы продолжить работу. Если оплаты не будет, доступ заморозят, а все данные компании будут безвозвратно удалены ${v.del}.${tail(v.contact)}`],
     approved: (v) => [`${v.name} одобрена`, `Ваш сервисный центр ${v.name} одобрен. Теперь можно войти. Бесплатный период — 15 дней, до ${v.date}.${tail(v.contact)}`],
     rejected: (v) => [`Регистрация ${v.name} отклонена`, `Регистрация ${v.name} не была одобрена.${tail(v.contact)}`],
     received: (v) => [`Мы получили регистрацию ${v.name}`, `Спасибо. Сервисный центр ${v.name} ожидает одобрения. Мы напишем вам сразу после одобрения.${tail(v.contact)}`],
@@ -86,6 +88,7 @@ const TEXT: Record<"en" | "ru" | "az", Record<Kind, Tx>> = {
     f0: (v) => [`${v.name} dondurulub: lisenziya ödənilməyib`, `${v.name} lisenziyası ${v.date} tarixində bitdi, giriş dondurulub. Ödəniş edilən kimi hər şey əvvəlki kimi qayıdacaq. ${v.del} tarixinə qədər ödənilməsə, şirkətin BÜTÜN məlumatları həmişəlik silinəcək.${tail(v.contact)}`],
     d5: (v) => [`${v.name}: məlumatlar 5 gün sonra silinəcək`, `${v.name} lisenziyası hələ də ödənilməyib. ${v.del} tarixində şirkətin bütün məlumatları (istifadəçilər, sorğular, cihazlar, fayllar) həmişəlik silinəcək.${tail(v.contact)}`],
     d1: (v) => [`${v.name}: məlumatlar sabah silinəcək`, `Son xəbərdarlıq: lisenziya bu gün ödənilməsə, sabah (${v.del}) ${v.name} şirkətinin bütün məlumatları həmişəlik silinəcək.${tail(v.contact)}`],
+    payend: (v) => [`${v.name} üçün ödənilmiş dövr bitdi`, `${v.name} üçün ödənilmiş dövr ${v.date} tarixində bitdi. İşi davam etdirmək üçün növbəti dövrü ödəyin. Ödənilməsə, giriş dondurulacaq və şirkətin bütün məlumatları ${v.del} tarixində həmişəlik silinəcək.${tail(v.contact)}`],
     approved: (v) => [`${v.name} təsdiqləndi`, `${v.name} servis mərkəziniz təsdiqləndi. İndi daxil ola bilərsiniz. Pulsuz sınaq müddəti 15 gündür, ${v.date} tarixinədək.${tail(v.contact)}`],
     rejected: (v) => [`${v.name} qeydiyyatı rədd edildi`, `${v.name} qeydiyyatı təsdiqlənmədi.${tail(v.contact)}`],
     received: (v) => [`${v.name} qeydiyyatını aldıq`, `Təşəkkür edirik. ${v.name} servis mərkəzi təsdiq gözləyir. Təsdiqlənən kimi sizə yazacağıq.${tail(v.contact)}`],
