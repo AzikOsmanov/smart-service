@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Linking, Platform, Pressable, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Linking, Platform, Pressable, Text, View } from "react-native";
 import { Redirect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { sb, WEB_URL } from "@/lib/supabase";
@@ -60,6 +60,7 @@ export default function Login() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, justifyContent: "center", padding: 20, gap: 16 }}>
         <View style={{ alignItems: "center", gap: 6 }}>
+          <Image source={require("../../assets/logo.png")} style={{ width: 84, height: 84, marginBottom: 10 }} />
           <Text style={{ color: c.accent, fontSize: 30, fontWeight: "800" }}>Smart Service</Text>
         </View>
         <Card>

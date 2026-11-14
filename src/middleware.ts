@@ -63,4 +63,4 @@ export async function middleware(req: NextRequest) {
   if (data.user && open) return NextResponse.redirect(new URL("/dashboard", req.url));
   return res;
 }
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png).*)"] };

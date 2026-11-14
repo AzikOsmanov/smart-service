@@ -1,3 +1,4 @@
+import Logo from "./Logo";
 import Link from "next/link";
 import Clock from "./Clock";
 import ThemeSwitch from "./ThemeSwitch";
@@ -18,7 +19,7 @@ type Props = {
 export default function TopBar({ brand, lang, labels, nav, userName, signOut, signOutLabel, bell }: Props) {
   return (
     <header className="topbar">
-      <Link href="/" className="brand">{brand}</Link>
+      <Link href="/" className="brand"><Logo size={30} />{brand}</Link>
       <span className="powered">Powered by infraneuro</span>
       {nav && <NavLinks items={nav} />}
       <div className="right">
