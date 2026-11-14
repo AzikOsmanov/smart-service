@@ -162,7 +162,8 @@ export async function runLicenseCron(admin: Admin): Promise<{ warned: number; de
     const sent = l.notified ?? {};
     const due = steps.filter(([k, at]) => now >= at && !sent[`${k}@${tag}`]);
     if (!due.length) continue;
-    const last = due[due.length - 1][0];   // only the latest warning is mailed, the earlier ones are marked as done
+    let last = due[due.length - 1][0];   // only the latest warning is mailed, the earlier ones are marked as done
+    if (last === "f0" && l.state === "active") last = "payend";   // a paid period ended (not a trial)
     const n = await mailPeople(await companyAdmins(admin, l.tenant_id), last, { name, date: tag, del: ymd(new Date(E + GRACE_DAYS * DAY)), contact });
     res.warned += n;
     const mark = { ...sent };
