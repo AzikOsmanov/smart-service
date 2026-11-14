@@ -52,7 +52,7 @@ export async function vendorContact(admin: Admin): Promise<string> {
 }
 
 // ---- texts ---------------------------------------------------------------------------------------------------------
-export type Kind = "t5" | "t1" | "f0" | "d5" | "d1" | "payend" | "approved" | "rejected" | "received" | "newcompany";
+export type Kind = "t5" | "t1" | "f0" | "d5" | "d1" | "payend" | "paid" | "approved" | "rejected" | "received" | "newcompany";
 type V = { name: string; date: string; del: string; contact: string; email?: string };
 type Tx = (v: V) => [string, string];
 const tail = (c: string) => (c ? `\n\n${c}` : "");
@@ -65,6 +65,7 @@ const TEXT: Record<"en" | "ru" | "az", Record<Kind, Tx>> = {
     d5: (v) => [`${v.name}: data will be deleted in 5 days`, `The license of ${v.name} is still not paid. On ${v.del} all data of the company (users, tickets, devices, files) will be deleted permanently.${tail(v.contact)}`],
     d1: (v) => [`${v.name}: data will be deleted tomorrow`, `Last warning: tomorrow (${v.del}) all data of ${v.name} will be deleted permanently unless the license is paid today.${tail(v.contact)}`],
     payend: (v) => [`Payment period of ${v.name} has ended`, `The paid period of ${v.name} ended on ${v.date}. Please pay for the next period to keep working. If it is not paid, access is frozen and all data of the company is deleted permanently on ${v.del}.${tail(v.contact)}`],
+    paid: (v) => [`Payment received for ${v.name}`, `Thank you. Your payment was received and the license of ${v.name} is active until ${v.date}.${tail(v.contact)}`],
     approved: (v) => [`${v.name} is approved`, `Your service center ${v.name} is approved. You can sign in now. The free trial lasts 15 days, until ${v.date}.${tail(v.contact)}`],
     rejected: (v) => [`Registration of ${v.name} was declined`, `Your registration of ${v.name} was not approved.${tail(v.contact)}`],
     received: (v) => [`We received your registration of ${v.name}`, `Thank you. Your service center ${v.name} is waiting for approval. We will email you as soon as it is approved.${tail(v.contact)}`],
@@ -77,6 +78,7 @@ const TEXT: Record<"en" | "ru" | "az", Record<Kind, Tx>> = {
     d5: (v) => [`${v.name}: данные будут удалены через 5 дней`, `Лицензия ${v.name} всё ещё не оплачена. ${v.del} все данные компании (пользователи, заявки, устройства, файлы) будут удалены безвозвратно.${tail(v.contact)}`],
     d1: (v) => [`${v.name}: данные будут удалены завтра`, `Последнее предупреждение: завтра (${v.del}) все данные ${v.name} будут удалены безвозвратно, если лицензия не будет оплачена сегодня.${tail(v.contact)}`],
     payend: (v) => [`Оплаченный период ${v.name} закончился`, `Оплаченный период ${v.name} закончился ${v.date}. Оплатите следующий период, чтобы продолжить работу. Если оплаты не будет, доступ заморозят, а все данные компании будут безвозвратно удалены ${v.del}.${tail(v.contact)}`],
+    paid: (v) => [`Оплата ${v.name} получена`, `Спасибо. Оплата получена, лицензия ${v.name} действует до ${v.date}.${tail(v.contact)}`],
     approved: (v) => [`${v.name} одобрена`, `Ваш сервисный центр ${v.name} одобрен. Теперь можно войти. Бесплатный период — 15 дней, до ${v.date}.${tail(v.contact)}`],
     rejected: (v) => [`Регистрация ${v.name} отклонена`, `Регистрация ${v.name} не была одобрена.${tail(v.contact)}`],
     received: (v) => [`Мы получили регистрацию ${v.name}`, `Спасибо. Сервисный центр ${v.name} ожидает одобрения. Мы напишем вам сразу после одобрения.${tail(v.contact)}`],
@@ -89,6 +91,7 @@ const TEXT: Record<"en" | "ru" | "az", Record<Kind, Tx>> = {
     d5: (v) => [`${v.name}: məlumatlar 5 gün sonra silinəcək`, `${v.name} lisenziyası hələ də ödənilməyib. ${v.del} tarixində şirkətin bütün məlumatları (istifadəçilər, sorğular, cihazlar, fayllar) həmişəlik silinəcək.${tail(v.contact)}`],
     d1: (v) => [`${v.name}: məlumatlar sabah silinəcək`, `Son xəbərdarlıq: lisenziya bu gün ödənilməsə, sabah (${v.del}) ${v.name} şirkətinin bütün məlumatları həmişəlik silinəcək.${tail(v.contact)}`],
     payend: (v) => [`${v.name} üçün ödənilmiş dövr bitdi`, `${v.name} üçün ödənilmiş dövr ${v.date} tarixində bitdi. İşi davam etdirmək üçün növbəti dövrü ödəyin. Ödənilməsə, giriş dondurulacaq və şirkətin bütün məlumatları ${v.del} tarixində həmişəlik silinəcək.${tail(v.contact)}`],
+    paid: (v) => [`${v.name} üçün ödəniş alındı`, `Təşəkkür edirik. Ödəniş alındı, ${v.name} lisenziyası ${v.date} tarixinədək etibarlıdır.${tail(v.contact)}`],
     approved: (v) => [`${v.name} təsdiqləndi`, `${v.name} servis mərkəziniz təsdiqləndi. İndi daxil ola bilərsiniz. Pulsuz sınaq müddəti 15 gündür, ${v.date} tarixinədək.${tail(v.contact)}`],
     rejected: (v) => [`${v.name} qeydiyyatı rədd edildi`, `${v.name} qeydiyyatı təsdiqlənmədi.${tail(v.contact)}`],
     received: (v) => [`${v.name} qeydiyyatını aldıq`, `Təşəkkür edirik. ${v.name} servis mərkəzi təsdiq gözləyir. Təsdiqlənən kimi sizə yazacağıq.${tail(v.contact)}`],
@@ -172,4 +175,33 @@ export async function runLicenseCron(admin: Admin): Promise<{ warned: number; de
   }
   await admin.from("tenant_backups").delete().lt("expires_at", new Date().toISOString());
   return res;
+}
+
+// ---- prices and quotes ---------------------------------------------------------------------------------------------
+export type Prices = Record<string, { reg_fee: number; staff_seat: number; customer_seat: number }>;
+
+export async function loadPrices(admin: Admin): Promise<Prices> {
+  const out: Prices = {};
+  for (const c of CURRENCIES) out[c] = { reg_fee: 0, staff_seat: 0, customer_seat: 0 };
+  const { data } = await admin.from("license_prices").select("currency,kind,amount");
+  for (const r of data ?? []) { const o = out[r.currency as string]; if (o) (o as Record<string, number>)[r.kind as string] = Number(r.amount); }
+  return out;
+}
+
+export function quote(p: Prices[string], regDue: boolean, staff: number, customers: number, months: number): number {
+  return Math.round(((regDue ? p.reg_fee : 0) + months * (staff * p.staff_seat + customers * p.customer_seat)) * 100) / 100;
+}
+
+export async function isCompanyAdmin(admin: Admin, userId: string, tenantId: string): Promise<boolean> {
+  const { data: roles } = await admin.from("roles").select("id").eq("tenant_id", tenantId).eq("is_admin", true);
+  const ids = (roles ?? []).map((r) => r.id as string);
+  if (!ids.length) return false;
+  const { data } = await admin.from("user_roles").select("user_id").eq("user_id", userId).in("role_id", ids).limit(1);
+  return (data ?? []).length > 0;
+}
+
+export async function seatsInUse(admin: Admin, tenantId: string): Promise<{ staff: number; customers: number }> {
+  const st = await admin.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("kind", "staff").eq("is_active", true).is("deleted_at", null);
+  const cu = await admin.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("kind", "customer").eq("registration", "approved").eq("is_active", true).is("deleted_at", null);
+  return { staff: st.count ?? 0, customers: cu.count ?? 0 };
 }

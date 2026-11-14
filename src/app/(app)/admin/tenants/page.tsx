@@ -126,6 +126,70 @@ async function messageCompany(fd: FormData) {
   redirect("/admin/tenants?" + (n > 0 ? "ok=" + encodeURIComponent(fmt(S.msgSent, { n: String(n), name: t.name })) : "error=" + encodeURIComponent(S.msgNone)));
 }
 
+async function recordPayment(fd: FormData) {
+  "use server";
+  const { S } = await getStaff();
+  await requireOwner();
+  const id = String(fd.get("id"));
+  const admin = supabaseAdmin();
+  const { data: l } = await admin.from("tenant_licenses").select("*").eq("tenant_id", id).maybeSingle();
+  if (!l || l.exempt || l.state === "pending") redirect("/admin/tenants");
+  const lic = l as Lic;
+  const now = Date.now();
+  const months = num(fd.get("months"), 60);
+  const amount = Math.round(Math.max(0, Number(String(fd.get("amount") ?? "0").replace(",", ".")) || 0) * 100) / 100;
+  const staff = num(fd.get("staff_seats")), cust = num(fd.get("customer_seats"));
+  const regPaid = fd.get("reg_paid") === "on";
+  const upd: Record<string, unknown> = { staff_seats: staff, customer_seats: cust, updated_at: new Date(now).toISOString(), notified: {} };
+  if (regPaid && !lic.reg_fee_paid_at) upd.reg_fee_paid_at = new Date(now).toISOString();
+  let until: string | null = lic.state === "active" ? lic.paid_until : null;
+  if (months > 0) {
+    const cur = lic.state === "active" && lic.paid_until ? new Date(lic.paid_until).getTime() : 0;
+    const d = new Date(Math.max(now, cur));
+    d.setUTCMonth(d.getUTCMonth() + months);
+    until = d.toISOString();
+    upd.paid_until = until;
+    upd.state = "active";
+  }
+  await admin.from("tenant_licenses").update(upd).eq("tenant_id", id);
+  await admin.from("license_payments").insert({ tenant_id: id, amount, currency: lic.currency, method: String(fd.get("method") ?? "").trim().slice(0, 80) || null, months, staff_seats: staff, customer_seats: cust, reg_fee: regPaid, paid_until: until, note: String(fd.get("note") ?? "").trim().slice(0, 300) || null });
+  const rid = String(fd.get("request_id") ?? "");
+  if (rid) await admin.from("payment_requests").update({ status: "done" }).eq("id", rid).eq("tenant_id", id);
+  const { data: t } = await admin.from("tenants").select("name").eq("id", id).maybeSingle();
+  if (months > 0 && until) await mailPeople(await companyAdmins(admin, id), "paid", { name: t?.name ?? "", date: until.slice(0, 10), del: "", contact: await vendorContact(admin) });
+  revalidatePath("/admin/tenants");
+  redirect("/admin/tenants?ok=" + encodeURIComponent(fmt(S.payRecorded, { name: t?.name ?? "", date: (until ?? "").slice(0, 10) || "—" })));
+}
+
+async function dismissRequest(fd: FormData) {
+  "use server";
+  await requireOwner();
+  await supabaseAdmin().from("payment_requests").update({ status: "dismissed" }).eq("id", String(fd.get("id")));
+  revalidatePath("/admin/tenants");
+}
+
+async function addMethod(fd: FormData) {
+  "use server";
+  await requireOwner();
+  const name = String(fd.get("name") ?? "").trim().slice(0, 80), instructions = String(fd.get("instructions") ?? "").trim().slice(0, 2000);
+  if (name) await supabaseAdmin().from("payment_methods").insert({ name, instructions });
+  revalidatePath("/admin/tenants");
+}
+
+async function toggleMethod(fd: FormData) {
+  "use server";
+  await requireOwner();
+  await supabaseAdmin().from("payment_methods").update({ enabled: fd.get("enabled") === "1" }).eq("id", String(fd.get("id")));
+  revalidatePath("/admin/tenants");
+}
+
+async function deleteMethod(fd: FormData) {
+  "use server";
+  await requireOwner();
+  await supabaseAdmin().from("payment_methods").delete().eq("id", String(fd.get("id")));
+  revalidatePath("/admin/tenants");
+}
+
 async function testMail() {
   "use server";
   await requireOwner();
@@ -238,6 +302,24 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
     const amt = (l.reg_fee_paid_at ? 0 : price(l.currency, "reg_fee")) + l.staff_seats * price(l.currency, "staff_seat") + l.customer_seats * price(l.currency, "customer_seat");
     return `${amt.toFixed(2)} ${l.currency}`;
   };
+  const { data: methodRows } = await admin.from("payment_methods").select("id,name,instructions,enabled").order("sort").order("created_at");
+  const { data: reqRows } = await admin.from("payment_requests").select("*").eq("status", "open").order("created_at");
+  const { data: payRows } = await admin.from("license_payments").select("id,tenant_id,created_at,amount,currency,method,months,paid_until").order("created_at", { ascending: false }).limit(25);
+  const nameOf = new Map((rows ?? []).map((r) => [r.id as string, r.name as string]));
+  const payForm = (tid: string, l: Lic, req?: { id: string; staff_seats: number; customer_seats: number; months: number; amount: number }) => (
+    <form action={recordPayment}>
+      <input type="hidden" name="id" value={tid} />
+      {req && <input type="hidden" name="request_id" value={req.id} />}
+      <label>{S.payAmount} ({l.currency})<input name="amount" type="number" min={0} step="0.01" defaultValue={req ? Number(req.amount) : 0} /></label>
+      <label>{S.payMethod}<select name="method">{(methodRows ?? []).map((m) => <option key={m.id as string} value={m.name as string}>{m.name as string}</option>)}<option value="">{S.payOther}</option></select></label>
+      <label>{S.payMonths}<input name="months" type="number" min={0} max={60} defaultValue={req ? req.months : 1} /></label>
+      <label>{S.licStaffSeats}<input name="staff_seats" type="number" min={0} defaultValue={req ? req.staff_seats : l.staff_seats} /></label>
+      <label>{S.licCustSeats}<input name="customer_seats" type="number" min={0} defaultValue={req ? req.customer_seats : l.customer_seats} /></label>
+      <label><input type="checkbox" name="reg_paid" defaultChecked={!l.reg_fee_paid_at} /> {S.payInclReg}</label>
+      <label>{S.payNote}<input name="note" maxLength={300} /></label>
+      <button>{S.paySave}</button>
+    </form>
+  );
   const pending = (rows ?? []).filter((r) => licOf.get(r.id)?.state === "pending");
   const { data: def } = await admin.from("tenants").select("id").eq("slug", "default").maybeSingle();
   const { data: apk } = def ? await admin.from("settings").select("value").eq("tenant_id", def.id).eq("key", "apk_url").maybeSingle() : { data: null };
@@ -282,6 +364,24 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
             </tr>))}</tbody></table>
         </div>
       )}
+      {(reqRows ?? []).length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0 }}>{S.payReqTitle} ({(reqRows ?? []).length})</h2>
+          <table><tbody>{(reqRows ?? []).map((q) => {
+            const lq = licOf.get(q.tenant_id as string);
+            return (
+              <tr key={q.id as string}>
+                <td><strong>{nameOf.get(q.tenant_id as string) ?? ""}</strong><br /><small>{fmtDT(q.created_at as string)}{q.note ? ` · ${q.note}` : ""}</small></td>
+                <td>{q.months as number} · {q.staff_seats as number}/{q.customer_seats as number}</td>
+                <td>{Number(q.amount).toFixed(2)} {q.currency as string}</td>
+                <td><div className="row">
+                  {lq && <PopupButton label={S.payRecord} title={`${S.payRecord} · ${nameOf.get(q.tenant_id as string) ?? ""}`}>{payForm(q.tenant_id as string, lq, { id: q.id as string, staff_seats: q.staff_seats as number, customer_seats: q.customer_seats as number, months: q.months as number, amount: Number(q.amount) })}</PopupButton>}
+                  <form action={dismissRequest}><input type="hidden" name="id" value={q.id as string} /><button>{S.payDismiss}</button></form>
+                </div></td>
+              </tr>);
+          })}</tbody></table>
+        </div>
+      )}
       <div className="card">
         <table><thead><tr><th>{S.tnName}</th><th>{S.tnSlug.split(" (")[0]}</th><th>{S.tnUsers}</th><th>{S.tnStatus}</th><th>{S.tnLicense}</th><th>{S.licSeatsCol}</th><th>{S.licDue}</th><th>{S.tnRegLink}</th><th>{t("created")}</th><th></th></tr></thead>
           <tbody>{(rows ?? []).filter((r) => licOf.get(r.id)?.state !== "pending").map((r) => {
@@ -297,6 +397,7 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
               <td>{fmtDT(r.created_at)}</td>
               <td>
                 <div className="row">
+                  {l && !l.exempt && <PopupButton label={S.payRecord} title={`${S.payRecord} · ${r.name}`}>{payForm(r.id, l)}</PopupButton>}
                   {l && !l.exempt && <PopupButton label={S.tnLicense} title={`${S.tnLicense} · ${r.name}`}>
                     <form action={saveLicense}>
                       <input type="hidden" name="id" value={r.id} />
@@ -347,6 +448,31 @@ export default async function Tenants({ searchParams }: { searchParams: Promise<
           <button style={{ marginTop: 8 }}>{S.licPricesSave}</button>
         </form>
       </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2 style={{ marginTop: 0 }}>{S.mthTitle}</h2>
+        <p>{S.pmHelp}</p>
+        {(methodRows ?? []).map((m) => (
+          <div key={m.id as string} className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div><strong>{m.name as string}</strong>{m.enabled ? "" : " (—)"}<div style={{ whiteSpace: "pre-wrap" }}><small>{m.instructions as string}</small></div></div>
+            <div className="row">
+              <form action={toggleMethod}><input type="hidden" name="id" value={m.id as string} /><input type="hidden" name="enabled" value={m.enabled ? "0" : "1"} /><button>{m.enabled ? S.pmHide : S.pmShow}</button></form>
+              <form action={deleteMethod}><input type="hidden" name="id" value={m.id as string} /><ConfirmButton message={S.pmDelete + "?"}>{S.pmDelete}</ConfirmButton></form>
+            </div>
+          </div>))}
+        <form action={addMethod}>
+          <label>{S.mthName}<input name="name" required maxLength={80} /></label>
+          <label>{S.pmText}<textarea name="instructions" rows={3} maxLength={2000} style={{ width: "100%" }} /></label>
+          <button>{S.pmAdd}</button>
+        </form>
+      </div>
+      {(payRows ?? []).length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h2 style={{ marginTop: 0 }}>{S.payHistory}</h2>
+          <table><thead><tr><th>{S.subDate}</th><th>{S.tnName}</th><th>{S.subAmount}</th><th>{S.subMethod}</th><th>{S.payMonths}</th><th>{S.subPaidUntil}</th></tr></thead>
+            <tbody>{(payRows ?? []).map((r) => (
+              <tr key={r.id as string}><td>{fmtDT(r.created_at as string)}</td><td>{nameOf.get(r.tenant_id as string) ?? "—"}</td><td>{Number(r.amount).toFixed(2)} {r.currency as string}</td><td>{(r.method as string) ?? "—"}</td><td>{r.months as number}</td><td>{day(r.paid_until as string | null)}</td></tr>))}</tbody></table>
+        </div>
+      )}
       <div className="card" style={{ marginTop: 16 }}>
         <form action={testMail}><button>Send test email to me</button></form>
       </div>

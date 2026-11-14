@@ -11,6 +11,7 @@ import { logLoginEvent, parseLoginPolicy, clientInfo, ipAllowed } from "@/lib/lo
 import NotificationBell from "@/components/NotificationBell";
 import type { Notif } from "@/lib/notif-text";
 import { vendorContact } from "@/lib/license";
+import SubscriptionPanel from "@/components/SubscriptionPanel";
 import { fmt } from "@/lib/fmt";
 
 async function signOut() {
@@ -76,6 +77,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
             {lic.state === "frozen" && lic.delete_at && <p><strong>{fmt(S.licDeleteOn, { date: day(lic.delete_at) })}</strong></p>}
             {contact && <p style={{ whiteSpace: "pre-wrap" }}><strong>{S.licContactLabel}:</strong> {contact}</p>}
           </div>
+          {lic.state === "frozen" && <div style={{ maxWidth: 720, margin: "0 auto" }}><SubscriptionPanel /></div>}
         </main>
       </>
     );
@@ -93,6 +95,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
   if (!staff || canTut === true) nav.push({ href: "/tutorials", label: t("tutorials") });
   if ((staff && canMat === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/materials", label: t("materials") });
   if (sh.is_owner === true) nav.push({ href: "/admin/tenants", label: t("tenants") });
+  if (isAdmin && lic && lic.state !== "exempt") nav.push({ href: "/admin/subscription", label: t("subscription") });
   if (isAdmin) nav.push({ href: "/admin/users", label: t("staffUsers") }, { href: "/admin/roles", label: t("roles") }, { href: "/admin/trash", label: t("trash") }, { href: "/admin/settings", label: t("settings") });
   if ((staff && canProj === true) || (!staff && me?.registration === "approved")) nav.push({ href: "/projects", label: t("projects") });
   if (staff && canCat === true) nav.push({ href: "/catalog", label: t("catalog") });
